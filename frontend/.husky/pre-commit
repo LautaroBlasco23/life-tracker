@@ -1,0 +1,6 @@
+#!/bin/sh
+echo "🧹 Running Prettier on staged files..."
+npx lint-staged
+
+echo "🧩 Checking TypeScript types..."
+npm run lint:ts

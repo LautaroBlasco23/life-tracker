@@ -1,0 +1,77 @@
+[
+  {
+    "route": "/api/finances/categories",
+    "method": "GET"
+  },
+  {
+    "route": "/api/finances/transactions",
+    "method": "POST",
+    "validation": {
+      "type": { "type": "enum", "values": ["income", "outcome"] },
+      "frequency": { "type": "enum", "values": ["fixed", "variable"] },
+      "paymentFrequency": { "type": "enum", "values": ["monthly", "bimonthly", "yearly"], "required": false },
+      "description": { "type": "string", "required": false },
+      "amount": { "type": "integer" },
+      "category": { "type": "string" },
+      "date": { "type": "string", "required": false }
+    }
+  },
+  {
+    "route": "/api/finances/transactions",
+    "method": "GET"
+  },
+  {
+    "route": "/api/finances/transactions/{id}",
+    "method": "GET"
+  },
+  {
+    "route": "/api/finances/transactions/{id}",
+    "method": "PUT",
+    "validation": {
+      "type": { "type": "enum", "values": ["income", "outcome"], "required": false },
+      "frequency": { "type": "enum", "values": ["fixed", "variable"], "required": false },
+      "paymentFrequency": { "type": "enum", "values": ["monthly", "bimonthly", "yearly"], "required": false },
+      "amount": { "type": "integer", "required": false },
+      "category": { "type": "string", "required": false },
+      "description": { "type": "string", "required": false },
+      "date": { "type": "string", "required": false }
+    }
+  },
+  {
+    "route": "/api/finances/transactions/{id}",
+    "method": "DELETE"
+  },
+  {
+    "route": "/api/finances/fixed-transactions",
+    "method": "GET"
+  },
+  {
+    "route": "/api/finances/fixed-transactions/{id}",
+    "method": "GET"
+  },
+  {
+    "route": "/api/finances/payments",
+    "method": "POST",
+    "validation": {
+      "transactionId": { "type": "string" },
+      "amount": { "type": "integer" },
+      "date": { "type": "string", "required": false }
+    }
+  },
+  {
+    "route": "/api/finances/payments",
+    "method": "GET"
+  },
+  {
+    "route": "/api/finances/payments/{id}",
+    "method": "DELETE"
+  },
+  {
+    "route": "/api/finances/summary",
+    "method": "GET"
+  },
+  {
+    "route": "/api/finances/monthly-stats",
+    "method": "GET"
+  }
+]
