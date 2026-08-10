@@ -1,6 +1,9 @@
-.PHONY: help setup start install-tools code-check dev docker-up docker-down docker-build db-up db-down db-remove db-test-up db-test-down db-test-remove test test-only hooks monitoring-up monitoring-down
+.PHONY: help setup start install-tools code-check dev dev-app docker-up docker-down docker-build db-up db-down db-remove db-test-up db-test-down db-test-remove test test-only hooks monitoring-up monitoring-down floci-up floci-provision floci-status floci-down floci-deploy floci-dev migrate-floci test-floci
 
 .DEFAULT_GOAL := help
+
+# infra/Makefile owns every docker compose command; these are thin delegates.
+INFRA := $(abspath $(CURDIR)/../infra)
 
 help:
 	@echo ""
@@ -11,28 +14,24 @@ help:
 	@echo "  🛠️  Development:"
 	@echo "    install-tools      - Install Go tools (gofumpt, golangci-lint, air, gotestsum)"
 	@echo "    code-check         - Format and lint code"
-	@echo "    dev                - Start application with databases"
+	@echo "    dev                - Start application with databases (legacy docker-compose.db.yml)"
 	@echo "    test               - Run all tests with test database"
 	@echo "    test-only          - Run tests without starting database"
 	@echo ""
-	@echo "  🐳 Docker:"
-	@echo "    docker-up          - Start all services"
-	@echo "    docker-down        - Stop services"
-	@echo "    docker-build       - Build API image"
+	@echo "  ☁️  AWS (floci) path (compose commands live in ../infra/Makefile):"
+	@echo "    floci-up           - Start floci emulator (RDS/DocumentDB/Lambda via Docker socket)"
+	@echo "    floci-provision    - Provision S3, RDS, DocumentDB, Secrets Manager (idempotent)"
+	@echo "    floci-status       - Show floci health and provisioned resources"
+	@echo "    floci-dev          - Start the API on the host against floci services (hot reload)"
+	@echo "    floci-deploy       - Build and deploy the API as a Lambda behind API Gateway v2"
+	@echo "    migrate-floci      - Run DB migrations against floci services"
+	@echo "    test-floci         - Run the test suite against floci RDS + DocumentDB"
+	@echo "    floci-down         - Stop floci emulator"
 	@echo ""
-	@echo "  📊 Monitoring:"
-	@echo "    monitoring-up      - Start Prometheus and Grafana"
-	@echo "    monitoring-down    - Stop monitoring services"
-	@echo ""
-	@echo "  🗄️  Database (Development):"
-	@echo "    db-up              - Start development databases"
-	@echo "    db-down            - Stop development databases"
-	@echo "    db-remove          - Remove development databases and volumes"
-	@echo ""
-	@echo "  🧪 Database (Test):"
-	@echo "    db-test-up         - Start test databases"
-	@echo "    db-test-down       - Stop test databases"
-	@echo "    db-test-remove     - Remove test databases and volumes"
+	@echo "  Compose shortcuts (delegated to ../infra/Makefile):"
+	@echo "    docker-up / docker-down / docker-build - full stack"
+	@echo "    db-up / db-down / db-remove / db-test-* - legacy databases"
+	@echo "    monitoring-up / monitoring-down - Prometheus + Grafana"
 
 setup:
 	@if [ ! -f .env ]; then \
@@ -51,7 +50,7 @@ install-tools:
 	go install github.com/air-verse/air@latest
 	go install gotest.tools/gotestsum@latest
 
-code-check: 
+code-check:
 	gofumpt -l -w .
 	golangci-lint run --fix ./...
 
@@ -61,38 +60,6 @@ dev: hooks db-up
 
 dev-app: hooks
 	ENV_FILE=.env air -c .air.toml
-
-docker-up:
-	@[ -f .env ] || (echo ".env not found"; exit 1)
-	docker compose --env-file .env up -d
-
-docker-down:
-	docker compose down
-
-docker-build:
-	@[ -f .env ] || (echo ".env not found"; exit 1)
-	docker compose build api
-
-db-up:
-	docker compose -f docker-compose.db.yml --env-file .env up -d
-
-db-down:
-	docker compose -f docker-compose.db.yml --env-file .env stop
-
-db-remove:
-	docker compose -f docker-compose.db.yml --env-file .env down -v
-
-db-test-up:
-	@[ -f .env.test ] || (echo ".env.test not found"; exit 1)
-	docker compose -f docker-compose.db.yml --env-file .env.test up -d
-
-db-test-down:
-	@[ -f .env.test ] || (echo ".env.test not found"; exit 1)
-	docker compose -f docker-compose.db.yml --env-file .env.test stop
-
-db-test-remove:
-	@[ -f .env.test ] || (echo ".env.test not found"; exit 1)
-	docker compose -f docker-compose.db.yml --env-file .env.test down -v
 
 test: db-test-up
 	@ENVIRONMENT=test gotestsum --format=short-verbose -- -race -p 1 ./...; \
@@ -107,8 +74,68 @@ hooks:
 	git config core.hooksPath .githooks
 	chmod +x .githooks/*
 
+# --- Compose shortcuts (delegated to infra/Makefile) ---
+
+docker-up:
+	$(MAKE) -C $(INFRA) up
+
+docker-down:
+	$(MAKE) -C $(INFRA) down
+
+docker-build:
+	$(MAKE) -C $(INFRA) build
+
+db-up:
+	$(MAKE) -C $(INFRA) db-up
+
+db-down:
+	$(MAKE) -C $(INFRA) db-down
+
+db-remove:
+	$(MAKE) -C $(INFRA) db-remove
+
+db-test-up:
+	$(MAKE) -C $(INFRA) db-test-up
+
+db-test-down:
+	$(MAKE) -C $(INFRA) db-test-down
+
+db-test-remove:
+	$(MAKE) -C $(INFRA) db-test-remove
+
 monitoring-up:
-	docker compose up -d prometheus grafana node-exporter
+	$(MAKE) -C $(INFRA) monitoring-up
 
 monitoring-down:
-	docker compose stop prometheus grafana node-exporter
+	$(MAKE) -C $(INFRA) monitoring-down
+
+# --- AWS (floci) path ---
+
+floci-up:
+	$(MAKE) -C $(INFRA) floci-up
+
+floci-provision:
+	$(MAKE) -C $(INFRA) floci-provision
+
+floci-status:
+	$(MAKE) -C $(INFRA) floci-status
+
+floci-down:
+	$(MAKE) -C $(INFRA) floci-down
+
+floci-deploy:
+	$(MAKE) -C $(INFRA) floci-deploy
+
+floci-dev: floci-up floci-provision
+	@set -a; . "$(INFRA)/.floci.env"; set +a; \
+	air -c .air.toml
+
+migrate-floci:
+	@[ -f "$(INFRA)/.floci.env" ] || (echo ".floci.env not found — run 'make floci-provision' first"; exit 1)
+	bash "$(INFRA)/scripts/migrate.sh"
+
+test-floci:
+	@[ -f "$(INFRA)/.floci.env" ] || (echo ".floci.env not found — run 'make floci-provision' first"; exit 1)
+	@echo "Note: tests truncate tables in the provisioned DB."
+	@set -a; . "$(INFRA)/.floci.env"; set +a; \
+	ENVIRONMENT=test gotestsum --format=short-verbose -- -race -p 1 ./...

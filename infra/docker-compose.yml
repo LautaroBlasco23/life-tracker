@@ -1,14 +1,30 @@
 services:
+  floci:
+    image: floci/floci:1.6.0-compat
+    container_name: floci
+    restart: unless-stopped
+    ports:
+      - "4566:4566"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - floci_data:/app/data
+    user: root
+    environment:
+      FLOCI_HOSTNAME: floci
+      FLOCI_STORAGE_MODE: hybrid
+    networks:
+      - golang_api_network
+
   api:
     build:
-      context: .
+      context: ../backend
       dockerfile: Dockerfile
     container_name: golang_api_server
     restart: unless-stopped
     ports:
       - "8080:8080"
     env_file:
-      - .env
+      - ../backend/.env
     depends_on:
       postgres:
         condition: service_healthy
@@ -28,7 +44,7 @@ services:
     container_name: golang_api_postgres
     restart: unless-stopped
     env_file:
-      - .env
+      - ../backend/.env
     environment:
       POSTGRES_DB: ${DB_NAME}
       POSTGRES_USER: ${DB_USER}
@@ -51,7 +67,7 @@ services:
     container_name: golang_api_mongodb
     restart: unless-stopped
     env_file:
-      - .env
+      - ../backend/.env
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
@@ -97,7 +113,7 @@ services:
       - "--web.console.libraries=/usr/share/prometheus/console_libraries"
       - "--web.console.templates=/usr/share/prometheus/consoles"
     volumes:
-      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ../backend/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     ports:
       - "9090:9090"
@@ -118,7 +134,7 @@ services:
       - GF_SERVER_SERVE_FROM_SUB_PATH=false
     volumes:
       - grafana_data:/var/lib/grafana
-      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../backend/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
     ports:
       - "3001:3000"
     depends_on:
@@ -136,6 +152,8 @@ volumes:
   prometheus_data:
     driver: local
   grafana_data:
+    driver: local
+  floci_data:
     driver: local
 
 networks:

@@ -2,16 +2,19 @@ APP_NAME := nextjs-app
 PORT := 3000
 DOCKER_TAG := latest
 
+# infra/Makefile owns the docker compose commands; these are thin delegates.
+INFRA := $(abspath $(CURDIR)/../infra)
+
 .PHONY: help
 help:
 	@echo "Available commands:"
 	@echo ""
-	@echo "Docker Compose (Recommended for persistence):"
-	@echo "  compose-up      - Start app with docker-compose"
-	@echo "  compose-down    - Stop app with docker-compose"
-	@echo "  compose-restart - Restart app with docker-compose"
-	@echo "  compose-logs    - View docker-compose logs"
-	@echo "  compose-build   - Build image with docker-compose"
+	@echo "Docker Compose (delegated to ../infra/Makefile):"
+	@echo "  compose-up      - Start app with docker compose"
+	@echo "  compose-down    - Stop app with docker compose"
+	@echo "  compose-restart - Restart app with docker compose"
+	@echo "  compose-logs    - View docker compose logs"
+	@echo "  compose-build   - Build image with docker compose"
 	@echo ""
 	@echo "Vanilla Docker (Manual restart policy):"
 	@echo "  docker-up       - Start app with restart policy"
@@ -28,23 +31,22 @@ help:
 
 .PHONY: compose-up
 compose-up:
-	docker-compose up -d
-	@echo "App running at http://localhost:$(PORT)"
+	$(MAKE) -C $(INFRA) frontend-up
 
 .PHONY: compose-down
 compose-down:
-	docker-compose down
+	$(MAKE) -C $(INFRA) frontend-down
 
 .PHONY: compose-restart
 compose-restart: compose-down compose-up
 
 .PHONY: compose-logs
 compose-logs:
-	docker-compose logs -f
+	$(MAKE) -C $(INFRA) frontend-logs
 
 .PHONY: compose-build
 compose-build:
-	docker-compose build
+	$(MAKE) -C $(INFRA) frontend-build
 
 .PHONY: docker-up
 docker-up:
