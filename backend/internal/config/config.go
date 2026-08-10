@@ -10,8 +10,9 @@ import (
 )
 
 type Config struct {
-	Port    string
-	GinMode string
+	Environment string
+	Port        string
+	GinMode     string
 
 	// PostgreSQL Config
 	DBHost     string
@@ -30,7 +31,13 @@ type Config struct {
 	JWTExpiry        string
 	JWTRefreshExpiry string
 
-	ImageStoreAddress string
+	// AWS Config
+	AWSRegion      string
+	AWSEndpointURL string
+	S3Bucket       string
+	S3PublicURL    string
+	SecretsJWTName string
+	AppRuntime     string
 
 	CORSAllowedOrigins string
 }
@@ -68,13 +75,24 @@ func Load() *Config {
 	}
 
 	jwtSecret := getEnv("JWT_SECRET", "default-secret-change-this")
-	if env == "prod" && jwtSecret == "default-secret-change-this" {
-		log.Fatal("JWT_SECRET must be set to a secure value in production")
+
+	s3Bucket := getEnv("S3_BUCKET", "lifetracker-images")
+	awsRegion := getEnv("AWS_REGION", "us-east-1")
+	awsEndpointURL := getEnv("AWS_ENDPOINT_URL", "")
+
+	s3PublicURL := getEnv("S3_PUBLIC_URL", "")
+	if s3PublicURL == "" {
+		if awsEndpointURL != "" {
+			s3PublicURL = "http://localhost:4566"
+		} else {
+			s3PublicURL = fmt.Sprintf("https://%s.s3.%s.amazonaws.com", s3Bucket, awsRegion)
+		}
 	}
 
 	return &Config{
-		Port:    getEnv("PORT", "8080"),
-		GinMode: getEnv("GIN_MODE", "debug"),
+		Environment: env,
+		Port:        getEnv("PORT", "8080"),
+		GinMode:     getEnv("GIN_MODE", "debug"),
 
 		// PostgreSQL
 		DBHost:     getEnv("DB_HOST", "localhost"),
@@ -93,7 +111,13 @@ func Load() *Config {
 		JWTExpiry:        getEnv("JWT_EXPIRY", "24h"),
 		JWTRefreshExpiry: getEnv("JWT_REFRESH_EXPIRY", "168h"),
 
-		ImageStoreAddress: getEnv("IMAGESTORE_ADDRESS", "localhost:50051"),
+		// AWS
+		AWSRegion:      awsRegion,
+		AWSEndpointURL: awsEndpointURL,
+		S3Bucket:       s3Bucket,
+		S3PublicURL:    s3PublicURL,
+		SecretsJWTName: getEnv("SECRETS_JWT_NAME", "life-tracker/jwt-secret"),
+		AppRuntime:     getEnv("APP_RUNTIME", ""),
 
 		CORSAllowedOrigins: getEnv("CORS_ALLOWED_ORIGINS", "*"),
 	}

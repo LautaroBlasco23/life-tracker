@@ -27,6 +27,10 @@ go.work
 # Allow committing test env
 !.env.test
 
+# floci-generated env file (machine-specific endpoints/IPs)
+.floci.env
+bootstrap
+
 # IDE and editor files
 .vscode/
 .idea/

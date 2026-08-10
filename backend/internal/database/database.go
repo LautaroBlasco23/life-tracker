@@ -17,10 +17,12 @@ type Connections struct {
 }
 
 func Initialize(cfg *config.Config) (*Connections, error) {
-	return initializeWithRetry(cfg, 10, 5*time.Second)
+	// Migrations and index creation are provision-time concerns for Lambda:
+	// they run via cmd/migrate, never per cold start.
+	return initializeWithRetry(cfg, 10, 5*time.Second, cfg.AppRuntime != "serverless")
 }
 
-func initializeWithRetry(cfg *config.Config, maxRetries int, delay time.Duration) (*Connections, error) {
+func initializeWithRetry(cfg *config.Config, maxRetries int, delay time.Duration, runMigrations bool) (*Connections, error) {
 	var (
 		postgresDB *gorm.DB
 		mongoDB    *mongo.Database
@@ -28,7 +30,7 @@ func initializeWithRetry(cfg *config.Config, maxRetries int, delay time.Duration
 	)
 
 	for i := 0; i < maxRetries; i++ {
-		postgresDB, err = InitializePostgreSQL(cfg)
+		postgresDB, err = initializePostgreSQL(cfg, runMigrations)
 		if err != nil {
 			log.Printf("Attempt %d/%d: Failed to connect to PostgreSQL: %v", i+1, maxRetries, err)
 			time.Sleep(delay)
@@ -42,8 +44,10 @@ func initializeWithRetry(cfg *config.Config, maxRetries int, delay time.Duration
 			continue
 		}
 
-		if err = CreateMongoIndexes(mongoDB); err != nil {
-			log.Println("Failed to create MongoDB indexes:", err)
+		if runMigrations {
+			if err = CreateMongoIndexes(mongoDB); err != nil {
+				log.Println("Failed to create MongoDB indexes:", err)
+			}
 		}
 
 		return &Connections{

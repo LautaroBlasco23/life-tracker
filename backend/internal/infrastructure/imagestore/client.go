@@ -1,91 +1,107 @@
 package imagestore
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
 
-	pb "github.com/lautaroblasco23/imagestore/proto/imagestore/v1"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
+	"life-tracker-backend/internal/aws"
+	"life-tracker-backend/internal/config"
+
+	awssdk "github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/aws-sdk-go-v2/service/s3/types"
 )
 
+const maxImageSize = 10 * 1024 * 1024
+
 type Client struct {
-	conn   *grpc.ClientConn
-	client pb.ImageServiceClient
+	s3      *s3.Client
+	bucket  string
+	baseURL string
 }
 
-func NewClient(address string) (*Client, error) {
-	conn, err := grpc.NewClient(
-		address,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-	)
+func NewClient(cfg *config.Config) (*Client, error) {
+	awsCfg, err := aws.LoadConfig(context.Background())
 	if err != nil {
-		return nil, fmt.Errorf("failed to create imagestore client: %w", err)
+		return nil, fmt.Errorf("failed to load AWS config: %w", err)
 	}
 
+	s3Client := s3.NewFromConfig(awsCfg, func(o *s3.Options) {
+		// Path-style addressing is required by floci/LocalStack.
+		o.UsePathStyle = true
+	})
+
 	return &Client{
-		conn:   conn,
-		client: pb.NewImageServiceClient(conn),
+		s3:      s3Client,
+		bucket:  cfg.S3Bucket,
+		baseURL: strings.TrimRight(cfg.S3PublicURL, "/"),
 	}, nil
 }
 
 func (c *Client) UploadProfileImage(ctx context.Context, userID uint, imageData []byte, filename string) (string, string, error) {
-	stream, err := c.client.UploadImage(ctx)
+	if err := validateImage(imageData, filename); err != nil {
+		return "", "", err
+	}
+
+	key := fmt.Sprintf("users/%d/avatar", userID)
+
+	_, err := c.s3.PutObject(ctx, &s3.PutObjectInput{
+		Bucket:      awssdk.String(c.bucket),
+		Key:         awssdk.String(key),
+		Body:        bytes.NewReader(imageData),
+		ContentType: awssdk.String(getContentType(filename)),
+	})
 	if err != nil {
-		return "", "", fmt.Errorf("failed to create upload stream: %w", err)
+		return "", "", fmt.Errorf("failed to upload image to S3: %w", err)
 	}
 
-	contentType := getContentType(filename)
-	metadata := &pb.ImageMetadataInput{
-		UserId:      fmt.Sprintf("%d", userID),
-		Filename:    filename,
-		ContentType: contentType,
-	}
-
-	if err = stream.Send(&pb.UploadImageRequest{
-		Data: &pb.UploadImageRequest_Metadata{
-			Metadata: metadata,
-		},
-	}); err != nil {
-		return "", "", fmt.Errorf("failed to send metadata: %w", err)
-	}
-
-	const chunkSize = 64 * 1024
-	for i := 0; i < len(imageData); i += chunkSize {
-		end := i + chunkSize
-		if end > len(imageData) {
-			end = len(imageData)
-		}
-
-		if err = stream.Send(&pb.UploadImageRequest{
-			Data: &pb.UploadImageRequest_Chunk{
-				Chunk: imageData[i:end],
-			},
-		}); err != nil {
-			return "", "", fmt.Errorf("failed to send chunk: %w", err)
-		}
-	}
-
-	resp, err := stream.CloseAndRecv()
-	if err != nil {
-		return "", "", fmt.Errorf("failed to receive response: %w", err)
-	}
-
-	return resp.Url, resp.ThumbnailUrl, nil
+	url := fmt.Sprintf("%s/%s/%s", c.baseURL, c.bucket, key)
+	return url, url, nil
 }
 
 func (c *Client) DeleteImage(ctx context.Context, imageID string, userID string) error {
-	_, err := c.client.DeleteImage(ctx, &pb.DeleteImageRequest{
-		ImageId: imageID,
-		UserId:  userID,
+	key := fmt.Sprintf("users/%s/avatar", userID)
+
+	_, err := c.s3.DeleteObject(ctx, &s3.DeleteObjectInput{
+		Bucket: awssdk.String(c.bucket),
+		Key:    awssdk.String(key),
 	})
-	return err
+	if err != nil {
+		var notFound *types.NotFound
+		if errors.As(err, &notFound) {
+			return nil
+		}
+		return fmt.Errorf("failed to delete image from S3: %w", err)
+	}
+
+	return nil
 }
 
 func (c *Client) Close() error {
-	return c.conn.Close()
+	return nil
+}
+
+func validateImage(imageData []byte, filename string) error {
+	if len(imageData) > maxImageSize {
+		return errors.New("file size exceeds 10MB limit")
+	}
+
+	ext := strings.ToLower(filepath.Ext(filename))
+	allowedExts := map[string]bool{
+		".jpg":  true,
+		".jpeg": true,
+		".png":  true,
+		".webp": true,
+	}
+	if !allowedExts[ext] {
+		return errors.New("invalid file type, only JPG, PNG, and WebP are allowed")
+	}
+
+	return nil
 }
 
 func getContentType(filename string) string {

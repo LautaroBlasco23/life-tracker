@@ -7,6 +7,7 @@ import (
 
 	"life-tracker-backend/internal/config"
 
+	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
@@ -16,7 +17,11 @@ func InitializeMongoDB(cfg *config.Config) (*mongo.Database, error) {
 	defer cancel()
 
 	// Create MongoDB client
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI(cfg.MongoURI))
+	clientOpts := options.Client().ApplyURI(cfg.MongoURI).
+		SetMaxConnIdleTime(30 * time.Second).
+		SetMaxConnecting(2).
+		SetMinPoolSize(0)
+	client, err := mongo.Connect(ctx, clientOpts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to MongoDB: %w", err)
 	}
@@ -37,19 +42,21 @@ func CreateMongoIndexes(db *mongo.Database) error {
 	activityRecordsCollection := db.Collection("activity_records")
 
 	// Index for querying user's activity records
+	// Ordered bson.D required: DocumentDB rejects map-based (unordered) index
+	// key specs with "multi-key map passed in for ordered parameter keys".
 	userActivityIndex := mongo.IndexModel{
-		Keys: map[string]int{
-			"userId":     1,
-			"activityId": 1,
+		Keys: bson.D{
+			{Key: "userId", Value: 1},
+			{Key: "activityId", Value: 1},
 		},
 	}
 
 	// Index for date-based queries (for streaks, stats)
 	dateIndex := mongo.IndexModel{
-		Keys: map[string]int{
-			"userId":         1,
-			"activityId":     1,
-			"completionDate": -1, // Descending for recent first
+		Keys: bson.D{
+			{Key: "userId", Value: 1},
+			{Key: "activityId", Value: 1},
+			{Key: "completionDate", Value: -1}, // Descending for recent first
 		},
 	}
 

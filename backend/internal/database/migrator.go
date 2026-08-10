@@ -14,7 +14,7 @@ import (
 //go:embed migrations/*.sql
 var migrationsFS embed.FS
 
-func runMigrations(db *gorm.DB) error {
+func RunMigrations(db *gorm.DB) error {
 	sqlDB, err := db.DB()
 	if err != nil {
 		return fmt.Errorf("failed to get sql.DB from gorm: %w", err)
