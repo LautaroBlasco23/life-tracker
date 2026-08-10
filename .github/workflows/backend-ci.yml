@@ -1,50 +1,22 @@
-name: CI
+name: Backend CI
 
 on:
   push:
     branches: ["main"]
+    paths: ["backend/**"]
   pull_request:
+    paths: ["backend/**"]
 
 env:
   IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/lifetracker-backend
-  GO_VERSION: "1.23"
-  TEST_DB_PASSWORD: test_password
-  TEST_DB_NAME: life_tracker_test
-  TEST_MONGO_USER: test_user
-  TEST_MONGO_PASSWORD: test_password
-  TEST_MONGO_DB: life_tracker_test
+  GO_VERSION: "1.24"
 
 jobs:
   test:
     runs-on: ubuntu-latest
-
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_PASSWORD: ${{ env.TEST_DB_PASSWORD }}
-          POSTGRES_DB: ${{ env.TEST_DB_NAME }}
-        ports:
-          - 5433:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      mongodb:
-        image: mongo:7
-        env:
-          MONGO_INITDB_ROOT_USERNAME: ${{ env.TEST_MONGO_USER }}
-          MONGO_INITDB_ROOT_PASSWORD: ${{ env.TEST_MONGO_PASSWORD }}
-          MONGO_INITDB_DATABASE: ${{ env.TEST_MONGO_DB }}
-        ports:
-          - 27018:27017
-        options: >-
-          --health-cmd "mongosh --eval 'db.runCommand({ping:1})' --quiet"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
+    defaults:
+      run:
+        working-directory: backend
 
     steps:
       - uses: actions/checkout@v4
@@ -53,6 +25,7 @@ jobs:
         with:
           go-version: ${{ env.GO_VERSION }}
           cache: true
+          cache-dependency-path: backend/go.sum
 
       - name: Install dependencies
         run: go mod download
@@ -60,11 +33,37 @@ jobs:
       - name: Install tools
         run: make install-tools
 
-      - name: Run tests
-        env:
-          TEST_POSTGRES_DSN: postgres://postgres:${{ env.TEST_DB_PASSWORD }}@localhost:5433/${{ env.TEST_DB_NAME }}?sslmode=disable
-          TEST_MONGO_URI: mongodb://${{ env.TEST_MONGO_USER }}:${{ env.TEST_MONGO_PASSWORD }}@localhost:27018
-        run: make test-only
+      - name: Start floci
+        run: |
+          docker network create golang_api_network 2>/dev/null || true
+          docker run -d --name floci \
+            --network golang_api_network \
+            -p 4566:4566 \
+            -v /var/run/docker.sock:/var/run/docker.sock \
+            -u root \
+            -e FLOCI_HOSTNAME=floci \
+            -e FLOCI_STORAGE_MODE=memory \
+            floci/floci:1.6.0-compat
+
+      - name: Provision AWS services on floci
+        timeout-minutes: 10
+        run: make floci-provision
+
+      - name: Run tests against floci
+        run: |
+          set -a
+          source .floci.env
+          set +a
+          ENVIRONMENT=test gotestsum --format=short-verbose -- -race -p 1 ./...
+
+      - name: Deploy Lambda + API Gateway
+        run: make floci-deploy
+
+      - name: Smoke test Lambda endpoint
+        run: |
+          # floci quirk: use the stage-qualified execute-api path
+          curl -sf "http://localhost:4566/execute-api/lifetracker-api/dev/health" \
+            | grep -q '"status":"ok"'
 
   build-push:
     needs: test
@@ -95,7 +94,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
-          context: .
+          context: ./backend
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -109,5 +108,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: endpoint-files
-          path: endpoints/
+          path: backend/endpoints/
           retention-days: 7
