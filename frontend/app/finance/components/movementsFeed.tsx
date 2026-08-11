@@ -3,7 +3,6 @@
 import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Skeleton } from '@/components/ui/skeleton';
 import type { Movement } from '@/types';
 import { getDayKey, getDayLabel } from '@/utils/dateLabels';
 import { Plus, ChevronDown, Loader2 } from 'lucide-react';
@@ -58,14 +57,11 @@ export function MovementsFeed({
     return getDayLabel(new Date(year, month - 1, day, 12), t);
   };
 
-  if (isLoading) {
-    return (
-      <div className="space-y-4">
-        {[0, 1, 2].map((i) => (
-          <Skeleton key={i} className="h-[72px] w-full rounded-xl" />
-        ))}
-      </div>
-    );
+  // Leave the background empty while loading; show content only when ready.
+  // When data already exists (e.g. refetch after a mutation or filter change)
+  // keep the current list visible instead of blanking it out.
+  if (isLoading && movements.length === 0) {
+    return null;
   }
 
   if (movements.length === 0) {
@@ -77,14 +73,10 @@ export function MovementsFeed({
               <Plus className="h-8 w-8" />
             </div>
             <h3 className="text-lg font-medium text-foreground mb-2">
-              {filterCount > 0
-                ? t('noMovementsMatch')
-                : t('noMovementsYet')}
+              {filterCount > 0 ? t('noMovementsMatch') : t('noMovementsYet')}
             </h3>
             <p>
-              {filterCount > 0
-                ? t('tryAdjusting')
-                : t('movementsGetStarted')}
+              {filterCount > 0 ? t('tryAdjusting') : t('movementsGetStarted')}
             </p>
           </div>
           {filterCount > 0 ? (

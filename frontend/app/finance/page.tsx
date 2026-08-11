@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -89,6 +89,7 @@ export default function FinancePage() {
   >([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingFixed, setIsLoadingFixed] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
@@ -102,6 +103,7 @@ export default function FinancePage() {
     null
   );
   const [activeFilter, setActiveFilter] = useState<TransactionFilter>({});
+  const hasLoadedRef = useRef(false);
 
   const loadCategories = useCallback(async () => {
     try {
@@ -112,30 +114,38 @@ export default function FinancePage() {
     }
   }, []);
 
-  const loadFirstPage = useCallback(async () => {
-    try {
-      setIsLoading(true);
-      const { data, total: newTotal } = await financeService.getMovements({
-        category: activeFilter.category,
-        month: activeFilter.month,
-        year: activeFilter.year,
-        limit: PAGE_SIZE,
-        offset: 0,
-      });
-      setMovements(data);
-      setTotal(newTotal);
-    } catch (error) {
-      console.error('Failed to load movements:', error);
-      showToast({
-        title: t('loadFailed'),
-        description:
-          error instanceof Error ? error.message : 'An error occurred',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  }, [activeFilter, t]);
+  const loadFirstPage = useCallback(
+    async (silent = false) => {
+      try {
+        // Keep the current list visible during post-mutation refetches once
+        // data has loaded. Initial load and filter changes still show loading.
+        if (!silent || !hasLoadedRef.current) {
+          setIsLoading(true);
+        }
+        const { data, total: newTotal } = await financeService.getMovements({
+          category: activeFilter.category,
+          month: activeFilter.month,
+          year: activeFilter.year,
+          limit: PAGE_SIZE,
+          offset: 0,
+        });
+        hasLoadedRef.current = true;
+        setMovements(data);
+        setTotal(newTotal);
+      } catch (error) {
+        console.error('Failed to load movements:', error);
+        showToast({
+          title: t('loadFailed'),
+          description:
+            error instanceof Error ? error.message : 'An error occurred',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [activeFilter, t]
+  );
 
   const loadMore = useCallback(async () => {
     try {
@@ -164,17 +174,23 @@ export default function FinancePage() {
 
   const loadFixedTransactions = useCallback(async () => {
     try {
+      setIsLoadingFixed(true);
       const fixed = await financeService.getFixedTransactions();
       setFixedTransactions(fixed);
     } catch (error) {
       console.error('Failed to load fixed transactions:', error);
+    } finally {
+      setIsLoadingFixed(false);
     }
   }, []);
 
-  const reloadAll = useCallback(() => {
-    loadFirstPage();
-    loadFixedTransactions();
-  }, [loadFirstPage, loadFixedTransactions]);
+  const reloadAll = useCallback(
+    (silent = false) => {
+      loadFirstPage(silent);
+      loadFixedTransactions();
+    },
+    [loadFirstPage, loadFixedTransactions]
+  );
 
   useEffect(() => {
     loadCategories();
@@ -212,12 +228,12 @@ export default function FinancePage() {
   };
 
   const handleTransactionCreated = (_newTransaction: Transaction) => {
-    reloadAll();
+    reloadAll(true);
     setShowCreateModal(false);
   };
 
   const handleTransactionUpdated = (_updatedTransaction: Transaction) => {
-    reloadAll();
+    reloadAll(true);
     setShowEditModal(false);
     setEditingTransaction(null);
   };
@@ -234,7 +250,7 @@ export default function FinancePage() {
         title: t('transactionDeleted'),
         description: t('transactionDeletedDescription'),
       });
-      reloadAll();
+      reloadAll(true);
     } catch (error) {
       showToast({
         title: t('deleteFailed'),
@@ -302,7 +318,7 @@ export default function FinancePage() {
   };
 
   const handlePaymentCreated = () => {
-    reloadAll();
+    reloadAll(true);
   };
 
   const categoryIcons = useMemo(() => {
@@ -432,74 +448,75 @@ export default function FinancePage() {
             />
           )}
 
-          {view === 'bills' && (
-            <div className="space-y-8">
-              {(Object.keys(TYPE_CONFIG) as TransactionType[]).map((type) => {
-                const typeTransactions = fixedTransactionsByType[type] || [];
-                const config = TYPE_CONFIG[type];
+          {view === 'bills' &&
+            (!isLoadingFixed || fixedTransactions.length > 0) && (
+              <div className="space-y-8">
+                {(Object.keys(TYPE_CONFIG) as TransactionType[]).map((type) => {
+                  const typeTransactions = fixedTransactionsByType[type] || [];
+                  const config = TYPE_CONFIG[type];
 
-                if (typeTransactions.length === 0) return null;
+                  if (typeTransactions.length === 0) return null;
 
-                const paidCount = typeTransactions.filter(
-                  (transaction) => transaction.currentPeriodPayment
-                ).length;
-                const totalThisPeriod = typeTransactions.reduce(
-                  (sum, transaction) =>
-                    sum + (transaction.currentPeriodPayment?.amount || 0),
-                  0
-                );
+                  const paidCount = typeTransactions.filter(
+                    (transaction) => transaction.currentPeriodPayment
+                  ).length;
+                  const totalThisPeriod = typeTransactions.reduce(
+                    (sum, transaction) =>
+                      sum + (transaction.currentPeriodPayment?.amount || 0),
+                    0
+                  );
 
-                return (
-                  <div key={type} className="space-y-4">
-                    <CategoryHeader
-                      icon={config.icon}
-                      label={config.label}
-                      description={config.description}
-                      accentColor={config.accentColor}
-                      iconColor={config.iconColor}
-                      summaryValue={`$${formatCurrency(totalThisPeriod)}`}
-                      summaryLabel={t('thisPeriod')}
-                      itemCount={typeTransactions.length}
-                      itemName="transaction"
-                      extraInfo={`${paidCount}/${typeTransactions.length} ${t('paid')}`}
-                    />
+                  return (
+                    <div key={type} className="space-y-4">
+                      <CategoryHeader
+                        icon={config.icon}
+                        label={config.label}
+                        description={config.description}
+                        accentColor={config.accentColor}
+                        iconColor={config.iconColor}
+                        summaryValue={`$${formatCurrency(totalThisPeriod)}`}
+                        summaryLabel={t('thisPeriod')}
+                        itemCount={typeTransactions.length}
+                        itemName="transaction"
+                        extraInfo={`${paidCount}/${typeTransactions.length} ${t('paid')}`}
+                      />
 
-                    <div className="space-y-3">
-                      {typeTransactions.map((transaction) => (
-                        <FixedTransactionCard
-                          key={transaction.id}
-                          transaction={transaction}
-                          onAddPayment={handleAddPayment}
-                          onEdit={handleEditFixedTransaction}
-                          onDelete={async (id) => {
-                            await financeService.deleteTransaction(id);
-                            showToast({
-                              title: t('transactionDeleted'),
-                              description: t('transactionDeletedDescription'),
-                            });
-                            reloadAll();
-                          }}
-                        />
-                      ))}
+                      <div className="space-y-3">
+                        {typeTransactions.map((transaction) => (
+                          <FixedTransactionCard
+                            key={transaction.id}
+                            transaction={transaction}
+                            onAddPayment={handleAddPayment}
+                            onEdit={handleEditFixedTransaction}
+                            onDelete={async (id) => {
+                              await financeService.deleteTransaction(id);
+                              showToast({
+                                title: t('transactionDeleted'),
+                                description: t('transactionDeletedDescription'),
+                              });
+                              reloadAll(true);
+                            }}
+                          />
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
 
-              {fixedTransactions.length === 0 && (
-                <Card className="text-center py-12 bg-muted/30">
-                  <CardContent>
-                    <div className="text-muted-foreground">
-                      <h3 className="text-lg font-medium text-foreground mb-2">
-                        {t('noBillsYet')}
-                      </h3>
-                      <p>{t('noBillsYetDescription')}</p>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          )}
+                {fixedTransactions.length === 0 && (
+                  <Card className="text-center py-12 bg-muted/30">
+                    <CardContent>
+                      <div className="text-muted-foreground">
+                        <h3 className="text-lg font-medium text-foreground mb-2">
+                          {t('noBillsYet')}
+                        </h3>
+                        <p>{t('noBillsYetDescription')}</p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            )}
 
           <CreateTransactionModal
             open={showCreateModal}

@@ -5,7 +5,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { Skeleton } from '@/components/ui/skeleton';
 import type { FinanceSummary, FixedTransaction, MonthlyStats } from '@/types';
 import { financeService } from '@/services/finance-service';
 import { formatCurrency } from '@/utils/formatNumbers';
@@ -167,17 +166,9 @@ export function FinanceDashboard({
     );
   };
 
+  // Leave the background empty while loading; show the cards once loaded.
   if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {[0, 1, 2].map((i) => (
-            <Skeleton key={i} className="h-[110px] w-full rounded-xl" />
-          ))}
-        </div>
-        <Skeleton className="h-[280px] w-full rounded-xl" />
-      </div>
-    );
+    return null;
   }
 
   return (
@@ -268,12 +259,7 @@ export function FinanceDashboard({
                     {label}
                   </span>
                 </div>
-                {isLoadingDolar ? (
-                  <div className="space-y-2">
-                    <div className="h-4 bg-muted/50 rounded animate-pulse w-24" />
-                    <div className="h-4 bg-muted/50 rounded animate-pulse w-20" />
-                  </div>
-                ) : rate ? (
+                {isLoadingDolar ? null : rate ? (
                   <>
                     <div className="flex justify-between text-sm mb-1">
                       <span className="text-muted-foreground">{t('buy')}</span>
