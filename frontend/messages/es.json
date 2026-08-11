@@ -246,6 +246,8 @@
     "paymentFrequencyHint": "Con qué frecuencia realizás pagos para esta transacción",
     "amount": "Monto",
     "date": "Fecha",
+    "rightNow": "Ahora mismo",
+    "rightNowHint": "Registra el movimiento con la fecha y hora actuales",
     "category": "Categoría",
     "selectCategory": "Seleccioná una categoría",
     "creating": "Creando...",

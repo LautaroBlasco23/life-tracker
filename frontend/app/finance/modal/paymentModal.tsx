@@ -31,7 +31,11 @@ import {
 } from '@/utils/formatNumbers';
 import { Calendar, DollarSign, Trash2, Plus, History } from 'lucide-react';
 import { useTranslations } from '@/contexts/language-context';
-import { formatShortDate } from '@/utils/dateLabels';
+import {
+  dateInputToISO,
+  formatShortDate,
+  todayInput,
+} from '@/utils/dateLabels';
 
 interface PaymentModalProps {
   open: boolean;
@@ -47,7 +51,7 @@ export function PaymentModal({
   onPaymentCreated,
 }: PaymentModalProps) {
   const [amount, setAmount] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [date, setDate] = useState(todayInput());
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
   const [payments, setPayments] = useState<PaymentSummary[]>([]);
@@ -82,7 +86,7 @@ export function PaymentModal({
 
   const resetForm = () => {
     setAmount('');
-    setDate(new Date().toISOString().split('T')[0]);
+    setDate(todayInput());
   };
 
   const handleAmountChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -112,7 +116,7 @@ export function PaymentModal({
       await financeService.createPayment({
         transactionId: transaction.id,
         amount: amountValue,
-        date: new Date(date).toISOString(),
+        date: dateInputToISO(date),
       });
 
       showToast({

@@ -29,6 +29,7 @@ import type {
 import { financeService } from '@/services/finance-service';
 import { showToast } from '@/lib/toast';
 import { formatInputValue, parseInputValue } from '@/utils/formatNumbers';
+import { dateInputToISO, todayInput } from '@/utils/dateLabels';
 import { useTranslations } from '@/contexts/language-context';
 
 interface CreateTransactionModalProps {
@@ -53,7 +54,8 @@ export function CreateTransactionModal({
   const [paymentFrequency, setPaymentFrequency] =
     useState<PaymentFrequency>('monthly');
   const [category, setCategory] = useState<string | null>(null);
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [recordNow, setRecordNow] = useState(true);
+  const [date, setDate] = useState(todayInput());
   const [isLoading, setIsLoading] = useState(false);
 
   const t = useTranslations('createTransaction');
@@ -66,7 +68,8 @@ export function CreateTransactionModal({
     setIsRecurring(defaultRecurring);
     setPaymentFrequency('monthly');
     setCategory(null);
-    setDate(new Date().toISOString().split('T')[0]);
+    setRecordNow(true);
+    setDate(todayInput());
   };
 
   const handleTypeChange = (newType: TransactionType) => {
@@ -124,7 +127,7 @@ export function CreateTransactionModal({
         amount: amountValue,
         category,
         description,
-        date: new Date(date).toISOString(),
+        date: recordNow ? undefined : dateInputToISO(date),
       });
 
       onTransactionCreated(newTransaction);
@@ -199,15 +202,34 @@ export function CreateTransactionModal({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="date">{t('date')}</Label>
-              <Input
-                id="date"
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                required
-                className="bg-input border-border"
-              />
+              <span className="text-sm font-medium leading-none">
+                {t('date')}
+              </span>
+              <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 p-3">
+                <div>
+                  <Label htmlFor="recordNow" className="cursor-pointer">
+                    {t('rightNow')}
+                  </Label>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {t('rightNowHint')}
+                  </p>
+                </div>
+                <Switch
+                  id="recordNow"
+                  checked={recordNow}
+                  onCheckedChange={setRecordNow}
+                />
+              </div>
+              {!recordNow && (
+                <Input
+                  id="date"
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  required
+                  className="bg-input border-border"
+                />
+              )}
             </div>
           </div>
 

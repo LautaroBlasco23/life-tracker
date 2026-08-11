@@ -246,6 +246,8 @@
     "paymentFrequencyHint": "How often you need to make payments for this transaction",
     "amount": "Amount",
     "date": "Date",
+    "rightNow": "Right now",
+    "rightNowHint": "Records the movement with the current date and time",
     "category": "Category",
     "selectCategory": "Select a category",
     "creating": "Creating...",

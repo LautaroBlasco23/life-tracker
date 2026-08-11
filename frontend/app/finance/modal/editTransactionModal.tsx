@@ -29,6 +29,7 @@ import type {
   Category,
 } from '@/types';
 import { formatInputValue, parseInputValue } from '@/utils/formatNumbers';
+import { dateInputToISO, isoToDateInput } from '@/utils/dateLabels';
 import { useTranslations } from '@/contexts/language-context';
 
 interface EditTransactionModalProps {
@@ -75,7 +76,7 @@ export function EditTransactionModal({
       setFrequency(transaction.frequency);
       setPaymentFrequency(transaction.paymentFrequency || 'monthly');
       setCategory(transaction.category);
-      setDate(new Date(transaction.date).toISOString().split('T')[0]);
+      setDate(isoToDateInput(transaction.date));
     }
   }, [transaction, open]);
 
@@ -149,7 +150,7 @@ export function EditTransactionModal({
           amount: amountValue,
           category,
           description,
-          date: new Date(date).toISOString(),
+          date: dateInputToISO(date),
         }
       );
 

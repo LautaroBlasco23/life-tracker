@@ -40,3 +40,26 @@ export function formatTime(date: Date): string {
     minute: '2-digit',
   });
 }
+
+/**
+ * Convert a date-input value (YYYY-MM-DD, user's local calendar date) to a
+ * UTC ISO string at local midnight. Stored this way, the instant renders back
+ * to the same calendar date in the user's timezone (the app sends its IANA
+ * timezone on every request and the backend filters in that zone).
+ */
+export function dateInputToISO(dateStr: string): string {
+  return new Date(`${dateStr}T00:00:00`).toISOString();
+}
+
+/** Convert an ISO instant to the user's local calendar date-input value. */
+export function isoToDateInput(iso: string): string {
+  const d = new Date(iso);
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${month}-${day}`;
+}
+
+/** User's local calendar date (YYYY-MM-DD) for "today". */
+export function todayInput(): string {
+  return getDayKey(new Date());
+}
