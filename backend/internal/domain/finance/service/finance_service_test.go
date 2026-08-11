@@ -489,6 +489,164 @@ func TestDeletePayment(t *testing.T) {
 	})
 }
 
+// TestGetMovements verifies the unified movements feed: merging of variable
+// transactions and fixed-transaction payments, pending fixed bills surfacing
+// with paid=false, date-filter behavior, and pagination.
+func TestGetMovements(t *testing.T) {
+	svc := getTestService(t)
+	userID := uint(108)
+
+	now := time.Now().UTC()
+
+	// Fixed bill A: never paid → pending, amount 0.
+	fixedA, err := svc.CreateTransaction(userID, &dto.CreateTransactionRequest{
+		Type:             "outcome",
+		Frequency:        "fixed",
+		Category:         string(model.CategoryHousingUtilities),
+		PaymentFrequency: "monthly",
+	})
+	require.NoError(t, err)
+
+	// Fixed bill B: paid last period → pending now, amount = last payment.
+	fixedB, err := svc.CreateTransaction(userID, &dto.CreateTransactionRequest{
+		Type:             "income",
+		Frequency:        "fixed",
+		Category:         string(model.CategoryPrimaryIncome),
+		PaymentFrequency: "monthly",
+	})
+	require.NoError(t, err)
+
+	lastMonth := time.Date(now.Year(), now.Month()-1, 1, 12, 0, 0, 0, time.UTC)
+	_, err = svc.CreatePayment(userID, &dto.CreatePaymentRequest{
+		TransactionID: fixedB.ID,
+		Amount:        800,
+		Date:          lastMonth,
+	})
+	require.NoError(t, err)
+
+	// Fixed bill C: paid current period → not pending.
+	fixedC, err := svc.CreateTransaction(userID, &dto.CreateTransactionRequest{
+		Type:             "outcome",
+		Frequency:        "fixed",
+		Category:         string(model.CategoryTaxesFees),
+		PaymentFrequency: "monthly",
+	})
+	require.NoError(t, err)
+
+	_, err = svc.CreatePayment(userID, &dto.CreatePaymentRequest{
+		TransactionID: fixedC.ID,
+		Amount:        100,
+	})
+	require.NoError(t, err)
+
+	// Variable movements.
+	_, err = svc.CreateTransaction(userID, &dto.CreateTransactionRequest{
+		Type:      "income",
+		Frequency: "variable",
+		Amount:    500,
+		Category:  string(model.CategorySideIncome),
+		Date:      now.Add(-time.Hour),
+	})
+	require.NoError(t, err)
+	_, err = svc.CreateTransaction(userID, &dto.CreateTransactionRequest{
+		Type:      "outcome",
+		Frequency: "variable",
+		Amount:    50,
+		Category:  string(model.CategoryFoodGroceries),
+		Date:      now.Add(-7 * 24 * time.Hour),
+	})
+	require.NoError(t, err)
+
+	t.Run("unfiltered_feed_merges_sources_and_sorts", func(t *testing.T) {
+		movements, total, err := svc.GetMovements(userID, nil, nil, nil, nil, nil, nil, 0, 0, time.UTC)
+		assert.NoError(t, err)
+		// 2 variable + 2 payments + 2 pending fixed (A and B).
+		assert.Equal(t, 6, total)
+		require.Len(t, movements, 6)
+
+		// Newest first: current-period payment for C, then today's income.
+		assert.Equal(t, "payment", movements[0].SourceType)
+		assert.Equal(t, 100.0, movements[0].Amount)
+		assert.Equal(t, "transaction", movements[1].SourceType)
+		assert.Equal(t, 500.0, movements[1].Amount)
+	})
+
+	t.Run("pending_fixed_bills_surface_with_paid_false", func(t *testing.T) {
+		movements, _, err := svc.GetMovements(userID, nil, nil, nil, nil, nil, nil, 0, 0, time.UTC)
+		require.NoError(t, err)
+
+		pending := make(map[string]*dto.MovementResponse)
+		for _, m := range movements {
+			if m.SourceType == "fixed" {
+				pending[m.TransactionID] = m
+			}
+		}
+		require.Len(t, pending, 2)
+
+		// A was never paid → amount 0; B carries its last payment amount.
+		assert.False(t, pending[fixedA.ID].Paid)
+		assert.Equal(t, 0.0, pending[fixedA.ID].Amount)
+		assert.False(t, pending[fixedB.ID].Paid)
+		assert.Equal(t, 800.0, pending[fixedB.ID].Amount)
+
+		// C is paid in the current period → not pending.
+		_, exists := pending[fixedC.ID]
+		assert.False(t, exists)
+	})
+
+	t.Run("date_filter_excludes_pending_bills", func(t *testing.T) {
+		month := int(now.Month())
+		year := now.Year()
+		movements, _, err := svc.GetMovements(userID, nil, nil, nil, nil, &month, &year, 0, 0, time.UTC)
+		assert.NoError(t, err)
+		for _, m := range movements {
+			assert.NotEqual(t, "fixed", m.SourceType)
+		}
+	})
+
+	t.Run("category_filter_narrows_movements", func(t *testing.T) {
+		category := string(model.CategoryFoodGroceries)
+		movements, total, err := svc.GetMovements(userID, nil, &category, nil, nil, nil, nil, 0, 0, time.UTC)
+		assert.NoError(t, err)
+		assert.Equal(t, 1, total)
+		require.Len(t, movements, 1)
+		assert.Equal(t, 50.0, movements[0].Amount)
+	})
+
+	t.Run("type_filter_narrows_movements", func(t *testing.T) {
+		typ := "income"
+		movements, total, err := svc.GetMovements(userID, &typ, nil, nil, nil, nil, nil, 0, 0, time.UTC)
+		assert.NoError(t, err)
+		assert.Equal(t, 3, total)
+		for _, m := range movements {
+			assert.Equal(t, "income", m.Type)
+		}
+	})
+
+	t.Run("pagination_respects_limit_and_offset", func(t *testing.T) {
+		page1, total, err := svc.GetMovements(userID, nil, nil, nil, nil, nil, nil, 2, 0, time.UTC)
+		assert.NoError(t, err)
+		assert.Equal(t, 6, total)
+		require.Len(t, page1, 2)
+
+		page2, _, err := svc.GetMovements(userID, nil, nil, nil, nil, nil, nil, 2, 2, time.UTC)
+		assert.NoError(t, err)
+		require.Len(t, page2, 2)
+		assert.NotEqual(t, page1[0].ID, page2[0].ID)
+
+		pastEnd, _, err := svc.GetMovements(userID, nil, nil, nil, nil, nil, nil, 2, 999, time.UTC)
+		assert.NoError(t, err)
+		assert.Empty(t, pastEnd)
+	})
+
+	t.Run("different_user_sees_no_movements", func(t *testing.T) {
+		movements, total, err := svc.GetMovements(888, nil, nil, nil, nil, nil, nil, 0, 0, time.UTC)
+		assert.NoError(t, err)
+		assert.Equal(t, 0, total)
+		assert.Empty(t, movements)
+	})
+}
+
 // TestGetFinanceSummary verifies that the summary correctly aggregates variable
 // transactions into income and outcome totals for a given date range.
 func TestGetFinanceSummary(t *testing.T) {

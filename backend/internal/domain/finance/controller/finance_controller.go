@@ -96,6 +96,17 @@ func parseIntPositive(s string) *int {
 	return &v
 }
 
+func parseIntNonNegative(s string) *int {
+	if s == "" {
+		return nil
+	}
+	v, err := strconv.Atoi(s)
+	if err != nil || v < 0 {
+		return nil
+	}
+	return &v
+}
+
 func parseString(s string) *string {
 	if s == "" {
 		return nil
@@ -191,6 +202,50 @@ func (c *FinanceController) GetTransactions(ctx *gin.Context) {
 		"message": "Transactions retrieved successfully",
 		"data":    transactions,
 		"count":   len(transactions),
+	})
+}
+
+// GetMovements returns the unified money-movement feed with pagination.
+func (c *FinanceController) GetMovements(ctx *gin.Context) {
+	userID, err := getFinanceUserID(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	filters := parseTransactionFilters(ctx)
+	if filters.limit > 200 {
+		filters.limit = 200
+	}
+
+	offset := 0
+	if o := parseIntNonNegative(ctx.Query("offset")); o != nil {
+		offset = *o
+	}
+
+	loc := getTimezone(ctx)
+	movements, total, err := c.financeService.GetMovements(
+		userID,
+		filters.transactionType,
+		filters.category,
+		filters.startDate,
+		filters.endDate,
+		filters.month,
+		filters.year,
+		filters.limit,
+		offset,
+		loc,
+	)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": "Movements retrieved successfully",
+		"data":    movements,
+		"count":   len(movements),
+		"total":   total,
 	})
 }
 

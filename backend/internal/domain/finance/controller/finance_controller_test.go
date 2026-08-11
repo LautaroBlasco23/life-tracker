@@ -100,6 +100,9 @@ func setupTestRouter(t *testing.T) (*gin.Engine, *service.FinanceService, func()
 	router.GET("/summary", controller.GetFinanceSummary)
 	router.GET("/monthly-stats", controller.GetMonthlyStats)
 
+	// Movements feed
+	router.GET("/movements", controller.GetMovements)
+
 	cleanup := func() {
 		_ = mongoDB.Drop(ctx)
 		_ = client.Disconnect(ctx)
@@ -1207,6 +1210,94 @@ func TestGetMonthlyStatsHandler(t *testing.T) {
 	})
 }
 
+// TestGetMovementsHandler verifies the movements feed contract: unified data,
+// pagination fields, and pending fixed-bill flags.
+func TestGetMovementsHandler(t *testing.T) {
+	router, financeService, cleanup := setupTestRouter(t)
+	defer cleanup()
+
+	userID := uint(1) // injected by the mock auth middleware
+	now := time.Now().UTC()
+
+	_, err := financeService.CreateTransaction(userID, &dto.CreateTransactionRequest{
+		Type:      "income",
+		Frequency: "variable",
+		Amount:    500,
+		Category:  string(model.CategorySideIncome),
+		Date:      now.Add(-time.Hour),
+	})
+	require.NoError(t, err)
+
+	fixedTx, err := financeService.CreateTransaction(userID, &dto.CreateTransactionRequest{
+		Type:             "outcome",
+		Frequency:        "fixed",
+		Category:         string(model.CategoryHousingUtilities),
+		PaymentFrequency: "monthly",
+	})
+	require.NoError(t, err)
+
+	t.Run("returns_movements_with_total_and_pending_flag", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/movements?limit=10", nil)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var resp struct {
+			Message string                 `json:"message"`
+			Data    []dto.MovementResponse `json:"data"`
+			Count   int                    `json:"count"`
+			Total   int                    `json:"total"`
+		}
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+		assert.Equal(t, "Movements retrieved successfully", resp.Message)
+		assert.Equal(t, 2, resp.Total)
+		assert.Equal(t, 2, resp.Count)
+
+		sawPending := false
+		for _, m := range resp.Data {
+			if m.SourceType == "fixed" {
+				sawPending = true
+				assert.False(t, m.Paid)
+				assert.Equal(t, fixedTx.ID, m.TransactionID)
+			}
+		}
+		assert.True(t, sawPending, "expected pending fixed bill in feed")
+	})
+
+	t.Run("pagination_params_respected", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/movements?limit=1&offset=1", nil)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var resp struct {
+			Data  []dto.MovementResponse `json:"data"`
+			Count int                    `json:"count"`
+			Total int                    `json:"total"`
+		}
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+		assert.Equal(t, 1, resp.Count)
+		assert.Equal(t, 2, resp.Total)
+	})
+
+	t.Run("invalid_filters_are_ignored", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/movements?limit=abc&offset=-1&month=99", nil)
+		w := httptest.NewRecorder()
+		router.ServeHTTP(w, req)
+
+		assert.Equal(t, http.StatusOK, w.Code)
+
+		var resp struct {
+			Data  []dto.MovementResponse `json:"data"`
+			Total int                    `json:"total"`
+		}
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+		assert.Equal(t, 2, resp.Total)
+	})
+}
+
 // TestUnauthorizedAccess verifies that endpoints requiring authentication
 // return 401 when userID is not in context.
 func TestUnauthorizedAccess(t *testing.T) {
@@ -1244,6 +1335,7 @@ func TestUnauthorizedAccess(t *testing.T) {
 
 	router.GET("/summary", controller.GetFinanceSummary)
 	router.GET("/monthly-stats", controller.GetMonthlyStats)
+	router.GET("/movements", controller.GetMovements)
 
 	defer func() {
 		_ = mongoDB.Drop(ctx)
@@ -1313,6 +1405,11 @@ func TestUnauthorizedAccess(t *testing.T) {
 			name:   "get_monthly_stats_unauthorized",
 			method: http.MethodGet,
 			path:   "/monthly-stats?year=2024",
+		},
+		{
+			name:   "get_movements_unauthorized",
+			method: http.MethodGet,
+			path:   "/movements",
 		},
 	}
 

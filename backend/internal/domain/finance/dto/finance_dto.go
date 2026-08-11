@@ -93,6 +93,21 @@ type CategorySummary struct {
 	Count        int64   `json:"count"`
 }
 
+// MovementResponse is a unified money movement used by the feed:
+// variable transactions, payments of fixed transactions, and pending
+// fixed bills (paid=false) for the current period.
+type MovementResponse struct {
+	ID            string    `json:"id"`
+	SourceType    string    `json:"sourceType"` // "transaction" | "payment" | "fixed"
+	Type          string    `json:"type"`
+	Amount        float64   `json:"amount"`
+	Category      string    `json:"category"`
+	Description   string    `json:"description,omitempty"`
+	Date          time.Time `json:"date"`
+	Paid          bool      `json:"paid"`
+	TransactionID string    `json:"transactionId,omitempty"`
+}
+
 type MonthlyStatsResponse struct {
 	Month            string  `json:"month"`
 	Year             int     `json:"year"`
