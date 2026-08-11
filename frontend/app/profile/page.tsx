@@ -295,7 +295,7 @@ export default function ProfilePage() {
                         setProfilePrivacyStatus(value as ProfilePrivacyStatus)
                       }
                     >
-                      <SelectTrigger className="bg-input border-border">
+                      <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>

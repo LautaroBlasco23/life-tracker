@@ -202,7 +202,7 @@ export function CreateActivityModal({
                 value={dayTime}
                 onValueChange={(value: DayTime) => setDayTime(value)}
               >
-                <SelectTrigger className="bg-input border-border">
+                <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -222,7 +222,7 @@ export function CreateActivityModal({
               value={frequency}
               onValueChange={(value: Frequency) => setFrequency(value)}
             >
-              <SelectTrigger className="bg-input border-border">
+              <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -263,7 +263,7 @@ export function CreateActivityModal({
               value={privacyStatus}
               onValueChange={(value: PrivacyStatus) => setPrivacyStatus(value)}
             >
-              <SelectTrigger className="bg-input border-border">
+              <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

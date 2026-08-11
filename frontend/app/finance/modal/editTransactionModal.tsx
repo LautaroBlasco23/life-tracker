@@ -219,7 +219,7 @@ export function EditTransactionModal({
                 handleTypeChange(value)
               }
             >
-              <SelectTrigger className="bg-input border-border">
+              <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -237,7 +237,7 @@ export function EditTransactionModal({
                 handleFrequencyChange(value)
               }
             >
-              <SelectTrigger className="bg-input border-border">
+              <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -258,7 +258,7 @@ export function EditTransactionModal({
                   setPaymentFrequency(value)
                 }
               >
-                <SelectTrigger className="bg-input border-border">
+                <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -306,7 +306,7 @@ export function EditTransactionModal({
               value={category || ''}
               onValueChange={(value) => setCategory(value)}
             >
-              <SelectTrigger className="bg-input border-border">
+              <SelectTrigger>
                 <SelectValue placeholder={t('selectCategory')} />
               </SelectTrigger>
               <SelectContent>
