@@ -25,10 +25,7 @@ import { EntityCard } from '@/components/ui/card/entityCard';
 import { CreateActivityModal } from './modal/create-activity-modal';
 import { EditActivityModal } from './modal/edit-activity-modal';
 import { FilterSidebar } from '@/components/ui/filterModal/filterSidebar';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useTranslations } from '@/contexts/language-context';
-
-type DayTimeFilter = 'all' | 'morning' | 'afternoon' | 'evening';
 
 type ViewMode = 'today' | 'filtered';
 
@@ -130,17 +127,11 @@ export default function ActivitiesPage() {
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('today');
   const [activeFilter, setActiveFilter] = useState<ActivityFilter>({});
-  const [activeDayTime, setActiveDayTime] = useState<DayTimeFilter>('all');
   const [processingIds, setProcessingIds] = useState<Set<number>>(new Set());
 
   const targetDate =
     viewMode === 'filtered' ? activeFilter.scheduledFor : undefined;
   const dateLabel = formatDateLabel(targetDate);
-
-  const filteredActivities =
-    activeDayTime === 'all'
-      ? activities
-      : activities.filter((activity) => activity.dayTime === activeDayTime);
 
   const loadActivities = useCallback(async () => {
     try {
@@ -352,7 +343,7 @@ export default function ActivitiesPage() {
     }
   };
 
-  const activitiesByCategory = filteredActivities.reduce(
+  const activitiesByCategory = activities.reduce(
     (acc, activity) => {
       const dayTime = activity.dayTime;
       if (!acc[dayTime]) {
@@ -488,19 +479,6 @@ export default function ActivitiesPage() {
             </div>
           </div>
 
-          <Tabs
-            value={activeDayTime}
-            onValueChange={(value) => setActiveDayTime(value as DayTimeFilter)}
-            className="mb-6"
-          >
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="all">{t('all')}</TabsTrigger>
-              <TabsTrigger value="morning">{t('morning')}</TabsTrigger>
-              <TabsTrigger value="afternoon">{t('afternoon')}</TabsTrigger>
-              <TabsTrigger value="evening">{t('evening')}</TabsTrigger>
-            </TabsList>
-          </Tabs>
-
           {viewMode === 'filtered' && filterCount > 0 && (
             <div className="mb-6 flex items-center gap-2 flex-wrap">
               <span className="text-sm text-muted-foreground">
@@ -533,7 +511,7 @@ export default function ActivitiesPage() {
             </div>
           )}
 
-          {filteredActivities.length === 0 ? (
+          {activities.length === 0 ? (
             <Card className="text-center py-12 bg-muted/30">
               <CardContent>
                 <div className="text-muted-foreground mb-4">
@@ -541,18 +519,14 @@ export default function ActivitiesPage() {
                     <Plus className="h-8 w-8" />
                   </div>
                   <h3 className="text-lg font-medium text-foreground mb-2">
-                    {activeDayTime !== 'all'
-                      ? t('noActivitiesForDayTime', { dayTime: activeDayTime })
-                      : viewMode === 'today'
-                        ? t('noActivitiesForToday')
-                        : t('noActivitiesMatch')}
+                    {viewMode === 'today'
+                      ? t('noActivitiesForToday')
+                      : t('noActivitiesMatch')}
                   </h3>
                   <p>
-                    {activeDayTime !== 'all'
-                      ? t('noDayTimeScheduled', { dayTime: activeDayTime })
-                      : viewMode === 'today'
-                        ? t('createToSeeHere')
-                        : t('tryAdjustingFilters')}
+                    {viewMode === 'today'
+                      ? t('createToSeeHere')
+                      : t('tryAdjustingFilters')}
                   </p>
                 </div>
                 {viewMode === 'filtered' ? (
