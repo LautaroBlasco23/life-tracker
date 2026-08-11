@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import {
   Select,
   SelectContent,
@@ -22,7 +23,6 @@ import {
 import type {
   Transaction,
   TransactionType,
-  TransactionFrequency,
   PaymentFrequency,
   Category,
 } from '@/types';
@@ -36,7 +36,7 @@ interface CreateTransactionModalProps {
   onOpenChange: (open: boolean) => void;
   onTransactionCreated: (transaction: Transaction) => void;
   categories: Category[];
-  defaultFrequency: TransactionFrequency;
+  defaultRecurring?: boolean;
 }
 
 export function CreateTransactionModal({
@@ -44,13 +44,12 @@ export function CreateTransactionModal({
   onOpenChange,
   onTransactionCreated,
   categories,
-  defaultFrequency,
+  defaultRecurring = false,
 }: CreateTransactionModalProps) {
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
   const [type, setType] = useState<TransactionType>('outcome');
-  const [frequency, setFrequency] =
-    useState<TransactionFrequency>(defaultFrequency);
+  const [isRecurring, setIsRecurring] = useState(defaultRecurring);
   const [paymentFrequency, setPaymentFrequency] =
     useState<PaymentFrequency>('monthly');
   const [category, setCategory] = useState<string | null>(null);
@@ -59,15 +58,12 @@ export function CreateTransactionModal({
 
   const t = useTranslations('createTransaction');
   const tCommon = useTranslations('common');
-  const tFinanceCategories = useTranslations('financeCategories');
-
-  const isFixed = frequency === 'fixed';
 
   const resetForm = () => {
     setDescription('');
     setAmount('');
     setType('outcome');
-    setFrequency(defaultFrequency);
+    setIsRecurring(defaultRecurring);
     setPaymentFrequency('monthly');
     setCategory(null);
     setDate(new Date().toISOString().split('T')[0]);
@@ -78,10 +74,10 @@ export function CreateTransactionModal({
     setCategory(null);
   };
 
-  const handleFrequencyChange = (newFrequency: TransactionFrequency) => {
-    setFrequency(newFrequency);
+  const handleRecurringChange = (recurring: boolean) => {
+    setIsRecurring(recurring);
     setCategory(null);
-    if (newFrequency === 'fixed') {
+    if (recurring) {
       setAmount('');
     }
   };
@@ -104,7 +100,7 @@ export function CreateTransactionModal({
     }
 
     let amountValue = 0;
-    if (!isFixed && amount) {
+    if (!isRecurring && amount) {
       const numericAmount = parseInputValue(amount);
       amountValue = parseFloat(numericAmount);
 
@@ -123,8 +119,8 @@ export function CreateTransactionModal({
     try {
       const newTransaction = await financeService.createTransaction({
         type,
-        frequency,
-        paymentFrequency: isFixed ? paymentFrequency : undefined,
+        frequency: isRecurring ? 'fixed' : 'variable',
+        paymentFrequency: isRecurring ? paymentFrequency : undefined,
         amount: amountValue,
         category,
         description,
@@ -135,7 +131,7 @@ export function CreateTransactionModal({
       resetForm();
       showToast({
         title: t('transactionCreated'),
-        description: isFixed
+        description: isRecurring
           ? t('fixedCreatedDescription')
           : t('variableCreatedDescription'),
       });
@@ -159,22 +155,97 @@ export function CreateTransactionModal({
     onOpenChange(newOpen);
   };
 
-  const filteredCategories = categories.filter((cat) => cat.type === type);
+  const filteredCategories = categories.filter(
+    (cat) =>
+      cat.type === type &&
+      (cat.applicableToFreq === (isRecurring ? 'fixed' : 'variable') ||
+        !cat.applicableToFreq)
+  );
 
-  const translateCategory = (catName: string) => {
-    return tFinanceCategories(catName);
-  };
+  const categoryOptions =
+    filteredCategories.length > 0
+      ? filteredCategories
+      : categories.filter((cat) => cat.type === type);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{isFixed ? t('titleFixed') : t('titleNew')}</DialogTitle>
+          <DialogTitle>
+            {isRecurring ? t('titleFixed') : t('titleNew')}
+          </DialogTitle>
           <DialogDescription>
-            {isFixed ? t('descriptionFixed') : t('descriptionNew')}
+            {isRecurring ? t('descriptionFixed') : t('descriptionNew')}
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="type">{t('type')}</Label>
+              <Select
+                value={type}
+                onValueChange={(value: TransactionType) =>
+                  handleTypeChange(value)
+                }
+              >
+                <SelectTrigger id="type">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="income">{t('income')}</SelectItem>
+                  <SelectItem value="outcome">{t('expense')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="date">{t('date')}</Label>
+              <Input
+                id="date"
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                required
+                className="bg-input border-border"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="amount">{t('amount')}</Label>
+            <Input
+              id="amount"
+              type="text"
+              inputMode="numeric"
+              placeholder="0"
+              value={amount}
+              onChange={handleAmountChange}
+              disabled={isRecurring}
+              required={!isRecurring}
+              className="bg-input border-border"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="category">{t('category')}</Label>
+            <Select
+              value={category || ''}
+              onValueChange={(value) => setCategory(value)}
+            >
+              <SelectTrigger id="category">
+                <SelectValue placeholder={t('selectCategory')} />
+              </SelectTrigger>
+              <SelectContent>
+                {categoryOptions.map((cat) => (
+                  <SelectItem key={cat.name} value={cat.name}>
+                    {cat.icon ? `${cat.icon} ` : ''}
+                    {cat.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="description">{t('descriptionLabel')}</Label>
             <Textarea
@@ -187,43 +258,23 @@ export function CreateTransactionModal({
             />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="type">{t('type')}</Label>
-            <Select
-              value={type}
-              onValueChange={(value: TransactionType) =>
-                handleTypeChange(value)
-              }
-            >
-              <SelectTrigger className="bg-input border-border">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="income">{t('income')}</SelectItem>
-                <SelectItem value="outcome">{t('expense')}</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 p-3">
+            <div>
+              <Label htmlFor="recurring" className="cursor-pointer">
+                {t('recurring')}
+              </Label>
+              <p className="text-xs text-muted-foreground mt-1">
+                {t('recurringHint')}
+              </p>
+            </div>
+            <Switch
+              id="recurring"
+              checked={isRecurring}
+              onCheckedChange={handleRecurringChange}
+            />
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="frequency">{t('frequency')}</Label>
-            <Select
-              value={frequency}
-              onValueChange={(value: TransactionFrequency) =>
-                handleFrequencyChange(value)
-              }
-            >
-              <SelectTrigger className="bg-input border-border">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="fixed">{t('fixed')}</SelectItem>
-                <SelectItem value="variable">{t('variable')}</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-
-          {isFixed && (
+          {isRecurring && (
             <div className="space-y-2">
               <Label htmlFor="paymentFrequency">{t('paymentFrequency')}</Label>
               <Select
@@ -232,7 +283,7 @@ export function CreateTransactionModal({
                   setPaymentFrequency(value)
                 }
               >
-                <SelectTrigger className="bg-input border-border">
+                <SelectTrigger id="paymentFrequency">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -241,60 +292,8 @@ export function CreateTransactionModal({
                   <SelectItem value="yearly">{t('yearly')}</SelectItem>
                 </SelectContent>
               </Select>
-              <p className="text-xs text-muted-foreground">
-                {t('paymentFrequencyHint')}
-              </p>
             </div>
           )}
-
-          {!isFixed && (
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="amount">{t('amount')}</Label>
-                <Input
-                  id="amount"
-                  type="text"
-                  inputMode="numeric"
-                  placeholder="0"
-                  value={amount}
-                  onChange={handleAmountChange}
-                  required
-                  className="bg-input border-border"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="date">{t('date')}</Label>
-                <Input
-                  id="date"
-                  type="date"
-                  value={date}
-                  onChange={(e) => setDate(e.target.value)}
-                  required
-                  className="bg-input border-border"
-                />
-              </div>
-            </div>
-          )}
-
-          <div className="space-y-2">
-            <Label htmlFor="category">{t('category')}</Label>
-            <Select
-              value={category || ''}
-              onValueChange={(value) => setCategory(value)}
-            >
-              <SelectTrigger className="bg-input border-border">
-                <SelectValue placeholder={t('selectCategory')} />
-              </SelectTrigger>
-              <SelectContent>
-                {filteredCategories.map((cat) => (
-                  <SelectItem key={cat.name} value={cat.name}>
-                    {translateCategory(cat.name)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
 
           <div className="flex justify-end space-x-2 pt-4">
             <Button
@@ -308,7 +307,7 @@ export function CreateTransactionModal({
             <Button type="submit" disabled={isLoading}>
               {isLoading
                 ? t('creating')
-                : isFixed
+                : isRecurring
                   ? t('createFixed')
                   : t('createTransaction')}
             </Button>

@@ -1,6 +1,7 @@
 {
   "common": {
     "cancel": "Cancelar",
+    "close": "Cerrar",
     "save": "Guardar",
     "delete": "Eliminar",
     "edit": "Editar",
@@ -197,7 +198,33 @@
     "deleteFailed": "Error al eliminar",
     "deleteTransaction": "Eliminar transacción",
     "editTransaction": "Editar transacción",
-    "updateTransaction": "Actualizar transacción"
+    "updateTransaction": "Actualizar transacción",
+    "movements": "Movimientos",
+    "dashboard": "Resumen",
+    "bills": "Facturas",
+    "addMovement": "Agregar movimiento",
+    "today": "Hoy",
+    "yesterday": "Ayer",
+    "paymentRequired": "Pago pendiente",
+    "showMore": "Mostrar más",
+    "noMovementsYet": "Aún no hay movimientos",
+    "noMovementsMatch": "Ningún movimiento coincide con los filtros",
+    "movementsGetStarted": "Agregá tu primer movimiento para empezar a controlar tu dinero.",
+    "loadFailed": "Error al cargar los datos",
+    "paid": "pagadas",
+    "noBillsYet": "Aún no hay transacciones fijas",
+    "noBillsYetDescription": "Agregá una factura recurrente y aparecerá acá con su estado de pago.",
+    "totalIncome": "Ingresos totales",
+    "totalOutcome": "Gastos totales",
+    "monthlyTrend": "Tendencia mensual",
+    "noChartData": "Todavía no hay datos para mostrar.",
+    "incomeByCategory": "Ingresos por categoría",
+    "outcomeByCategory": "Gastos por categoría",
+    "noIncomeCategories": "No hay ingresos registrados este mes.",
+    "noOutcomeCategories": "No hay gastos registrados este mes.",
+    "upcomingBills": "Facturas pendientes",
+    "noUpcomingBills": "Todas las facturas pagadas. ¡Bien!",
+    "recordPayment": "Registrar pago"
   },
   "createTransaction": {
     "titleFixed": "Crear transacción fija",
@@ -230,7 +257,9 @@
     "transactionCreated": "Transacción creada",
     "fixedCreatedDescription": "Tu transacción fija fue creada. Ya podés agregar pagos.",
     "variableCreatedDescription": "Tu transacción fue creada correctamente.",
-    "creationFailed": "Error al crear"
+    "creationFailed": "Error al crear",
+    "recurring": "Factura recurrente",
+    "recurringHint": "Necesita un pago registrado en cada período. El monto se registra por pago."
   },
   "paymentModal": {
     "title": "Registrar pago",

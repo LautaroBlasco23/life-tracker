@@ -31,20 +31,13 @@ import {
 } from '@/utils/formatNumbers';
 import { Calendar, DollarSign, Trash2, Plus, History } from 'lucide-react';
 import { useTranslations } from '@/contexts/language-context';
+import { formatShortDate } from '@/utils/dateLabels';
 
 interface PaymentModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   transaction: FixedTransaction | null;
   onPaymentCreated: () => void;
-}
-
-function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
 }
 
 export function PaymentModal({
@@ -288,7 +281,7 @@ export function PaymentModal({
                         <div className="flex items-center gap-3">
                           <div className="flex items-center gap-1 text-muted-foreground text-sm">
                             <Calendar className="h-3.5 w-3.5" />
-                            {formatDate(payment.date)}
+                            {formatShortDate(new Date(payment.date))}
                           </div>
                           <span
                             className={`font-medium ${

@@ -12,20 +12,13 @@ import {
   DropdownMenuItem,
 } from '@/components/ui/card/entityDropdown';
 import { useTranslations } from '@/contexts/language-context';
+import { formatShortDate } from '@/utils/dateLabels';
 
 interface FixedTransactionCardProps {
   transaction: FixedTransaction;
   onAddPayment: (transaction: FixedTransaction) => void;
   onEdit: (transaction: FixedTransaction) => void;
   onDelete: (transactionId: string) => Promise<void>;
-}
-
-function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  });
 }
 
 export function FixedTransactionCard({
@@ -122,7 +115,7 @@ export function FixedTransactionCard({
                 <div className="flex items-center gap-1 text-muted-foreground">
                   <Calendar className="h-4 w-4 shrink-0" />
                   <span>
-                    {t('created')} {formatDate(transaction.createdAt)}
+                    {t('created')} {formatShortDate(new Date(transaction.createdAt))}
                   </span>
                 </div>
 

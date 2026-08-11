@@ -32,6 +32,24 @@ export type FinanceCategory = (typeof ALL_FINANCE_CATEGORIES)[number];
 export interface Category {
   name: string;
   type: TransactionType;
+  icon?: string;
+  applicableToFreq?: TransactionFrequency;
+}
+
+export type MovementSourceType = 'transaction' | 'payment' | 'fixed';
+
+/** Unified money movement for the feed: variable transaction, payment of a
+ * fixed transaction, or a pending fixed bill (paid=false). */
+export interface Movement {
+  id: string;
+  sourceType: MovementSourceType;
+  type: TransactionType;
+  amount: number;
+  category: string;
+  description?: string;
+  date: string;
+  paid: boolean;
+  transactionId?: string;
 }
 
 export interface Transaction {
@@ -102,7 +120,7 @@ export interface CreatePaymentRequest {
 }
 
 export interface CategorySummary {
-  category: string;
+  categoryName: string;
   total: number;
   percentage: number;
   count: number;

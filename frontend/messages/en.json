@@ -1,6 +1,7 @@
 {
   "common": {
     "cancel": "Cancel",
+    "close": "Close",
     "save": "Save",
     "delete": "Delete",
     "edit": "Edit",
@@ -197,7 +198,33 @@
     "deleteFailed": "Delete failed",
     "deleteTransaction": "Delete Transaction",
     "editTransaction": "Edit Transaction",
-    "updateTransaction": "Update Transaction"
+    "updateTransaction": "Update Transaction",
+    "movements": "Movements",
+    "dashboard": "Dashboard",
+    "bills": "Bills",
+    "addMovement": "Add movement",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "paymentRequired": "Payment required",
+    "showMore": "Show more",
+    "noMovementsYet": "No movements yet",
+    "noMovementsMatch": "No movements match your filters",
+    "movementsGetStarted": "Add your first movement to start tracking your money.",
+    "loadFailed": "Failed to load data",
+    "paid": "paid",
+    "noBillsYet": "No fixed transactions yet",
+    "noBillsYetDescription": "Add a recurring bill and it will appear here with its payment status.",
+    "totalIncome": "Total income",
+    "totalOutcome": "Total expenses",
+    "monthlyTrend": "Monthly trend",
+    "noChartData": "No data to show yet.",
+    "incomeByCategory": "Income by category",
+    "outcomeByCategory": "Expenses by category",
+    "noIncomeCategories": "No income recorded this month.",
+    "noOutcomeCategories": "No expenses recorded this month.",
+    "upcomingBills": "Upcoming bills",
+    "noUpcomingBills": "All bills paid. Nice!",
+    "recordPayment": "Record payment"
   },
   "createTransaction": {
     "titleFixed": "Create Fixed Transaction",
@@ -230,7 +257,9 @@
     "transactionCreated": "Transaction created",
     "fixedCreatedDescription": "Your fixed transaction has been created. You can now add payments to it.",
     "variableCreatedDescription": "Your transaction has been successfully created.",
-    "creationFailed": "Creation failed"
+    "creationFailed": "Creation failed",
+    "recurring": "Recurring bill",
+    "recurringHint": "Needs a payment recorded each period. Amount is tracked per payment."
   },
   "paymentModal": {
     "title": "Record Payment",

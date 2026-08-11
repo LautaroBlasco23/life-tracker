@@ -10,6 +10,7 @@ import type {
   FixedTransaction,
   Payment,
   CreatePaymentRequest,
+  Movement,
 } from '@/types';
 import { authService } from './auth-service';
 import { getConfig } from '@/lib/config';
@@ -18,6 +19,7 @@ interface ApiResponse<T> {
   message: string;
   data: T;
   count?: number;
+  total?: number;
   year?: number;
 }
 
@@ -30,6 +32,15 @@ interface GetTransactionsParams {
   year?: number;
   category?: string;
   limit?: number;
+}
+
+interface GetMovementsParams {
+  type?: TransactionType;
+  category?: string;
+  month?: number;
+  year?: number;
+  limit?: number;
+  offset?: number;
 }
 
 interface GetFixedTransactionsParams {
@@ -188,6 +199,36 @@ class FinanceService {
 
     const result: ApiResponse<FixedTransaction[]> = await response.json();
     return result.data;
+  }
+
+  async getMovements(params?: GetMovementsParams): Promise<{
+    data: Movement[];
+    total: number;
+  }> {
+    const searchParams = new URLSearchParams();
+
+    if (params?.type) searchParams.append('type', params.type);
+    if (params?.category !== undefined)
+      searchParams.append('category', params.category);
+    if (params?.month !== undefined)
+      searchParams.append('month', params.month.toString());
+    if (params?.year !== undefined)
+      searchParams.append('year', params.year.toString());
+    if (params?.limit !== undefined)
+      searchParams.append('limit', params.limit.toString());
+    if (params?.offset !== undefined)
+      searchParams.append('offset', params.offset.toString());
+
+    const response = await authService.makeAuthenticatedRequest(
+      `${this.baseUrl}/finances/movements?${searchParams.toString()}`
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch movements');
+    }
+
+    const result: ApiResponse<Movement[]> = await response.json();
+    return { data: result.data, total: result.total ?? result.data.length };
   }
 
   async getFixedTransactionWithPayments(id: string): Promise<FixedTransaction> {
