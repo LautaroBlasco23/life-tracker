@@ -24,7 +24,7 @@ import { CategoryHeader } from '@/components/ui/category/categoryHeader';
 import { EntityCard } from '@/components/ui/card/entityCard';
 import { CreateActivityModal } from './modal/create-activity-modal';
 import { EditActivityModal } from './modal/edit-activity-modal';
-import { GenericFilterModal } from '@/components/ui/filterModal/filterModal';
+import { FilterSidebar } from '@/components/ui/filterModal/filterSidebar';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useTranslations } from '@/contexts/language-context';
 
@@ -126,7 +126,7 @@ export default function ActivitiesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [showFilterSidebar, setShowFilterSidebar] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('today');
   const [activeFilter, setActiveFilter] = useState<ActivityFilter>({});
@@ -429,7 +429,7 @@ export default function ActivitiesPage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setShowFilterModal(true)}
+                onClick={() => setShowFilterSidebar(true)}
                 className="flex items-center gap-2"
               >
                 <Filter className="h-4 w-4" />
@@ -464,7 +464,7 @@ export default function ActivitiesPage() {
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
-                onClick={() => setShowFilterModal(true)}
+                onClick={() => setShowFilterSidebar(true)}
                 className="flex items-center gap-2"
               >
                 <Filter className="h-4 w-4" />
@@ -663,9 +663,9 @@ export default function ActivitiesPage() {
             activity={editingActivity}
             onActivityUpdated={handleActivityUpdated}
           />
-          <GenericFilterModal
-            open={showFilterModal}
-            onOpenChange={setShowFilterModal}
+          <FilterSidebar
+            open={showFilterSidebar}
+            onOpenChange={setShowFilterSidebar}
             currentFilter={activeFilter}
             onApplyFilter={handleApplyFilter}
             title={t('filterActivities')}

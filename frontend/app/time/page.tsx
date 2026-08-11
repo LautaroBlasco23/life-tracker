@@ -36,10 +36,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  GenericFilterModal,
   MONTHS,
   YEARS,
 } from '@/components/ui/filterModal/filterModal';
+import { FilterSidebar } from '@/components/ui/filterModal/filterSidebar';
 import { useTranslations } from '@/contexts/language-context';
 
 type TimePeriodFilter = 'thisWeek' | 'thisMonth' | 'lastMonth' | 'allTime';
@@ -232,7 +232,7 @@ export default function TimePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
-  const [showFilterModal, setShowFilterModal] = useState(false);
+  const [showFilterSidebar, setShowFilterSidebar] = useState(false);
   const [editingRecord, setEditingRecord] = useState<TimeRecord | null>(null);
   const [timePeriod, setTimePeriod] = useState<TimePeriodFilter>('thisMonth');
   const [activeFilter, setActiveFilter] = useState<TimeRecordFilter>({});
@@ -535,7 +535,7 @@ export default function TimePage() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setShowFilterModal(true)}
+                onClick={() => setShowFilterSidebar(true)}
                 className="flex items-center gap-2"
               >
                 <Filter className="h-4 w-4" />
@@ -574,7 +574,7 @@ export default function TimePage() {
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
-                onClick={() => setShowFilterModal(true)}
+                onClick={() => setShowFilterSidebar(true)}
                 className="flex items-center gap-2"
               >
                 <Filter className="h-4 w-4" />
@@ -934,9 +934,9 @@ export default function TimePage() {
             onRecordUpdated={handleRecordUpdated}
           />
 
-          <GenericFilterModal
-            open={showFilterModal}
-            onOpenChange={setShowFilterModal}
+          <FilterSidebar
+            open={showFilterSidebar}
+            onOpenChange={setShowFilterSidebar}
             currentFilter={activeFilter}
             onApplyFilter={handleApplyFilter}
             title={t('filterTimeRecords')}
