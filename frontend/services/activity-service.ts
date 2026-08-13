@@ -7,6 +7,7 @@ import type {
   RecordActivityRequest,
   DayOfWeek,
   ActivityFilter,
+  StreakInfo,
 } from '@/types';
 import { authService } from './auth-service';
 import { getConfig } from '@/lib/config';
@@ -235,6 +236,20 @@ class ActivityService {
     }
 
     const backendResponse: BackendSingleResponse<ActivityStats> =
+      await response.json();
+    return backendResponse.data;
+  }
+
+  async getGlobalStreak(): Promise<StreakInfo> {
+    const response = await authService.makeAuthenticatedRequest(
+      `${this.baseUrl}/activities/streak`
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch global streak');
+    }
+
+    const backendResponse: BackendSingleResponse<StreakInfo> =
       await response.json();
     return backendResponse.data;
   }

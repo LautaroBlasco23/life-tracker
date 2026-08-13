@@ -514,7 +514,8 @@
     "followRequestRejected": "Rechazaste la solicitud de seguimiento",
     "acceptFailed": "Error al aceptar",
     "rejectFailed": "Error al rechazar",
-    "userId": "Usuario #{id}"
+    "userId": "Usuario #{id}",
+    "viewProfile": "Ver perfil"
   },
   "privacy": {
     "public": "Público",
@@ -526,5 +527,33 @@
     "activityPrivacyDescription": "Hacé esta actividad visible para otros",
     "makePublic": "Hacer pública",
     "makePrivate": "Hacer privada"
+  },
+  "profilePublic": {
+    "title": "Perfil",
+    "loading": "Cargando perfil...",
+    "notFound": "Usuario no encontrado",
+    "errorLoading": "No se pudo cargar el perfil",
+    "backToSocial": "Volver a Social",
+    "followers": "Seguidores",
+    "following": "Siguiendo",
+    "publicRoutines": "Rutinas públicas",
+    "publicActivities": "Actividades públicas",
+    "noPublicRoutines": "Todavía no tiene rutinas públicas",
+    "noPublicActivities": "Todavía no tiene actividades públicas",
+    "privateProfile": "Perfil privado",
+    "lockedMessage": "Este perfil es privado. Seguí a {name} y esperá la aprobación para ver sus rutinas y actividades.",
+    "thisIsYou": "Este sos vos",
+    "follow": "Seguir",
+    "followingLabel": "Siguiendo",
+    "pendingLabel": "Pendiente",
+    "subscribe": "Suscribirse",
+    "subscribed": "Suscrito",
+    "unsubscribe": "Cancelar suscripción",
+    "subscribeFailed": "No se pudo suscribir",
+    "unsubscribeFailed": "No se pudo cancelar la suscripción",
+    "subscribedToast": "Te suscribiste a {name}",
+    "unsubscribedToast": "Te desuscribiste de {name}",
+    "streakDays": "{count} días seguidos",
+    "activitiesCount": "{count} actividades"
   }
 }

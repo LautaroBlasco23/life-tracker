@@ -1,7 +1,7 @@
 import type {
   PublicUserCard,
   PublicProfileResponse,
-  Follow,
+  FollowerItem,
   FollowStatus,
 } from '@/types/user';
 import { authService } from './auth-service';
@@ -21,6 +21,13 @@ interface PageResponse<T> {
   total: number;
   limit: number;
   offset: number;
+}
+
+interface Subscription {
+  id: number;
+  sourceType: 'activity' | 'routine';
+  sourceId: number;
+  clonedId: number;
 }
 
 // API returns a different structure for user search
@@ -56,7 +63,7 @@ class SocialService {
   // Get public profile by username
   async getUserProfile(username: string): Promise<PublicProfileResponse> {
     const response = await authService.makeAuthenticatedRequest(
-      `${this.baseUrl}/users/${username}`
+      `${this.baseUrl}/users/${username}/profile`
     );
     if (!response.ok) {
       if (response.status === 404) {
@@ -100,15 +107,15 @@ class SocialService {
   }
 
   // Get pending follow requests (incoming)
-  async getPendingFollowRequests(): Promise<Follow[]> {
+  async getPendingFollowRequests(): Promise<FollowerItem[]> {
     const response = await authService.makeAuthenticatedRequest(
       `${this.baseUrl}/follows/pending`
     );
     if (!response.ok) {
       throw new Error('Failed to fetch pending follow requests');
     }
-    const result: ApiResponse<PageResponse<Follow>> = await response.json();
-    return result.data.items;
+    const result = await response.json();
+    return result.data ?? [];
   }
 
   // Accept a follow request
@@ -177,6 +184,50 @@ class SocialService {
     const result: ApiResponse<PageResponse<PublicUserCard>> =
       await response.json();
     return result.data;
+  }
+
+  // Subscribe to (clone) a public activity or routine
+  async subscribe(
+    sourceType: 'activity' | 'routine',
+    sourceId: number
+  ): Promise<Subscription> {
+    const response = await authService.makeAuthenticatedRequest(
+      `${this.baseUrl}/subscriptions`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ sourceType, sourceId }),
+      }
+    );
+    if (!response.ok) {
+      throw new Error('Failed to subscribe');
+    }
+    const result: ApiResponse<Subscription> = await response.json();
+    return result.data;
+  }
+
+  // Unsubscribe from a subscription
+  async unsubscribe(id: number): Promise<void> {
+    const response = await authService.makeAuthenticatedRequest(
+      `${this.baseUrl}/subscriptions/${id}`,
+      {
+        method: 'DELETE',
+      }
+    );
+    if (!response.ok) {
+      throw new Error('Failed to unsubscribe');
+    }
+  }
+
+  // List the user's subscriptions
+  async getMySubscriptions(): Promise<Subscription[]> {
+    const response = await authService.makeAuthenticatedRequest(
+      `${this.baseUrl}/subscriptions`
+    );
+    if (!response.ok) {
+      throw new Error('Failed to fetch subscriptions');
+    }
+    const result = await response.json();
+    return result.data ?? [];
   }
 }
 

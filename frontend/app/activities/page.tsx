@@ -7,6 +7,8 @@ import { AuthGuard } from '@/components/auth-guard';
 import { Navigation } from '@/components/navigation';
 import { activityService } from '@/services/activity-service';
 import type { Activity, DayTime } from '@/types/activity';
+import type { StreakInfo } from '@/types/activity';
+import { StreakBadge } from '@/components/ui/streak-badge';
 import {
   Plus,
   Sun,
@@ -16,6 +18,7 @@ import {
   X,
   Undo2,
   Clock,
+  Flame,
 } from 'lucide-react';
 import { showToast } from '@/lib/toast';
 import { Badge } from '@/components/ui/badge';
@@ -128,10 +131,18 @@ export default function ActivitiesPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('today');
   const [activeFilter, setActiveFilter] = useState<ActivityFilter>({});
   const [processingIds, setProcessingIds] = useState<Set<number>>(new Set());
+  const [globalStreak, setGlobalStreak] = useState<StreakInfo | null>(null);
 
   const targetDate =
     viewMode === 'filtered' ? activeFilter.scheduledFor : undefined;
   const dateLabel = formatDateLabel(targetDate);
+
+  useEffect(() => {
+    activityService
+      .getGlobalStreak()
+      .then(setGlobalStreak)
+      .catch(() => setGlobalStreak(null));
+  }, []);
 
   const loadActivities = useCallback(async () => {
     try {
@@ -509,6 +520,39 @@ export default function ActivitiesPage() {
                 </Button>
               </div>
             </div>
+          )}
+
+          {viewMode === 'today' && globalStreak && globalStreak.current > 0 && (
+            <Card className="mb-6 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20 border-orange-200 dark:border-orange-900/50">
+              <CardContent className="p-4 flex items-center gap-4 flex-wrap">
+                <div className="flex items-center gap-3">
+                  <Flame
+                    className="h-6 w-6 text-orange-500"
+                    fill="currentColor"
+                  />
+                  <div>
+                    <p className="text-sm font-medium text-foreground flex items-center gap-2">
+                      {t('globalStreakTitle')}
+                      <StreakBadge
+                        current={globalStreak.current}
+                        showZero
+                        size="sm"
+                      />
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {t('globalStreak', { count: globalStreak.current })}
+                      {globalStreak.longest > globalStreak.current && (
+                        <span className="ml-2">
+                          {t('globalStreakLongest', {
+                            count: globalStreak.longest,
+                          })}
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           )}
 
           {activities.length === 0 ? (

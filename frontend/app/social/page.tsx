@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AuthGuard } from '@/components/auth-guard';
 import { Navigation } from '@/components/navigation';
 import { socialService } from '@/services/social-service';
-import type { PublicUserCard, Follow } from '@/types/user';
+import type { PublicUserCard, FollowerItem } from '@/types/user';
 import { showToast } from '@/lib/toast';
 import { useTranslations } from '@/contexts/language-context';
 import {
@@ -22,15 +23,17 @@ import {
   Users,
   User,
   Loader2,
+  ExternalLink,
 } from 'lucide-react';
 
 export default function SocialPage() {
   const t = useTranslations('social');
   const tCommon = useTranslations('common');
+  const router = useRouter();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<PublicUserCard[]>([]);
-  const [pendingRequests, setPendingRequests] = useState<Follow[]>([]);
+  const [pendingRequests, setPendingRequests] = useState<FollowerItem[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [isLoadingPending, setIsLoadingPending] = useState(true);
   const [processingIds, setProcessingIds] = useState<Set<number>>(new Set());
@@ -165,7 +168,7 @@ export default function SocialPage() {
       await socialService.acceptFollowRequest(followerId);
       // Remove from pending requests
       setPendingRequests((prev) =>
-        prev.filter((req) => req.followerId !== followerId)
+        prev.filter((req) => req.userId !== followerId)
       );
       showToast({
         title: t('requestAccepted'),
@@ -193,7 +196,7 @@ export default function SocialPage() {
       await socialService.rejectFollowRequest(followerId);
       // Remove from pending requests
       setPendingRequests((prev) =>
-        prev.filter((req) => req.followerId !== followerId)
+        prev.filter((req) => req.userId !== followerId)
       );
       showToast({
         title: t('requestRejected'),
@@ -283,9 +286,15 @@ export default function SocialPage() {
               {user.lastName[0]}
             </AvatarFallback>
           </Avatar>
-          <div className="flex-1 min-w-0">
+          <button
+            type="button"
+            className="flex-1 min-w-0 text-left"
+            onClick={() =>
+              user.username && router.push(`/users?username=${user.username}`)
+            }
+          >
             <div className="flex items-center gap-2">
-              <h3 className="font-medium text-foreground truncate">
+              <h3 className="font-medium text-foreground truncate hover:underline">
                 {user.firstName} {user.lastName}
               </h3>
               {user.profilePrivacyStatus === 'private' && (
@@ -297,8 +306,24 @@ export default function SocialPage() {
             {user.username && (
               <p className="text-sm text-muted-foreground">@{user.username}</p>
             )}
-          </div>
-          {showFollowButton && getFollowButton(user)}
+          </button>
+          {showFollowButton && (
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() =>
+                  user.username &&
+                  router.push(`/users?username=${user.username}`)
+                }
+                className="hidden sm:flex items-center gap-1.5"
+              >
+                <ExternalLink className="h-4 w-4" />
+                {t('viewProfile')}
+              </Button>
+              {getFollowButton(user)}
+            </div>
+          )}
         </div>
       </CardContent>
     </Card>
@@ -393,7 +418,7 @@ export default function SocialPage() {
                     })}
                   </h2>
                   {pendingRequests.map((request) => (
-                    <Card key={request.followerId} className="bg-muted/30">
+                    <Card key={request.userId} className="bg-muted/30">
                       <CardContent className="p-4">
                         <div className="flex items-center gap-4">
                           <Avatar className="h-12 w-12">
@@ -403,8 +428,13 @@ export default function SocialPage() {
                           </Avatar>
                           <div className="flex-1">
                             <h3 className="font-medium text-foreground">
-                              {t('userId', { id: request.followerId })}
+                              {request.firstName} {request.lastName}
                             </h3>
+                            {request.username && (
+                              <p className="text-xs text-muted-foreground">
+                                @{request.username}
+                              </p>
+                            )}
                             <p className="text-sm text-muted-foreground">
                               {t('wantsToFollow')}
                             </p>
@@ -414,11 +444,11 @@ export default function SocialPage() {
                               variant="outline"
                               size="sm"
                               onClick={() =>
-                                handleRejectRequest(request.followerId)
+                                handleRejectRequest(request.userId)
                               }
-                              disabled={processingIds.has(request.followerId)}
+                              disabled={processingIds.has(request.userId)}
                             >
-                              {processingIds.has(request.followerId) ? (
+                              {processingIds.has(request.userId) ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
                               ) : (
                                 <UserX className="h-4 w-4" />
@@ -430,11 +460,11 @@ export default function SocialPage() {
                             <Button
                               size="sm"
                               onClick={() =>
-                                handleAcceptRequest(request.followerId)
+                                handleAcceptRequest(request.userId)
                               }
-                              disabled={processingIds.has(request.followerId)}
+                              disabled={processingIds.has(request.userId)}
                             >
-                              {processingIds.has(request.followerId) ? (
+                              {processingIds.has(request.userId) ? (
                                 <Loader2 className="h-4 w-4 animate-spin" />
                               ) : (
                                 <UserCheck className="h-4 w-4" />
