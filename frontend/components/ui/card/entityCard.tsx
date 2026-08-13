@@ -202,7 +202,7 @@ export function EntityCard({
                   >
                     <Badge
                       variant={badge.variant ?? 'outline'}
-                      className="text-xs cursor-pointer hover:bg-muted"
+                      className="text-xs cursor-pointer hover:bg-secondary/80"
                     >
                       {badge.label}
                     </Badge>
