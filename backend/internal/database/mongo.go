@@ -69,5 +69,43 @@ func CreateMongoIndexes(db *mongo.Database) error {
 		return fmt.Errorf("failed to create MongoDB indexes: %w", err)
 	}
 
+	// Health collections indexes
+	mealLogsCollection := db.Collection("meal_logs")
+	mealLogsIndex := mongo.IndexModel{
+		Keys: bson.D{
+			{Key: "userId", Value: 1},
+			{Key: "date", Value: -1},
+		},
+	}
+	_, err = mealLogsCollection.Indexes().CreateOne(ctx, mealLogsIndex)
+	if err != nil {
+		return fmt.Errorf("failed to create meal_logs index: %w", err)
+	}
+
+	exercisesCollection := db.Collection("exercises")
+	exerciseUserIndex := mongo.IndexModel{
+		Keys: bson.D{
+			{Key: "userId", Value: 1},
+			{Key: "name", Value: 1},
+		},
+		Options: options.Index().SetUnique(true),
+	}
+	_, err = exercisesCollection.Indexes().CreateOne(ctx, exerciseUserIndex)
+	if err != nil {
+		return fmt.Errorf("failed to create exercises index: %w", err)
+	}
+
+	workoutSessionsCollection := db.Collection("workout_sessions")
+	workoutIndex := mongo.IndexModel{
+		Keys: bson.D{
+			{Key: "userId", Value: 1},
+			{Key: "date", Value: -1},
+		},
+	}
+	_, err = workoutSessionsCollection.Indexes().CreateOne(ctx, workoutIndex)
+	if err != nil {
+		return fmt.Errorf("failed to create workout_sessions index: %w", err)
+	}
+
 	return nil
 }
