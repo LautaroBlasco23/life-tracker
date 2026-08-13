@@ -12,6 +12,7 @@ import (
 	"life-tracker-backend/internal/domain/activity/dto"
 	"life-tracker-backend/internal/domain/activity/model"
 	"life-tracker-backend/internal/domain/activity/repository"
+	"life-tracker-backend/internal/domain/activity/streak"
 	"life-tracker-backend/internal/infrastructure/monitoring"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -540,6 +541,39 @@ func (s *ActivityService) filterByScheduledDate(activities []model.Activity, tar
 	}
 
 	return filtered
+}
+
+// GetGlobalStreak computes the user's overall day streak: consecutive days
+// where every active activity due that day was completed.
+func (s *ActivityService) GetGlobalStreak(userID uint, loc *time.Location) (*dto.StreakInfo, error) {
+	activities, err := s.activityRepo.FindActiveByUserID(userID)
+	if err != nil {
+		return nil, errors.New("failed to fetch activities")
+	}
+	if len(activities) == 0 {
+		return &dto.StreakInfo{Current: 0, Longest: 0}, nil
+	}
+
+	inputs := make([]streak.Input, len(activities))
+	ids := make([]uint, len(activities))
+	for i := range activities {
+		ids[i] = activities[i].ID
+		inputs[i] = streak.Input{
+			ActivityID:       activities[i].ID,
+			Frequency:        activities[i].Frequency,
+			DayFrequency:     streak.ParseDayFrequency(activities[i].DayFrequency),
+			CompletionAmount: activities[i].CompletionAmount,
+		}
+	}
+
+	from, to := streak.Window(loc, streak.DefaultWindowDays)
+	daily, err := s.recordRepo.GetDailyCounts(context.Background(), userID, ids, from, to, loc)
+	if err != nil {
+		return nil, errors.New("failed to fetch completion counts")
+	}
+
+	result := streak.Compute(daily, inputs, loc, streak.DefaultWindowDays)
+	return &result, nil
 }
 
 func (s *ActivityService) CalculateStreak(userID, activityID uint, activity *model.Activity, loc *time.Location) (*dto.StreakInfo, error) {

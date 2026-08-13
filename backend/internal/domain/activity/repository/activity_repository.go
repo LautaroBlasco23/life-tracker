@@ -46,6 +46,7 @@ type ActivityRecordRepository interface {
 	DeleteLatestForDate(ctx context.Context, activityID, userID uint, startOfDay, endOfDay time.Time) error
 	GetCompletionMetadata(ctx context.Context, userID uint, activityIDs []uint, loc *time.Location) (*CompletionMetadata, error)
 	GetCompletionsForDate(ctx context.Context, userID uint, date time.Time, loc *time.Location) (map[uint]int, error)
+	GetDailyCounts(ctx context.Context, userID uint, activityIDs []uint, from, to time.Time, loc *time.Location) (map[uint]map[string]int, error)
 }
 
 type GormActivityRepository struct {
@@ -340,4 +341,79 @@ func (r *MongoActivityRecordRepository) GetCompletionsForDate(ctx context.Contex
 	}
 
 	return completions, nil
+}
+
+// GetDailyCounts buckets completion records into calendar days in loc and
+// returns map[activityID]map["2006-01-02"]count for the inclusive [from, to)
+// window.
+func (r *MongoActivityRecordRepository) GetDailyCounts(ctx context.Context, userID uint, activityIDs []uint, from, to time.Time, loc *time.Location) (map[uint]map[string]int, error) {
+	if len(activityIDs) == 0 {
+		return map[uint]map[string]int{}, nil
+	}
+
+	timezone := loc.String()
+	if timezone == "" {
+		timezone = "UTC"
+	}
+
+	pipeline := []bson.M{
+		{
+			"$match": bson.M{
+				"userId":     userID,
+				"activityId": bson.M{"$in": activityIDs},
+				"completionDate": bson.M{
+					"$gte": from.UTC(),
+					"$lt":  to.UTC(),
+				},
+			},
+		},
+		{
+			"$group": bson.M{
+				"_id": bson.M{
+					"activityId": "$activityId",
+					"day": bson.M{
+						"$dateToString": bson.M{
+							"format":   "%Y-%m-%d",
+							"date":     "$completionDate",
+							"timezone": timezone,
+						},
+					},
+				},
+				"count": bson.M{"$sum": 1},
+			},
+		},
+	}
+
+	cursor, err := r.collection.Aggregate(ctx, pipeline)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err := cursor.Close(ctx); err != nil {
+			log.Printf("failed to close cursor: %v", err)
+		}
+	}()
+
+	result := make(map[uint]map[string]int)
+	for cursor.Next(ctx) {
+		var row struct {
+			ID struct {
+				ActivityID uint   `bson:"activityId"`
+				Day        string `bson:"day"`
+			} `bson:"_id"`
+			Count int `bson:"count"`
+		}
+		if err := cursor.Decode(&row); err != nil {
+			continue
+		}
+		if result[row.ID.ActivityID] == nil {
+			result[row.ID.ActivityID] = make(map[string]int)
+		}
+		result[row.ID.ActivityID][row.ID.Day] = row.Count
+	}
+	if err := cursor.Err(); err != nil {
+		return nil, err
+	}
+
+	return result, nil
 }

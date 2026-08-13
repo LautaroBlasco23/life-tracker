@@ -18,6 +18,7 @@ func RegisterActivityRoutes(router *gin.RouterGroup, db *gorm.DB, mongoDB *mongo
 		activityGroup.POST("", activityController.CreateActivity)
 		activityGroup.GET("", activityController.GetUserActivities)
 		activityGroup.GET("/today", activityController.GetTodayActivities)
+		activityGroup.GET("/streak", activityController.GetGlobalStreak)
 		activityGroup.GET("/:id", activityController.GetActivity)
 		activityGroup.PUT("/:id", activityController.UpdateActivity)
 		activityGroup.DELETE("/:id", activityController.DeleteActivity)

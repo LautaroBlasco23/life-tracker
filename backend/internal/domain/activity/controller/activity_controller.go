@@ -123,6 +123,30 @@ func (c *ActivityController) GetTodayActivities(ctx *gin.Context) {
 	})
 }
 
+func (c *ActivityController) GetGlobalStreak(ctx *gin.Context) {
+	userID, err := getActivityUserID(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	loc := getTimezone(ctx)
+	streak, err := c.activityService.GetGlobalStreak(userID, loc)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": "Global streak retrieved successfully",
+		"data":    streak,
+	})
+}
+
 func (c *ActivityController) GetActivity(ctx *gin.Context) {
 	userID, err := getActivityUserID(ctx)
 	if err != nil {
