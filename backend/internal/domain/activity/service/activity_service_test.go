@@ -13,6 +13,7 @@ import (
 	"life-tracker-backend/internal/domain/activity/dto"
 	"life-tracker-backend/internal/domain/activity/model"
 	"life-tracker-backend/internal/domain/activity/repository"
+	routineModel "life-tracker-backend/internal/domain/routine/model"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -63,7 +64,7 @@ func setupTestDatabases(t *testing.T) {
 		require.NoError(t, err)
 		sqlDB.SetMaxOpenConns(1)
 
-		require.NoError(t, db.AutoMigrate(&model.Activity{}))
+		require.NoError(t, db.AutoMigrate(&model.Activity{}, &routineModel.Routine{}, &routineModel.RoutineActivity{}))
 		testDB = db
 	}
 
@@ -80,7 +81,7 @@ func setupTestDatabases(t *testing.T) {
 
 func cleanDatabase(t *testing.T) {
 	t.Helper()
-	require.NoError(t, testDB.Exec("TRUNCATE TABLE activities RESTART IDENTITY CASCADE;").Error)
+	require.NoError(t, testDB.Exec("TRUNCATE TABLE routine_activities, routines, activities RESTART IDENTITY CASCADE;").Error)
 
 	collections, _ := testMongoDB.ListCollectionNames(context.Background(), bson.M{})
 	for _, coll := range collections {
@@ -622,4 +623,55 @@ func TestGetUserActivitiesFiltered(t *testing.T) {
 		assert.NoError(t, err)
 		assert.Len(t, resp, 1)
 	})
+}
+
+func TestGetUserActivitiesIncludesRoutineRefs(t *testing.T) {
+	tc := getTestService(t)
+	userID := uint(108)
+
+	activity := model.Activity{
+		UserID:           userID,
+		Title:            "Training session",
+		IsActive:         true,
+		Frequency:        model.FrequencyDaily,
+		DayTime:          model.DayTimeMorning,
+		CompletionAmount: 1,
+	}
+	require.NoError(t, tc.db.Create(&activity).Error)
+
+	unrelated := model.Activity{
+		UserID:           userID,
+		Title:            "Solo activity",
+		IsActive:         true,
+		Frequency:        model.FrequencyDaily,
+		DayTime:          model.DayTimeEvening,
+		CompletionAmount: 1,
+	}
+	require.NoError(t, tc.db.Create(&unrelated).Error)
+
+	routine := routineModel.Routine{
+		UserID:        userID,
+		Title:         "Health routine",
+		PrivacyStatus: routineModel.PrivacyPrivate,
+	}
+	require.NoError(t, tc.db.Create(&routine).Error)
+	require.NoError(t, tc.db.Create(&routineModel.RoutineActivity{
+		RoutineID:  routine.ID,
+		ActivityID: activity.ID,
+		Position:   0,
+	}).Error)
+
+	resp, err := tc.service.GetUserActivities(userID, false, testLoc)
+	require.NoError(t, err)
+	require.Len(t, resp, 2)
+
+	for _, r := range resp {
+		if r.ID == activity.ID {
+			require.Len(t, r.Routines, 1)
+			assert.Equal(t, routine.ID, r.Routines[0].ID)
+			assert.Equal(t, "Health routine", r.Routines[0].Title)
+		} else {
+			assert.Empty(t, r.Routines)
+		}
+	}
 }

@@ -18,6 +18,7 @@ import { StreakBadge } from '../streak-badge';
 interface BadgeConfig {
   label: string;
   variant?: 'default' | 'outline' | 'destructive' | 'secondary';
+  onClick?: () => void;
 }
 
 interface ProgressConfig {
@@ -191,15 +192,31 @@ export function EntityCard({
 
           {badges.length > 0 && (
             <div className="flex items-center gap-2 flex-wrap">
-              {badges.map((badge, index) => (
-                <Badge
-                  key={index}
-                  variant={badge.variant ?? 'outline'}
-                  className="text-xs"
-                >
-                  {badge.label}
-                </Badge>
-              ))}
+              {badges.map((badge, index) =>
+                badge.onClick ? (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={badge.onClick}
+                    className="inline-flex"
+                  >
+                    <Badge
+                      variant={badge.variant ?? 'outline'}
+                      className="text-xs cursor-pointer hover:bg-muted"
+                    >
+                      {badge.label}
+                    </Badge>
+                  </button>
+                ) : (
+                  <Badge
+                    key={index}
+                    variant={badge.variant ?? 'outline'}
+                    className="text-xs"
+                  >
+                    {badge.label}
+                  </Badge>
+                )
+              )}
             </div>
           )}
         </CardContent>

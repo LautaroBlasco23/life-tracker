@@ -1,6 +1,10 @@
 package dto
 
-import "time"
+import (
+	"time"
+
+	routineDTO "life-tracker-backend/internal/domain/routine/dto"
+)
 
 type CreateActivityRequest struct {
 	Title            string `json:"title" binding:"required,min=1,max=255"`
@@ -23,21 +27,22 @@ type UpdateActivityRequest struct {
 }
 
 type ActivityResponse struct {
-	CreatedAt        time.Time   `json:"createdAt"`
-	UpdatedAt        time.Time   `json:"updatedAt"`
-	Streak           *StreakInfo `json:"streak,omitempty"`
-	Title            string      `json:"title"`
-	DayFrequency     string      `json:"dayFrequency,omitempty"`
-	DayTime          string      `json:"dayTime"`
-	Frequency        string      `json:"frequency"`
-	Description      string      `json:"description"`
-	ID               uint        `json:"id"`
-	CompletionAmount int         `json:"completionAmount"`
-	UserID           uint        `json:"userId"`
-	TodayCompletions int         `json:"todayCompletions"`
-	IsActive         bool        `json:"isActive"`
-	IsCompletedToday bool        `json:"isCompletedToday"`
-	PrivacyStatus    string      `json:"privacyStatus"`
+	CreatedAt        time.Time               `json:"createdAt"`
+	UpdatedAt        time.Time               `json:"updatedAt"`
+	Streak           *StreakInfo             `json:"streak,omitempty"`
+	Title            string                  `json:"title"`
+	DayFrequency     string                  `json:"dayFrequency,omitempty"`
+	DayTime          string                  `json:"dayTime"`
+	Frequency        string                  `json:"frequency"`
+	Description      string                  `json:"description"`
+	ID               uint                    `json:"id"`
+	CompletionAmount int                     `json:"completionAmount"`
+	UserID           uint                    `json:"userId"`
+	TodayCompletions int                     `json:"todayCompletions"`
+	IsActive         bool                    `json:"isActive"`
+	IsCompletedToday bool                    `json:"isCompletedToday"`
+	PrivacyStatus    string                  `json:"privacyStatus"`
+	Routines         []routineDTO.RoutineRef `json:"routines,omitempty"`
 }
 
 // Activity completion DTOs

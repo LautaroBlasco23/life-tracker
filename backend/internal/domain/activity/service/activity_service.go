@@ -13,6 +13,7 @@ import (
 	"life-tracker-backend/internal/domain/activity/model"
 	"life-tracker-backend/internal/domain/activity/repository"
 	"life-tracker-backend/internal/domain/activity/streak"
+	routineRepository "life-tracker-backend/internal/domain/routine/repository"
 	"life-tracker-backend/internal/infrastructure/monitoring"
 
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -23,12 +24,32 @@ import (
 type ActivityService struct {
 	activityRepo repository.ActivityRepository
 	recordRepo   repository.ActivityRecordRepository
+	routineRepo  routineRepository.RoutineRepository
 }
 
 func NewActivityService(db *gorm.DB, mongoDB *mongo.Database) *ActivityService {
 	return &ActivityService{
 		activityRepo: repository.NewActivityRepository(db),
 		recordRepo:   repository.NewActivityRecordRepository(mongoDB),
+		routineRepo:  routineRepository.NewRoutineRepository(db),
+	}
+}
+
+func (s *ActivityService) attachRoutines(userID uint, responses []*dto.ActivityResponse) {
+	ids := make([]uint, 0, len(responses))
+	for _, r := range responses {
+		ids = append(ids, r.ID)
+	}
+	if len(ids) == 0 {
+		return
+	}
+	routineMap, err := s.routineRepo.FindRoutinesByActivityIDs(ids, userID)
+	if err != nil {
+		fmt.Printf("Warning: failed to fetch routine refs: %v\n", err)
+		return
+	}
+	for _, r := range responses {
+		r.Routines = routineMap[r.ID]
 	}
 }
 
@@ -84,6 +105,7 @@ func (s *ActivityService) GetUserActivities(userID uint, includeInactive bool, l
 		responses[i] = activities[i].ToResponseWithCompletions(completions, streak)
 	}
 
+	s.attachRoutines(userID, responses)
 	return responses, nil
 }
 
@@ -126,6 +148,7 @@ func (s *ActivityService) GetTodayActivities(userID uint, loc *time.Location) ([
 		}
 	}
 
+	s.attachRoutines(userID, responses)
 	return responses, nil
 }
 
@@ -489,6 +512,7 @@ func (s *ActivityService) GetUserActivitiesFiltered(userID uint, filter *dto.Act
 		responses[i] = activities[i].ToResponseWithCompletions(completions[activities[i].ID], streak)
 	}
 
+	s.attachRoutines(userID, responses)
 	return responses, nil
 }
 

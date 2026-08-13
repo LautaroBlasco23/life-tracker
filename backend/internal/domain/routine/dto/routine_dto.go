@@ -22,9 +22,20 @@ type UpdateRoutineRequest struct {
 }
 
 type RoutineActivityItem struct {
-	ActivityTitle string `json:"activityTitle"`
-	ActivityID    uint   `json:"activityId"`
-	Position      int    `json:"position"`
+	ActivityTitle    string `json:"activityTitle"`
+	Description      string `json:"description"`
+	Frequency        string `json:"frequency"`
+	DayFrequency     string `json:"dayFrequency,omitempty"`
+	DayTime          string `json:"dayTime"`
+	PrivacyStatus    string `json:"privacyStatus"`
+	CompletionAmount int    `json:"completionAmount"`
+	ActivityID       uint   `json:"activityId"`
+	Position         int    `json:"position"`
+}
+
+type RoutineRef struct {
+	ID    uint   `json:"id"`
+	Title string `json:"title"`
 }
 
 type RoutineResponse struct {

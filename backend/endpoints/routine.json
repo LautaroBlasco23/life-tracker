@@ -1,0 +1,47 @@
+[
+  {
+    "route": "/api/routines",
+    "method": "POST",
+    "validation": {
+      "title": { "type": "string" },
+      "description": { "type": "string", "required": false },
+      "privacyStatus": { "type": "enum", "values": ["public", "private"] },
+      "activityIds": {
+        "type": "array",
+        "items": {
+          "activityId": { "type": "integer" },
+          "position": { "type": "integer", "required": false }
+        }
+      }
+    }
+  },
+  {
+    "route": "/api/routines/me",
+    "method": "GET"
+  },
+  {
+    "route": "/api/routines/{id}",
+    "method": "GET"
+  },
+  {
+    "route": "/api/routines/{id}",
+    "method": "PATCH",
+    "validation": {
+      "title": { "type": "string", "required": false },
+      "description": { "type": "string", "required": false },
+      "privacyStatus": { "type": "enum", "values": ["public", "private"], "required": false },
+      "activityIds": {
+        "type": "array",
+        "items": {
+          "activityId": { "type": "integer" },
+          "position": { "type": "integer", "required": false }
+        },
+        "required": false
+      }
+    }
+  },
+  {
+    "route": "/api/routines/{id}",
+    "method": "DELETE"
+  }
+]

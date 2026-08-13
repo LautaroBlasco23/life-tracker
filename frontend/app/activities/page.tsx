@@ -27,6 +27,7 @@ import { CategoryHeader } from '@/components/ui/category/categoryHeader';
 import { EntityCard } from '@/components/ui/card/entityCard';
 import { CreateActivityModal } from './modal/create-activity-modal';
 import { EditActivityModal } from './modal/edit-activity-modal';
+import { RoutineDetailModal } from '@/app/routines/modal/routine-detail-modal';
 import { FilterSidebar } from '@/components/ui/filterModal/filterSidebar';
 import { useTranslations } from '@/contexts/language-context';
 
@@ -128,6 +129,7 @@ export default function ActivitiesPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showFilterSidebar, setShowFilterSidebar] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
+  const [detailRoutineId, setDetailRoutineId] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('today');
   const [activeFilter, setActiveFilter] = useState<ActivityFilter>({});
   const [processingIds, setProcessingIds] = useState<Set<number>>(new Set());
@@ -388,12 +390,21 @@ export default function ActivitiesPage() {
   };
 
   const buildActivityBadges = (activity: Activity) => {
-    const badges: Array<{ label: string; variant: 'outline' | 'default' }> = [
-      { label: t(activity.frequency), variant: 'outline' },
-    ];
+    const badges: Array<{
+      label: string;
+      variant: 'outline' | 'default' | 'secondary';
+      onClick?: () => void;
+    }> = [{ label: t(activity.frequency), variant: 'outline' }];
     const formattedDays = formatDayFrequency(activity.dayFrequency);
     if (activity.frequency === 'weekly' && formattedDays) {
       badges.push({ label: formattedDays, variant: 'outline' });
+    }
+    for (const routine of activity.routines ?? []) {
+      badges.push({
+        label: routine.title,
+        variant: 'secondary',
+        onClick: () => setDetailRoutineId(routine.id),
+      });
     }
     return badges;
   };
@@ -709,6 +720,13 @@ export default function ActivitiesPage() {
                 helperText: t('showForDate'),
               },
             ]}
+          />
+          <RoutineDetailModal
+            open={detailRoutineId !== null}
+            onOpenChange={(open) => {
+              if (!open) setDetailRoutineId(null);
+            }}
+            routineId={detailRoutineId}
           />
         </div>
       </div>

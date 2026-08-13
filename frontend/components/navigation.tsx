@@ -12,6 +12,7 @@ import {
   Menu,
   X,
   Users,
+  ListChecks,
   HeartPulse,
 } from 'lucide-react';
 import { useTranslations } from '@/contexts/language-context';
@@ -27,6 +28,7 @@ export function Navigation() {
 
   const navItems = [
     { href: '/activities', icon: Activity, label: t('activities') },
+    { href: '/routines', icon: ListChecks, label: t('routines') },
     { href: '/time', icon: Clock, label: t('time') },
     { href: '/notes', icon: StickyNote, label: t('notes') },
     { href: '/finance', icon: Wallet, label: t('finance') },

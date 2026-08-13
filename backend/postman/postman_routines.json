@@ -1,0 +1,230 @@
+{
+ "info": {
+  "_postman_id": "routines-collection-001",
+  "name": "Routines",
+  "description": "Routine management endpoints for grouping activities into routines with public/private visibility",
+  "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+ },
+ "item": [
+  {
+   "name": "Create Routine",
+   "event": [
+    {
+     "listen": "test",
+     "script": {
+      "exec": [
+       "if (pm.response.code === 201) {",
+       "    const response = pm.response.json();",
+       "    pm.environment.set('routine_id', response.data.id);",
+       "    console.log('Routine ID saved to environment:', response.data.id);",
+       "}"
+      ],
+      "type": "text/javascript"
+     }
+    }
+   ],
+   "request": {
+    "method": "POST",
+    "header": [
+     {
+      "key": "Authorization",
+      "value": "Bearer {{access_token}}"
+     },
+     {
+      "key": "Content-Type",
+      "value": "application/json"
+     }
+    ],
+    "body": {
+     "mode": "raw",
+     "raw": "{\n    \"title\": \"Health Routine\",\n    \"description\": \"Daily health habits\",\n    \"privacyStatus\": \"private\",\n    \"activityIds\": [\n        {\n            \"activityId\": {{activity_id}},\n            \"position\": 0\n        }\n    ]\n}"
+    },
+    "url": {
+     "raw": "{{base_url}}/api/routines",
+     "host": [
+      "{{base_url}}"
+     ],
+     "path": [
+      "api",
+      "routines"
+     ]
+    },
+    "description": "Create a new routine with one or more activities"
+   },
+   "response": []
+  },
+  {
+   "name": "Create Public Routine",
+   "request": {
+    "method": "POST",
+    "header": [
+     {
+      "key": "Authorization",
+      "value": "Bearer {{access_token}}"
+     },
+     {
+      "key": "Content-Type",
+      "value": "application/json"
+     }
+    ],
+    "body": {
+     "mode": "raw",
+     "raw": "{\n    \"title\": \"Mindfulness Routine\",\n    \"description\": \"Relax and breathe throughout the day\",\n    \"privacyStatus\": \"public\",\n    \"activityIds\": [\n        {\n            \"activityId\": {{activity_id}},\n            \"position\": 0\n        }\n    ]\n}"
+    },
+    "url": {
+     "raw": "{{base_url}}/api/routines",
+     "host": [
+      "{{base_url}}"
+     ],
+     "path": [
+      "api",
+      "routines"
+     ]
+    },
+    "description": "Create a public routine visible to other users"
+   },
+   "response": []
+  },
+  {
+   "name": "Get My Routines",
+   "request": {
+    "method": "GET",
+    "header": [
+     {
+      "key": "Authorization",
+      "value": "Bearer {{access_token}}"
+     }
+    ],
+    "url": {
+     "raw": "{{base_url}}/api/routines/me",
+     "host": [
+      "{{base_url}}"
+     ],
+     "path": [
+      "api",
+      "routines",
+      "me"
+     ]
+    },
+    "description": "List all routines owned by the authenticated user"
+   },
+   "response": []
+  },
+  {
+   "name": "Get Routine by ID",
+   "request": {
+    "method": "GET",
+    "header": [
+     {
+      "key": "Authorization",
+      "value": "Bearer {{access_token}}"
+     }
+    ],
+    "url": {
+     "raw": "{{base_url}}/api/routines/{{routine_id}}",
+     "host": [
+      "{{base_url}}"
+     ],
+     "path": [
+      "api",
+      "routines",
+      "{{routine_id}}"
+     ]
+    },
+    "description": "Fetch a routine by ID. Public routines are readable by other users."
+   },
+   "response": []
+  },
+  {
+   "name": "Update Routine",
+   "request": {
+    "method": "PATCH",
+    "header": [
+     {
+      "key": "Authorization",
+      "value": "Bearer {{access_token}}"
+     },
+     {
+      "key": "Content-Type",
+      "value": "application/json"
+     }
+    ],
+    "body": {
+     "mode": "raw",
+     "raw": "{\n    \"title\": \"Updated Health Routine\",\n    \"description\": \"Renamed and made public\",\n    \"privacyStatus\": \"public\"\n}"
+    },
+    "url": {
+     "raw": "{{base_url}}/api/routines/{{routine_id}}",
+     "host": [
+      "{{base_url}}"
+     ],
+     "path": [
+      "api",
+      "routines",
+      "{{routine_id}}"
+     ]
+    },
+    "description": "Update routine fields (title, description, privacy status). All fields optional."
+   },
+   "response": []
+  },
+  {
+   "name": "Update Routine Activities",
+   "request": {
+    "method": "PATCH",
+    "header": [
+     {
+      "key": "Authorization",
+      "value": "Bearer {{access_token}}"
+     },
+     {
+      "key": "Content-Type",
+      "value": "application/json"
+     }
+    ],
+    "body": {
+     "mode": "raw",
+     "raw": "{\n    \"activityIds\": [\n        {\n            \"activityId\": {{activity_id}},\n            \"position\": 0\n        }\n    ]\n}"
+    },
+    "url": {
+     "raw": "{{base_url}}/api/routines/{{routine_id}}",
+     "host": [
+      "{{base_url}}"
+     ],
+     "path": [
+      "api",
+      "routines",
+      "{{routine_id}}"
+     ]
+    },
+    "description": "Replace the activities in a routine. The previous membership is replaced."
+   },
+   "response": []
+  },
+  {
+   "name": "Delete Routine",
+   "request": {
+    "method": "DELETE",
+    "header": [
+     {
+      "key": "Authorization",
+      "value": "Bearer {{access_token}}"
+     }
+    ],
+    "url": {
+     "raw": "{{base_url}}/api/routines/{{routine_id}}",
+     "host": [
+      "{{base_url}}"
+     ],
+     "path": [
+      "api",
+      "routines",
+      "{{routine_id}}"
+     ]
+    },
+    "description": "Delete a routine. Member activities are kept."
+   },
+   "response": []
+  }
+ ]
+}

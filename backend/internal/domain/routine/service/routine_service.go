@@ -55,17 +55,24 @@ func (s *RoutineService) fetchActivitiesForResponse(routineID uint) []dto.Routin
 	var activities []activityModel.Activity
 	s.db.Where("id IN ?", activityIDs).Find(&activities)
 
-	titleMap := make(map[uint]string, len(activities))
+	activityMap := make(map[uint]activityModel.Activity, len(activities))
 	for _, a := range activities {
-		titleMap[a.ID] = a.Title
+		activityMap[a.ID] = a
 	}
 
 	result := make([]dto.RoutineActivityItem, len(items))
 	for i, it := range items {
+		a := activityMap[it.ActivityID]
 		result[i] = dto.RoutineActivityItem{
-			ActivityID:    it.ActivityID,
-			ActivityTitle: titleMap[it.ActivityID],
-			Position:      it.Position,
+			ActivityID:       it.ActivityID,
+			ActivityTitle:    a.Title,
+			Description:      a.Description,
+			Frequency:        string(a.Frequency),
+			DayFrequency:     a.DayFrequency,
+			DayTime:          string(a.DayTime),
+			PrivacyStatus:    string(a.PrivacyStatus),
+			CompletionAmount: a.CompletionAmount,
+			Position:         it.Position,
 		}
 	}
 	return result

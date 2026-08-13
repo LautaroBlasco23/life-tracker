@@ -3,6 +3,7 @@ package repository
 import (
 	"errors"
 
+	"life-tracker-backend/internal/domain/routine/dto"
 	"life-tracker-backend/internal/domain/routine/model"
 
 	"gorm.io/gorm"
@@ -20,6 +21,7 @@ type RoutineRepository interface {
 	Delete(id, userID uint) error
 	SetActivities(routineID uint, items []model.RoutineActivity) error
 	GetActivities(routineID uint) ([]model.RoutineActivity, error)
+	FindRoutinesByActivityIDs(activityIDs []uint, userID uint) (map[uint][]dto.RoutineRef, error)
 }
 
 type GormRoutineRepository struct {
@@ -101,4 +103,34 @@ func (r *GormRoutineRepository) GetActivities(routineID uint) ([]model.RoutineAc
 	var items []model.RoutineActivity
 	err := r.db.Where("routine_id = ?", routineID).Order("position ASC").Find(&items).Error
 	return items, err
+}
+
+func (r *GormRoutineRepository) FindRoutinesByActivityIDs(activityIDs []uint, userID uint) (map[uint][]dto.RoutineRef, error) {
+	if len(activityIDs) == 0 {
+		return map[uint][]dto.RoutineRef{}, nil
+	}
+
+	var rows []struct {
+		ActivityID uint
+		RoutineID  uint
+		Title      string
+	}
+	err := r.db.Table("routine_activities").
+		Select("routine_activities.activity_id, routines.id AS routine_id, routines.title").
+		Joins("JOIN routines ON routines.id = routine_activities.routine_id").
+		Where("routine_activities.activity_id IN ? AND routines.user_id = ? AND routines.deleted_at IS NULL", activityIDs, userID).
+		Order("routines.title ASC").
+		Scan(&rows).Error
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[uint][]dto.RoutineRef)
+	for _, row := range rows {
+		result[row.ActivityID] = append(result[row.ActivityID], dto.RoutineRef{
+			ID:    row.RoutineID,
+			Title: row.Title,
+		})
+	}
+	return result, nil
 }

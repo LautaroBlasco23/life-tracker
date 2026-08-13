@@ -1,4 +1,5 @@
 import { ActivityRecord } from './activityRecords';
+import type { RoutineRef } from './routine';
 
 export type Frequency = 'daily' | 'weekly' | 'monthly' | 'oneTime';
 export type DayOfWeek =
@@ -33,6 +34,7 @@ export interface Activity {
   todayCompletions: number;
   isCompletedToday: boolean;
   streak?: StreakInfo;
+  routines?: RoutineRef[];
 }
 
 export interface CreateActivityRequest {
