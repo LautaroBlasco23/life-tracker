@@ -69,7 +69,7 @@ func (s *SubscriptionService) subscribeToActivity(subscriberID, sourceID uint) (
 			DayFrequency:     source.DayFrequency,
 			DayTime:          source.DayTime,
 			CompletionAmount: source.CompletionAmount,
-			IsActive:         false,
+			IsActive:         true, // subscribed activities appear in Today immediately
 			PrivacyStatus:    activityModel.PrivacyPrivate,
 		}
 		if err := tx.Create(&clone).Error; err != nil {
@@ -151,7 +151,7 @@ func (s *SubscriptionService) subscribeToRoutine(subscriberID, sourceID uint) (*
 				DayFrequency:     srcAct.DayFrequency,
 				DayTime:          srcAct.DayTime,
 				CompletionAmount: srcAct.CompletionAmount,
-				IsActive:         false,
+				IsActive:         true, // subscribed activities appear in Today immediately
 				PrivacyStatus:    activityModel.PrivacyPrivate,
 			}
 			if err := tx.Create(&clonedAct).Error; err != nil {

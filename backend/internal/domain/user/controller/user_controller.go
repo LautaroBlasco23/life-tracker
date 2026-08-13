@@ -209,7 +209,13 @@ func (c *UserController) SearchUsers(ctx *gin.Context) {
 		limit = 25
 	}
 
-	cards, err := c.userService.SearchUsers(query.Q, limit)
+	userID, err := getUserID(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	cards, err := c.userService.SearchUsers(userID, query.Q, limit)
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -220,20 +226,23 @@ func (c *UserController) SearchUsers(ctx *gin.Context) {
 
 func (c *UserController) GetUserOrProfile(ctx *gin.Context) {
 	param := ctx.Param("username")
+
+	var user *dto.UserResponse
 	if id, err := strconv.ParseUint(param, 10, 32); err == nil {
-		user, err := c.userService.GetUserByID(uint(id))
+		user, err = c.userService.GetUserByID(uint(id))
 		if err != nil {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 			return
 		}
-		ctx.JSON(http.StatusOK, gin.H{"message": "User retrieved successfully", "data": user})
-		return
+	} else {
+		user, err = c.userService.GetUserByUsername(param)
+		if err != nil {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
 	}
-	user, err := c.userService.GetUserByUsername(param)
-	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-		return
-	}
+
+	// Public card only: never expose email on user lookup.
 	card := dto.PublicUserCard{
 		ID:                   user.ID,
 		FirstName:            user.FirstName,
@@ -244,7 +253,7 @@ func (c *UserController) GetUserOrProfile(ctx *gin.Context) {
 		IsFollowing:          false,
 		FollowStatus:         "none",
 	}
-	ctx.JSON(http.StatusOK, gin.H{"data": dto.PublicProfileResponse{PublicUserCard: card}})
+	ctx.JSON(http.StatusOK, gin.H{"data": card})
 }
 
 func (c *UserController) DeleteProfileImage(ctx *gin.Context) {

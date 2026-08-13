@@ -155,7 +155,7 @@ func newRouter(cfg *config.Config, dbs *database.Connections, imageClient *image
 			authRoutes.RegisterProtectedAuthRoutes(protected, dbs.PostgreSQL, cfg, imageClient)
 			// Register social routes BEFORE user routes to avoid path conflicts
 			// Social has /users/:username/followers which is more specific than user's /users/:param
-			socialRoutes.RegisterSocialRoutes(protected, dbs.PostgreSQL)
+			socialRoutes.RegisterSocialRoutes(protected, dbs.PostgreSQL, dbs.MongoDB)
 			userRoutes.RegisterUserRoutes(protected, dbs.PostgreSQL, imageClient)
 			activityRoutes.RegisterActivityRoutes(protected, dbs.PostgreSQL, dbs.MongoDB)
 			financeRoutes.RegisterFinanceRoutes(protected, dbs.MongoDB)

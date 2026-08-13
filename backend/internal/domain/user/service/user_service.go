@@ -12,6 +12,8 @@ import (
 	"time"
 
 	authRepository "life-tracker-backend/internal/domain/auth/repository"
+	socialModel "life-tracker-backend/internal/domain/social/model"
+	socialRepository "life-tracker-backend/internal/domain/social/repository"
 	"life-tracker-backend/internal/domain/user/dto"
 	"life-tracker-backend/internal/domain/user/repository"
 	"life-tracker-backend/internal/infrastructure/imagestore"
@@ -23,6 +25,7 @@ import (
 type UserService struct {
 	repo        repository.UserRepository
 	authRepo    authRepository.AuthRepository
+	followRepo  socialRepository.FollowRepository
 	imageClient *imagestore.Client
 }
 
@@ -30,6 +33,7 @@ func NewUserService(db *gorm.DB, imageClient *imagestore.Client) *UserService {
 	return &UserService{
 		repo:        repository.NewUserRepository(db),
 		authRepo:    authRepository.NewAuthRepository(db),
+		followRepo:  socialRepository.NewFollowRepository(db),
 		imageClient: imageClient,
 	}
 }
@@ -184,22 +188,31 @@ func buildUserUpdates(req *dto.UpdateUserRequest) map[string]interface{} {
 	return updates
 }
 
-func (s *UserService) GetAllUsers() ([]*dto.UserResponse, error) {
+func (s *UserService) GetAllUsers() ([]dto.PublicUserCard, error) {
 	users, err := s.repo.FindAll()
 	if err != nil {
 		return nil, errors.New("failed to fetch users")
 	}
 
-	responses := make([]*dto.UserResponse, 0, len(users))
+	cards := make([]dto.PublicUserCard, 0, len(users))
 	for i := range users {
 		// Get auth info for each user to include username
 		auth, authErr := s.authRepo.FindByUserID(users[i].ID)
 		if authErr != nil {
 			continue // Skip users without auth
 		}
-		responses = append(responses, users[i].ToResponse(auth.Email, auth.Username))
+		cards = append(cards, dto.PublicUserCard{
+			ID:                   users[i].ID,
+			FirstName:            users[i].FirstName,
+			LastName:             users[i].LastName,
+			Username:             auth.Username,
+			ProfilePicURL:        users[i].ProfilePicURL,
+			ProfilePrivacyStatus: users[i].ProfilePrivacyStatus,
+			IsFollowing:          false,
+			FollowStatus:         "none",
+		})
 	}
-	return responses, nil
+	return cards, nil
 }
 
 func (s *UserService) DeleteUser(userID uint) error {
@@ -349,7 +362,7 @@ func (s *UserService) GetUserByUsername(username string) (*dto.UserResponse, err
 	return user.ToResponse(auth.Email, auth.Username), nil
 }
 
-func (s *UserService) SearchUsers(prefix string, limit int) ([]dto.PublicUserCard, error) {
+func (s *UserService) SearchUsers(viewerID uint, prefix string, limit int) ([]dto.PublicUserCard, error) {
 	if limit <= 0 {
 		limit = 25
 	}
@@ -366,7 +379,7 @@ func (s *UserService) SearchUsers(prefix string, limit int) ([]dto.PublicUserCar
 			continue // Skip users that can't be found
 		}
 
-		cards = append(cards, dto.PublicUserCard{
+		card := dto.PublicUserCard{
 			ID:                   user.ID,
 			FirstName:            user.FirstName,
 			LastName:             user.LastName,
@@ -375,7 +388,16 @@ func (s *UserService) SearchUsers(prefix string, limit int) ([]dto.PublicUserCar
 			ProfilePrivacyStatus: user.ProfilePrivacyStatus,
 			IsFollowing:          false,
 			FollowStatus:         "none",
-		})
+		}
+
+		if viewerID != 0 && viewerID != user.ID {
+			if follow, err := s.followRepo.FindFollow(viewerID, user.ID); err == nil && follow != nil {
+				card.FollowStatus = string(follow.Status)
+				card.IsFollowing = follow.Status == socialModel.FollowStatusAccepted
+			}
+		}
+
+		cards = append(cards, card)
 	}
 
 	return cards, nil

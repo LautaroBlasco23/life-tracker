@@ -5,13 +5,15 @@ import (
 	"life-tracker-backend/internal/domain/social/service"
 
 	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/mongo"
 	"gorm.io/gorm"
 )
 
-func RegisterSocialRoutes(router *gin.RouterGroup, db *gorm.DB) {
+func RegisterSocialRoutes(router *gin.RouterGroup, db *gorm.DB, mongoDB *mongo.Database) {
 	followService := service.NewFollowService(db)
 	subscriptionService := service.NewSubscriptionService(db)
-	c := controller.NewSocialController(followService, subscriptionService)
+	profileService := service.NewProfileService(db, mongoDB)
+	c := controller.NewSocialController(followService, subscriptionService, profileService)
 
 	follows := router.Group("/follows")
 	{
@@ -24,6 +26,7 @@ func RegisterSocialRoutes(router *gin.RouterGroup, db *gorm.DB) {
 
 	users := router.Group("/users")
 	{
+		users.GET("/:username/profile", c.GetUserProfile)
 		users.GET("/:username/followers", c.GetFollowers)
 		users.GET("/:username/following", c.GetFollowing)
 	}

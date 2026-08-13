@@ -45,15 +45,6 @@ type PublicUserCard struct {
 	IsFollowing          bool    `json:"isFollowing"`
 }
 
-type PublicProfileResponse struct {
-	PublicUserCard
-	FollowersCount        int64 `json:"followersCount"`
-	FollowingCount        int64 `json:"followingCount"`
-	PublicRoutinesCount   int64 `json:"publicRoutinesCount"`
-	PublicActivitiesCount int64 `json:"publicActivitiesCount"`
-	CanViewContent        bool  `json:"canViewContent"`
-}
-
 type UserSearchQuery struct {
 	Q     string `form:"q" binding:"required,min=1,max=30"`
 	Limit int    `form:"limit" binding:"omitempty,min=1,max=50"`

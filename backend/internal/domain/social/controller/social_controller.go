@@ -15,12 +15,14 @@ import (
 type SocialController struct {
 	followService       *service.FollowService
 	subscriptionService *service.SubscriptionService
+	profileService      *service.ProfileService
 }
 
-func NewSocialController(followService *service.FollowService, subscriptionService *service.SubscriptionService) *SocialController {
+func NewSocialController(followService *service.FollowService, subscriptionService *service.SubscriptionService, profileService *service.ProfileService) *SocialController {
 	return &SocialController{
 		followService:       followService,
 		subscriptionService: subscriptionService,
+		profileService:      profileService,
 	}
 }
 
@@ -180,4 +182,20 @@ func (c *SocialController) Unsubscribe(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusOK, gin.H{"message": "Unsubscribed successfully"})
+}
+
+func (c *SocialController) GetUserProfile(ctx *gin.Context) {
+	userID, ok := middleware.GetUserIDFromContext(ctx)
+	if !ok {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
+		return
+	}
+
+	profile, err := c.profileService.GetPublicProfile(userID, ctx.Param("username"))
+	if err != nil {
+		ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"data": profile})
 }
