@@ -1,0 +1,237 @@
+[
+ {
+  "route": "/api/health/nutrition/meals",
+  "method": "POST",
+  "validation": {
+   "mealType": {
+    "type": "enum",
+    "values": [
+     "breakfast",
+     "lunch",
+     "dinner",
+     "snack"
+    ]
+   },
+   "name": {
+    "type": "string"
+   },
+   "calories": {
+    "type": "integer",
+    "required": false
+   },
+   "protein": {
+    "type": "integer",
+    "required": false
+   },
+   "carbs": {
+    "type": "integer",
+    "required": false
+   },
+   "fat": {
+    "type": "integer",
+    "required": false
+   },
+   "date": {
+    "type": "string",
+    "required": false
+   }
+  }
+ },
+ {
+  "route": "/api/health/nutrition/meals",
+  "method": "GET",
+  "queryParams": [
+   "meal_type",
+   "start_date",
+   "end_date",
+   "limit"
+  ]
+ },
+ {
+  "route": "/api/health/nutrition/meals/{id}",
+  "method": "GET"
+ },
+ {
+  "route": "/api/health/nutrition/meals/{id}",
+  "method": "PUT",
+  "validation": {
+   "mealType": {
+    "type": "enum",
+    "values": [
+     "breakfast",
+     "lunch",
+     "dinner",
+     "snack"
+    ],
+    "required": false
+   },
+   "name": {
+    "type": "string",
+    "required": false
+   },
+   "calories": {
+    "type": "integer",
+    "required": false
+   },
+   "protein": {
+    "type": "integer",
+    "required": false
+   },
+   "carbs": {
+    "type": "integer",
+    "required": false
+   },
+   "fat": {
+    "type": "integer",
+    "required": false
+   },
+   "date": {
+    "type": "string",
+    "required": false
+   }
+  }
+ },
+ {
+  "route": "/api/health/nutrition/meals/{id}",
+  "method": "DELETE"
+ },
+ {
+  "route": "/api/health/nutrition/summary",
+  "method": "GET",
+  "queryParams": [
+   "start_date",
+   "end_date"
+  ]
+ },
+ {
+  "route": "/api/health/gym/exercises",
+  "method": "POST",
+  "validation": {
+   "name": {
+    "type": "string"
+   },
+   "muscleGroups": {
+    "type": "array",
+    "values": [
+     "chest",
+     "back",
+     "shoulders",
+     "biceps",
+     "triceps",
+     "forearms",
+     "abs",
+     "quads",
+     "hamstrings",
+     "glutes",
+     "calves",
+     "traps"
+    ]
+   }
+  }
+ },
+ {
+  "route": "/api/health/gym/exercises",
+  "method": "GET"
+ },
+ {
+  "route": "/api/health/gym/exercises/{id}",
+  "method": "PUT",
+  "validation": {
+   "name": {
+    "type": "string",
+    "required": false
+   },
+   "muscleGroups": {
+    "type": "array",
+    "required": false
+   }
+  }
+ },
+ {
+  "route": "/api/health/gym/exercises/{id}",
+  "method": "DELETE"
+ },
+ {
+  "route": "/api/health/gym/workouts",
+  "method": "POST",
+  "validation": {
+   "date": {
+    "type": "string",
+    "required": false
+   },
+   "durationMinutes": {
+    "type": "integer",
+    "required": false
+   },
+   "notes": {
+    "type": "string",
+    "required": false
+   },
+   "exercises": {
+    "type": "array",
+    "fields": {
+     "exerciseId": {
+      "type": "string"
+     },
+     "sets": {
+      "type": "array",
+      "fields": {
+       "reps": {
+        "type": "integer"
+       },
+       "weightKg": {
+        "type": "integer"
+       }
+      }
+     }
+    }
+   }
+  }
+ },
+ {
+  "route": "/api/health/gym/workouts",
+  "method": "GET",
+  "queryParams": [
+   "start_date",
+   "end_date"
+  ]
+ },
+ {
+  "route": "/api/health/gym/workouts/{id}",
+  "method": "GET"
+ },
+ {
+  "route": "/api/health/gym/workouts/{id}",
+  "method": "PUT",
+  "validation": {
+   "date": {
+    "type": "string",
+    "required": false
+   },
+   "durationMinutes": {
+    "type": "integer",
+    "required": false
+   },
+   "notes": {
+    "type": "string",
+    "required": false
+   },
+   "exercises": {
+    "type": "array",
+    "required": false
+   }
+  }
+ },
+ {
+  "route": "/api/health/gym/workouts/{id}",
+  "method": "DELETE"
+ },
+ {
+  "route": "/api/health/gym/stats",
+  "method": "GET",
+  "queryParams": [
+   "start_date",
+   "end_date"
+  ]
+ }
+]

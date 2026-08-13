@@ -3,3 +3,4 @@ export * from './activityRecords';
 export * from './finance';
 export * from './user';
 export * from './auth';
+export * from './health';
