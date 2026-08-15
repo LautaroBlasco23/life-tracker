@@ -139,6 +139,36 @@ services:
       - "3001:3000"
     depends_on:
       - prometheus
+      - loki
+    networks:
+      - golang_api_network
+
+  loki:
+    image: grafana/loki:3.3.2
+    container_name: golang_api_loki
+    restart: unless-stopped
+    command:
+      - "-config.file=/etc/loki/loki.yml"
+    volumes:
+      - ../backend/monitoring/loki.yml:/etc/loki/loki.yml:ro
+      - loki_data:/loki
+    ports:
+      - "3100:3100"
+    networks:
+      - golang_api_network
+
+  promtail:
+    image: grafana/promtail:3.3.2
+    container_name: golang_api_promtail
+    restart: unless-stopped
+    command:
+      - "-config.file=/etc/promtail/promtail.yml"
+    volumes:
+      - ../backend/monitoring/promtail.yml:/etc/promtail/promtail.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+    depends_on:
+      - loki
     networks:
       - golang_api_network
 
@@ -152,6 +182,8 @@ volumes:
   prometheus_data:
     driver: local
   grafana_data:
+    driver: local
+  loki_data:
     driver: local
   floci_data:
     driver: local
