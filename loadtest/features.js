@@ -312,7 +312,8 @@ function userEndpoints(headers, user) {
 
 function authLifecycle() {
   // throwaway user: register -> change password -> change email -> cleanup
-  const prefix = `feat${Date.now().toString(36)}`;
+  // __VU + __ITER are unique within a run; timestamp guards across runs
+  const prefix = `feat${__VU}_${__ITER}`;
   const email = `${prefix}@loadtest.local`;
   const newPass = 'new-pass-456';
 
