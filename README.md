@@ -140,7 +140,8 @@ Stress tests live in [`loadtest/`](./loadtest/) — k6 scenarios that fire hundr
 
 ```bash
 make loadtest                  # stack up -> provision users -> smoke -> read/write/auth/mixed
-                               # scenarios -> cleanup. Watch Grafana (:3001) while it runs.
+                               # -> features (full API coverage) -> cleanup.
+                               # Watch Grafana (:3001) while it runs.
 ```
 
 Overrides propagate to every step: `make loadtest USERS=500 RATE=600 DURATION=2m` (full list in [`loadtest/README.md`](./loadtest/README.md)). Skip the final user cleanup with `CLEANUP=0`.
