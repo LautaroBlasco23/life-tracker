@@ -119,6 +119,21 @@ wait_for "postgres readiness" docker run --rm --network "${FLOCI_NETWORK}" postg
   pg_isready -h "${RDS_ENDPOINT}" -p "${RDS_PORT}" -U "${DB_USER}"
 
 echo "==> DocumentDB cluster (${DOCDB_ID})"
+# floci persists cluster records but does not restart the backing mongo
+# container on boot (unlike RDS, whose backend is auto-restarted). A record
+# whose container is gone/stopped must be deleted or provisioning will wait
+# forever on the dead endpoint. Delete it here so the recreate path below runs.
+if [ "$(aws_cmd docdb describe-db-clusters --db-cluster-identifier "${DOCDB_ID}" --query 'length(DBClusters)' --output text 2>/dev/null || echo 0)" != "0" ] \
+   && [ "$(docker inspect "floci-docdb-${DOCDB_ID}" --format '{{.State.Running}}' 2>/dev/null || echo missing)" != "true" ]; then
+  echo "  stale cluster record (backing container not running) — recreating"
+  aws_cmd docdb delete-db-cluster --db-cluster-identifier "${DOCDB_ID}" --skip-final-snapshot >/dev/null
+  i=0
+  while [ "$(aws_cmd docdb describe-db-clusters --db-cluster-identifier "${DOCDB_ID}" --query 'length(DBClusters)' --output text 2>/dev/null || echo 0)" != "0" ]; do
+    i=$((i + 1))
+    [ "${i}" -ge 12 ] && { echo "ERROR: timed out deleting stale ${DOCDB_ID}" >&2; exit 1; }
+    sleep 1
+  done
+fi
 if [ "$(aws_cmd docdb describe-db-clusters --db-cluster-identifier "${DOCDB_ID}" --query 'length(DBClusters)' --output text 2>/dev/null || echo 0)" = "0" ]; then
   aws_cmd docdb create-db-cluster \
     --db-cluster-identifier "${DOCDB_ID}" \
