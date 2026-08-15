@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
-	"log"
+	"log/slog"
 	"time"
 
 	"life-tracker-backend/internal/domain/finance/model"
@@ -151,7 +151,7 @@ func (r *MongoTransactionRepository) FindByFilter(ctx context.Context, filter Tr
 	}
 	defer func() {
 		if err := cursor.Close(ctx); err != nil {
-			log.Printf("failed to close cursor: %v", err)
+			slog.Warn("failed to close cursor", "error", err)
 		}
 	}()
 
@@ -176,7 +176,7 @@ func (r *MongoTransactionRepository) FindFixedTransactions(ctx context.Context, 
 	}
 	defer func() {
 		if err := cursor.Close(ctx); err != nil {
-			log.Printf("failed to close cursor: %v", err)
+			slog.Warn("failed to close cursor", "error", err)
 		}
 	}()
 
@@ -232,7 +232,7 @@ func (r *MongoTransactionRepository) Aggregate(ctx context.Context, userID uint,
 	}
 	defer func() {
 		if err := cursor.Close(ctx); err != nil {
-			log.Printf("failed to close cursor: %v", err)
+			slog.Warn("failed to close cursor", "error", err)
 		}
 	}()
 
@@ -301,7 +301,7 @@ func (r *MongoTransactionRepository) AggregateMonthly(ctx context.Context, userI
 	}
 	defer func() {
 		if err := cursor.Close(ctx); err != nil {
-			log.Printf("failed to close cursor: %v", err)
+			slog.Warn("failed to close cursor", "error", err)
 		}
 	}()
 
@@ -377,7 +377,7 @@ func (r *MongoPaymentRepository) FindByTransactionID(ctx context.Context, transa
 	}
 	defer func() {
 		if err := cursor.Close(ctx); err != nil {
-			log.Printf("failed to close cursor: %v", err)
+			slog.Warn("failed to close cursor", "error", err)
 		}
 	}()
 
@@ -417,7 +417,7 @@ func (r *MongoPaymentRepository) FindByFilter(ctx context.Context, filter Paymen
 	}
 	defer func() {
 		if err := cursor.Close(ctx); err != nil {
-			log.Printf("failed to close cursor: %v", err)
+			slog.Warn("failed to close cursor", "error", err)
 		}
 	}()
 
@@ -514,7 +514,7 @@ func (r *MongoPaymentRepository) AggregateByTransaction(ctx context.Context, tra
 	}
 	defer func() {
 		if err := cursor.Close(ctx); err != nil {
-			log.Printf("failed to close cursor: %v", err)
+			slog.Warn("failed to close cursor", "error", err)
 		}
 	}()
 
@@ -563,7 +563,7 @@ func (r *MongoPaymentRepository) AggregateByDateRange(ctx context.Context, userI
 	}
 	defer func() {
 		if err := cursor.Close(ctx); err != nil {
-			log.Printf("failed to close cursor: %v", err)
+			slog.Warn("failed to close cursor", "error", err)
 		}
 	}()
 

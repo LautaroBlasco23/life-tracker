@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"log"
+	"log/slog"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -11,7 +11,7 @@ func CORSMiddleware(allowed string) gin.HandlerFunc {
 	origins := map[string]struct{}{}
 	allowAll := allowed == "*"
 
-	log.Println("CORS origins:", allowed)
+	slog.Info("CORS origins configured", "origins", allowed)
 
 	if !allowAll {
 		for _, o := range strings.Split(allowed, ",") {

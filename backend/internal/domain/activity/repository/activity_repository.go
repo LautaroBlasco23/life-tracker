@@ -3,7 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
-	"log"
+	"log/slog"
 	"time"
 
 	"life-tracker-backend/internal/domain/activity/dto"
@@ -166,7 +166,7 @@ func (r *MongoActivityRecordRepository) FindByActivityID(ctx context.Context, ac
 	}
 	defer func() {
 		if err := cursor.Close(ctx); err != nil {
-			log.Printf("failed to close cursor: %v", err)
+			slog.Warn("failed to close cursor", "error", err)
 		}
 	}()
 
@@ -260,7 +260,7 @@ func (r *MongoActivityRecordRepository) GetCompletionMetadata(ctx context.Contex
 	}
 	defer func() {
 		if err := cursor.Close(ctx); err != nil {
-			log.Printf("failed to close cursor: %v", err)
+			slog.Warn("failed to close cursor", "error", err)
 		}
 	}()
 
@@ -324,7 +324,7 @@ func (r *MongoActivityRecordRepository) GetCompletionsForDate(ctx context.Contex
 	}
 	defer func() {
 		if err := cursor.Close(ctx); err != nil {
-			log.Printf("failed to close cursor: %v", err)
+			slog.Warn("failed to close cursor", "error", err)
 		}
 	}()
 
@@ -390,7 +390,7 @@ func (r *MongoActivityRecordRepository) GetDailyCounts(ctx context.Context, user
 	}
 	defer func() {
 		if err := cursor.Close(ctx); err != nil {
-			log.Printf("failed to close cursor: %v", err)
+			slog.Warn("failed to close cursor", "error", err)
 		}
 	}()
 

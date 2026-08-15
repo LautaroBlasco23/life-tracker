@@ -2,7 +2,7 @@ package database
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"time"
 
 	"life-tracker-backend/internal/config"
@@ -32,21 +32,21 @@ func initializeWithRetry(cfg *config.Config, maxRetries int, delay time.Duration
 	for i := 0; i < maxRetries; i++ {
 		postgresDB, err = initializePostgreSQL(cfg, runMigrations)
 		if err != nil {
-			log.Printf("Attempt %d/%d: Failed to connect to PostgreSQL: %v", i+1, maxRetries, err)
+			slog.Warn("failed to connect to PostgreSQL", "attempt", i+1, "max_attempts", maxRetries, "error", err)
 			time.Sleep(delay)
 			continue
 		}
 
 		mongoDB, err = InitializeMongoDB(cfg)
 		if err != nil {
-			log.Printf("Attempt %d/%d: Failed to connect to MongoDB: %v", i+1, maxRetries, err)
+			slog.Warn("failed to connect to MongoDB", "attempt", i+1, "max_attempts", maxRetries, "error", err)
 			time.Sleep(delay)
 			continue
 		}
 
 		if runMigrations {
 			if err = CreateMongoIndexes(mongoDB); err != nil {
-				log.Println("Failed to create MongoDB indexes:", err)
+				slog.Warn("failed to create MongoDB indexes", "error", err)
 			}
 		}
 

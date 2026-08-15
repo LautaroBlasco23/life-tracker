@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sort"
 	"strings"
 	"time"
@@ -79,6 +80,14 @@ func (s *ActivityService) CreateActivity(userID uint, req *dto.CreateActivityReq
 	monitoring.ActiveActivities.Inc()
 	monitoring.ActivitiesByFrequency.WithLabelValues(string(activity.Frequency)).Inc()
 	monitoring.ActivitiesByDayTime.WithLabelValues(string(activity.DayTime)).Inc()
+
+	slog.Info("activity created",
+		"event", "ACTIVITY_CREATED",
+		"user_id", userID,
+		"activity_id", activity.ID,
+		"title", activity.Title,
+		"frequency", activity.Frequency,
+	)
 
 	return activity.ToResponse(), nil
 }
@@ -310,6 +319,14 @@ func (s *ActivityService) RecordActivity(userID, activityID uint, req *dto.Recor
 	}
 
 	monitoring.ActivityCompletions.WithLabelValues(string(activity.Frequency)).Inc()
+
+	slog.Info("activity completed",
+		"event", "ACTIVITY_COMPLETED",
+		"user_id", userID,
+		"activity_id", activityID,
+		"record_id", record.ID.Hex(),
+		"frequency", activity.Frequency,
+	)
 
 	return record.ToResponse(), nil
 }

@@ -3,7 +3,7 @@ package secrets
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 
 	"life-tracker-backend/internal/aws"
 	"life-tracker-backend/internal/config"
@@ -35,7 +35,7 @@ func LoadJWTSecret(ctx context.Context, cfg *config.Config, existing string) (st
 		if cfg.Environment == "prod" {
 			return "", fmt.Errorf("failed to fetch JWT secret from Secrets Manager: %w", err)
 		}
-		log.Printf("warning: failed to fetch JWT secret from Secrets Manager, falling back to env: %v", err)
+		slog.Warn("failed to fetch JWT secret from Secrets Manager, falling back to env", "error", err)
 		return existing, nil
 	}
 
@@ -43,7 +43,7 @@ func LoadJWTSecret(ctx context.Context, cfg *config.Config, existing string) (st
 		if cfg.Environment == "prod" {
 			return "", fmt.Errorf("JWT secret from Secrets Manager is empty")
 		}
-		log.Println("warning: JWT secret from Secrets Manager is empty, falling back to env")
+		slog.Warn("JWT secret from Secrets Manager is empty, falling back to env")
 		return existing, nil
 	}
 

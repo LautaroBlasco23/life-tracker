@@ -3,6 +3,7 @@ package service
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"regexp"
 	"strings"
 	"time"
@@ -97,6 +98,13 @@ func (s *AuthService) Register(req *dto.RegisterRequest) (*dto.TokenResponse, ui
 	monitoring.UserRegistrations.Inc()
 	monitoring.ActiveUsers.Inc()
 	monitoring.AuthAttempts.WithLabelValues("success").Inc()
+
+	slog.Info("user registered",
+		"event", "USER_CREATED",
+		"user_id", user.ID,
+		"email", req.Email,
+		"username", auth.Username,
+	)
 
 	tokens, err := s.generateTokens(user.ID, req.Email)
 	if err != nil {

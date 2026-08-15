@@ -2,7 +2,7 @@ package config
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -56,10 +56,10 @@ func Load() *Config {
 	envPath := findEnvFile(file)
 	if envPath != "" {
 		if err := godotenv.Load(envPath); err != nil {
-			log.Printf("Error loading %s: %v\n", envPath, err)
+			slog.Warn("error loading env file", "path", envPath, "error", err)
 		}
 	} else {
-		log.Printf("No %s file found, using system environment variables\n", file)
+		slog.Warn("no env file found, using system environment variables", "file", file)
 	}
 
 	mongoURI := getEnv("MONGO_URI", "")
