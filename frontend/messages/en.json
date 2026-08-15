@@ -564,7 +564,8 @@
     "followRequestRejected": "You have rejected the follow request",
     "acceptFailed": "Failed to accept request",
     "rejectFailed": "Failed to reject request",
-    "userId": "User #{id}"
+    "userId": "User #{id}",
+    "viewProfile": "View profile"
   },
   "privacy": {
     "public": "Public",
