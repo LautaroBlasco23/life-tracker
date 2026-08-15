@@ -3,13 +3,15 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	"life-tracker-backend/internal/config"
 	"life-tracker-backend/internal/database"
 	"life-tracker-backend/internal/infrastructure/imagestore"
+	"life-tracker-backend/internal/infrastructure/logging"
 	"life-tracker-backend/internal/infrastructure/secrets"
 	"life-tracker-backend/internal/middleware"
 
@@ -32,18 +34,22 @@ import (
 
 func main() {
 	if err := run(); err != nil {
-		log.Fatal(err)
+		slog.Error("fatal error", "error", err)
+		os.Exit(1)
 	}
 }
 
 func run() error {
+	// Structured JSON logging first so every log line (including config) is parseable.
+	logging.Setup()
+
 	// Load configuration
 	cfg := config.Load()
 
 	// Resolve the JWT secret: env wins in dev, Secrets Manager otherwise
 	secret, err := secrets.LoadJWTSecret(context.Background(), cfg, cfg.JWTSecret)
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("failed to load JWT secret: %w", err)
 	}
 	cfg.JWTSecret = secret
 
@@ -53,8 +59,8 @@ func run() error {
 		return fmt.Errorf("failed to connect to databases: %w", err)
 	}
 
-	log.Println("✅ Connected to PostgreSQL successfully")
-	log.Println("✅ Connected to MongoDB successfully")
+	slog.Info("connected to PostgreSQL")
+	slog.Info("connected to MongoDB")
 
 	// Image Service
 	imageClient, err := imagestore.NewClient(cfg)
@@ -63,11 +69,11 @@ func run() error {
 	}
 	defer func() {
 		if closeErr := imageClient.Close(); closeErr != nil {
-			log.Printf("Error closing image client: %v", closeErr)
+			slog.Warn("failed to close image client", "error", closeErr)
 		}
 	}()
 
-	log.Println("✅ Connected to ImageStore service")
+	slog.Info("connected to ImageStore service")
 
 	// Set Gin mode
 	gin.SetMode(cfg.GinMode)
@@ -76,16 +82,16 @@ func run() error {
 	router := newRouter(cfg, dbs, imageClient)
 
 	if cfg.AppRuntime == "serverless" {
-		log.Println("🚀 Starting Lambda handler")
+		slog.Info("starting Lambda handler")
 		lambda.Start(ginadapter.NewV2(router).ProxyWithContext)
 		return nil
 	}
 
 	// Start server
 	port := fmt.Sprintf(":%s", cfg.Port)
-	log.Printf("🚀 Server starting on port %s", cfg.Port)
-	log.Print("📊 Metrics available at /metrics")
-	log.Print("📊 Health check available at: /health")
+	slog.Info("server starting", "port", cfg.Port)
+	slog.Info("metrics available at /metrics")
+	slog.Info("health check available at /health")
 
 	if err := router.Run(port); err != nil {
 		return fmt.Errorf("failed to start server: %w", err)
@@ -102,12 +108,16 @@ func newRouter(cfg *config.Config, dbs *database.Connections, imageClient *image
 		"172.16.0.0/12", // docker bridge
 	})
 	if err != nil {
-		log.Fatalf("failed to set trusted proxies: %v", err)
+		slog.Error("failed to set trusted proxies", "error", err)
+		os.Exit(1)
 	}
 
-	// Add middleware
-	r.Use(gin.Logger())
-	r.Use(gin.Recovery())
+	// Add middleware. Order matters: request ID first so later middleware can
+	// tag their output, request logger before recovery so panicked requests
+	// still produce an access-log line via the recovered 500.
+	r.Use(middleware.RequestIDMiddleware())
+	r.Use(middleware.RequestLoggerMiddleware())
+	r.Use(middleware.RecoveryMiddleware())
 	r.Use(middleware.CORSMiddleware(cfg.CORSAllowedOrigins))
 	r.Use(middleware.TimezoneMiddleware())
 	r.Use(middleware.PrometheusMiddleware())
