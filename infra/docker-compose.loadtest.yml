@@ -1,0 +1,73 @@
+# Load-testing override: self-contained stack for the load-test lane.
+#
+# The base docker-compose.yml reads DB credentials from ../backend/.env, which
+# may hold dev/placeholder values — that makes the legacy compose API unable to
+# start. This override pins explicit credentials and gives the load-test lane
+# its OWN volumes, so `make loadtest` works regardless of .env and never
+# touches dev DB data.
+#
+# Used by `make -C loadtest stack-up`:
+#   docker compose -f docker-compose.yml -f docker-compose.loadtest.yml \
+#     up -d api postgres mongodb node-exporter prometheus grafana
+#
+# Compose merge rules used here:
+#   - `environment:` overrides `env_file:` values per key
+#   - volume lists merge by mount target, so loadtest_* volumes replace the
+#     base postgres_data/mongodb_data mounts
+services:
+  api:
+    environment:
+      PORT: "8080"
+      GIN_MODE: release
+      APP_RUNTIME: ""
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: postgres
+      DB_PASSWORD: password
+      DB_NAME: golang_api
+      DB_SSLMODE: disable
+      MONGO_URI: ""
+      MONGO_HOST: mongodb
+      MONGO_PORT: "27017"
+      MONGO_USER: admin
+      MONGO_PASSWORD: password
+      MONGO_DATABASE: life_tracker
+      JWT_SECRET: loadtest-secret-change-me
+      JWT_EXPIRY: 24h
+      JWT_REFRESH_EXPIRY: 168h
+      AWS_ENDPOINT_URL: ""
+    # base healthcheck uses `wget --spider` (HEAD), which the API answers with
+    # 404 — use a GET instead so the container reports healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8080/health"]
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: golang_api
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    volumes:
+      - loadtest_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d golang_api"]
+
+  mongodb:
+    image: mongo:7.0
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: life_tracker
+    volumes:
+      - loadtest_mongodb_data:/data/db
+      - loadtest_mongodb_config:/data/configdb
+    healthcheck:
+      test: ["CMD", "mongosh", "-u", "admin", "-p", "password", "--eval", "db.adminCommand('ping')"]
+
+volumes:
+  loadtest_postgres_data:
+    driver: local
+  loadtest_mongodb_data:
+    driver: local
+  loadtest_mongodb_config:
+    driver: local

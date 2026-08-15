@@ -12,7 +12,7 @@
 
 INFRA := $(abspath infra)
 
-.PHONY: help start stop restart status logs
+.PHONY: help start stop restart status logs loadtest loadtest-%
 
 .DEFAULT_GOAL := help
 
@@ -29,9 +29,25 @@ help:
 	@echo "  make status    - Show what is running and health-check the API"
 	@echo "  make logs      - Follow floci (emulator) logs"
 	@echo ""
+	@echo "  Load testing (k6, see loadtest/):"
+	@echo "    make loadtest                  - run the FULL load test: stack up,"
+	@echo "                                     provision users, smoke, scenarios, cleanup"
+	@echo "    make loadtest-breakpoint       - ramp until the app collapses"
+	@echo "    make loadtest-soak             - long sustained run"
+	@echo "    make loadtest-tap              - live API response watcher"
+	@echo ""
 	@echo "  Per-component (see infra/Makefile and backend/Makefile):"
 	@echo "    make -C infra floci-up / floci-provision / floci-deploy / frontend-up / deploy-frontend"
 	@echo "    make -C backend floci-status / floci-down / test-floci / migrate-floci"
+
+# Delegate every `make loadtest-<target>` to loadtest/Makefile, forwarding
+# command-line variables (USERS=500, RATE=600, BASE_URL=..., ...).
+# Plain `make loadtest` runs the full suite (see loadtest/Makefile `run`).
+loadtest:
+	$(MAKE) -C loadtest run
+
+loadtest-%:
+	$(MAKE) -C loadtest $*
 
 start:
 	@echo "==> floci emulator"
