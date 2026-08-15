@@ -135,7 +135,11 @@
     "allTimes": "Todos los momentos",
     "scheduledFor": "Programada para",
     "showForDate": "Mostrar actividades programadas para una fecha específica",
-    "target": "Meta:"
+    "target": "Meta:",
+    "globalStreakTitle": "Racha general",
+    "globalStreak": "Completaste todas tus actividades programadas durante {count} día(s) seguidos",
+    "globalStreakLongest": "Racha más larga: {count} días",
+    "globalStreakZero": "Completá cada actividad de tu lista para empezar una racha"
   },
   "createActivity": {
     "title": "Crear nueva actividad",

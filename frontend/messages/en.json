@@ -135,7 +135,11 @@
     "allTimes": "All times",
     "scheduledFor": "Scheduled For Date",
     "showForDate": "Show activities scheduled for a specific date",
-    "target": "Target:"
+    "target": "Target:",
+    "globalStreakTitle": "All activities streak",
+    "globalStreak": "You completed all your scheduled activities for {count} day(s) in a row",
+    "globalStreakLongest": "Longest streak: {count} days",
+    "globalStreakZero": "Complete every activity on your list to start a streak"
   },
   "createActivity": {
     "title": "Create New Activity",
