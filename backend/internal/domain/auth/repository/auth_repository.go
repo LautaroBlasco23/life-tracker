@@ -23,7 +23,7 @@ type AuthRepository interface {
 	Create(auth *model.Auth) error
 	EmailExists(email string) (bool, error)
 	UsernameExists(username string) (bool, error)
-	SearchByUsernamePrefix(prefix string, limit int) ([]model.Auth, error)
+	SearchByUsernamePrefix(prefix string, excludeUserID uint, limit int) ([]model.Auth, error)
 	UpdatePassword(userID uint, passwordHash string) error
 	UpdateEmail(userID uint, email string) error
 	UpdateUsername(userID uint, username string) error
@@ -94,12 +94,16 @@ func (r *GormAuthRepository) UsernameExists(username string) (bool, error) {
 	return true, nil
 }
 
-func (r *GormAuthRepository) SearchByUsernamePrefix(prefix string, limit int) ([]model.Auth, error) {
+func (r *GormAuthRepository) SearchByUsernamePrefix(prefix string, excludeUserID uint, limit int) ([]model.Auth, error) {
 	if limit <= 0 {
 		limit = 25
 	}
 	var auths []model.Auth
-	err := r.db.Where("username ILIKE ?", prefix+"%").Limit(limit).Find(&auths).Error
+	query := r.db.Where("username ILIKE ?", prefix+"%")
+	if excludeUserID != 0 {
+		query = query.Where("user_id <> ?", excludeUserID)
+	}
+	err := query.Limit(limit).Find(&auths).Error
 	return auths, err
 }
 

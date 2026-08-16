@@ -316,6 +316,43 @@ func TestUserService_GetAllUsers(t *testing.T) {
 	})
 }
 
+func TestUserService_SearchUsers(t *testing.T) {
+	service := getTestService(t)
+
+	viewerID := createTestUser(t, service)
+	createTestAuth(t, viewerID, "viewer@test.com", "alice")
+
+	otherUserID := createTestUser(t, service)
+	createTestAuth(t, otherUserID, "other@test.com", "alicefan")
+
+	bobID := createTestUser(t, service)
+	createTestAuth(t, bobID, "bob@test.com", "bob")
+
+	t.Run("excludes the viewer's own account", func(t *testing.T) {
+		users, err := service.SearchUsers(viewerID, "ali", 20)
+
+		assert.NoError(t, err)
+		require.Len(t, users, 1)
+		assert.Equal(t, "alicefan", users[0].Username)
+		assert.NotEqual(t, viewerID, users[0].ID)
+	})
+
+	t.Run("returns other users matching the prefix", func(t *testing.T) {
+		users, err := service.SearchUsers(viewerID, "alicefan", 20)
+
+		assert.NoError(t, err)
+		require.Len(t, users, 1)
+		assert.Equal(t, "alicefan", users[0].Username)
+	})
+
+	t.Run("returns empty when nothing matches", func(t *testing.T) {
+		users, err := service.SearchUsers(viewerID, "zzz", 20)
+
+		assert.NoError(t, err)
+		assert.Empty(t, users)
+	})
+}
+
 func TestUserService_DeleteUser(t *testing.T) {
 	service := getTestService(t)
 

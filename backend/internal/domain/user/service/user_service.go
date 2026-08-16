@@ -367,7 +367,7 @@ func (s *UserService) SearchUsers(viewerID uint, prefix string, limit int) ([]dt
 		limit = 25
 	}
 
-	auths, err := s.authRepo.SearchByUsernamePrefix(prefix, limit)
+	auths, err := s.authRepo.SearchByUsernamePrefix(prefix, viewerID, limit)
 	if err != nil {
 		return nil, errors.New("failed to search users")
 	}
