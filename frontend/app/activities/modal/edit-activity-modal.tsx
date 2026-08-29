@@ -22,16 +22,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { activityService } from '@/services/activity-service';
+import { activityService } from '@shared/services/activity-service';
 import type {
   Activity,
   Frequency,
   DayOfWeek,
   DayTime,
   PrivacyStatus,
-} from '@/types/activity';
+} from '@shared/types/activity';
 import { showToast } from '@/lib/toast';
-import { useTranslations } from '@/contexts/language-context';
+import { useTranslations } from '@shared/contexts/language-context';
 
 interface EditActivityModalProps {
   open: boolean;

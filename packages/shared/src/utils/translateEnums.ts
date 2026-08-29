@@ -1,9 +1,9 @@
-import type { Frequency, DayTime } from '@/types/activity';
+import type { Frequency, DayTime } from '../types/activity';
 import type {
   TransactionType,
   TransactionFrequency,
   PaymentFrequency,
-} from '@/types/finance';
+} from '../types/finance';
 
 export function translateFrequency(
   frequency: Frequency | string,

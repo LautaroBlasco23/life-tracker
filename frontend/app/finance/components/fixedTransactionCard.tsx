@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import type { FixedTransaction, Transaction } from '@/types';
+import type { FixedTransaction, Transaction } from '@shared/types';
 import { formatCurrency } from '@/utils/formatNumbers';
 import { Calendar, CreditCard, Check, Edit, Trash2 } from 'lucide-react';
 import { DeleteModal } from '@/components/ui/card/delete-modal';
@@ -11,7 +11,7 @@ import {
   EntityDropdown,
   DropdownMenuItem,
 } from '@/components/ui/card/entityDropdown';
-import { useTranslations } from '@/contexts/language-context';
+import { useTranslations } from '@shared/contexts/language-context';
 import { formatShortDate } from '@/utils/dateLabels';
 
 interface FixedTransactionCardProps {

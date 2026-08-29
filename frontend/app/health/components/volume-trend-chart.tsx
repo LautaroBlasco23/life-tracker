@@ -9,8 +9,8 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { useTranslations } from '@/contexts/language-context';
-import type { WeeklyVolume } from '@/types';
+import { useTranslations } from '@shared/contexts/language-context';
+import type { WeeklyVolume } from '@shared/types';
 
 interface VolumeTrendChartProps {
   weeklyVolume: WeeklyVolume[];

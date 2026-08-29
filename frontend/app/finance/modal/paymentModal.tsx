@@ -21,8 +21,8 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import type { FixedTransaction, Payment, PaymentSummary } from '@/types';
-import { financeService } from '@/services/finance-service';
+import type { FixedTransaction, Payment, PaymentSummary } from '@shared/types';
+import { financeService } from '@shared/services/finance-service';
 import { showToast } from '@/lib/toast';
 import {
   formatCurrency,
@@ -30,7 +30,7 @@ import {
   parseInputValue,
 } from '@/utils/formatNumbers';
 import { Calendar, DollarSign, Trash2, Plus, History } from 'lucide-react';
-import { useTranslations } from '@/contexts/language-context';
+import { useTranslations } from '@shared/contexts/language-context';
 import {
   dateInputToISO,
   formatShortDate,

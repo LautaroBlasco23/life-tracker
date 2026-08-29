@@ -8,9 +8,9 @@ import type {
   DayOfWeek,
   ActivityFilter,
   StreakInfo,
-} from '@/types';
+} from '../types';
 import { authService } from './auth-service';
-import { getConfig } from '@/lib/config';
+import { getConfig } from '../lib/config';
 
 interface CreateActivityPayload {
   title: string;

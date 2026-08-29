@@ -21,11 +21,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { routineService } from '@/services/routine-service';
-import type { Routine, PrivacyStatus } from '@/types';
+import { routineService } from '@shared/services/routine-service';
+import type { Routine, PrivacyStatus } from '@shared/types';
 import { RoutineActivityPicker } from './routine-activity-picker';
 import { showToast } from '@/lib/toast';
-import { useTranslations } from '@/contexts/language-context';
+import { useTranslations } from '@shared/contexts/language-context';
 
 interface EditRoutineModalProps {
   open: boolean;

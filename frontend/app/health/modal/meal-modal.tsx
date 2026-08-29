@@ -18,12 +18,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import type { MealLog, MealType } from '@/types';
-import { MEAL_TYPES } from '@/types';
-import { healthService } from '@/services/health-service';
+import type { MealLog, MealType } from '@shared/types';
+import { MEAL_TYPES } from '@shared/types';
+import { healthService } from '@shared/services/health-service';
 import { showToast } from '@/lib/toast';
 import { dateInputToISO, isoToDateInput } from '@/utils/dateLabels';
-import { useTranslations } from '@/contexts/language-context';
+import { useTranslations } from '@shared/contexts/language-context';
 
 interface MealModalProps {
   open: boolean;

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { AuthGuard } from '@/components/auth-guard';
 import { Navigation } from '@/components/navigation';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useTranslations } from '@/contexts/language-context';
+import { useTranslations } from '@shared/contexts/language-context';
 import { NutritionTab } from './components/nutrition-tab';
 import { GymTab } from './components/gym-tab';
 

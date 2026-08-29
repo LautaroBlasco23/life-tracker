@@ -16,9 +16,9 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { AuthGuard } from '@/components/auth-guard';
 import { Navigation } from '@/components/navigation';
-import { authService } from '@/services/auth-service';
-import { userService } from '@/services/user-service';
-import type { User, ProfilePrivacyStatus } from '@/types/user';
+import { authService } from '@shared/services/auth-service';
+import { userService } from '@shared/services/user-service';
+import type { User, ProfilePrivacyStatus } from '@shared/types/user';
 import { LogOut, KeyRound, Mail, Languages, Lock } from 'lucide-react';
 import { showToast } from '@/lib/toast';
 import { UpdatePasswordModal } from './modals/update-password-modal';
@@ -27,7 +27,7 @@ import {
   useTranslations,
   useLanguage,
   type Locale,
-} from '@/contexts/language-context';
+} from '@shared/contexts/language-context';
 import {
   Select,
   SelectContent,

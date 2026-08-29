@@ -12,10 +12,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { authService } from '@/services/auth-service';
+import { authService } from '@shared/services/auth-service';
 import { showToast } from '@/lib/toast';
 import { Eye, EyeOff } from 'lucide-react';
-import { useTranslations } from '@/contexts/language-context';
+import { useTranslations } from '@shared/contexts/language-context';
 
 interface UpdatePasswordModalProps {
   open: boolean;

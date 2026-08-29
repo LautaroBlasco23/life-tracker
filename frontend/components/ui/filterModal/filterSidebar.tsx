@@ -9,7 +9,7 @@ import {
   type FilterField,
   type FilterValue,
 } from '@/components/ui/filterModal/filterModal';
-import { useTranslations } from '@/contexts/language-context';
+import { useTranslations } from '@shared/contexts/language-context';
 
 interface FilterSidebarProps<T extends Record<string, FilterValue>> {
   open: boolean;

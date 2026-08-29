@@ -12,12 +12,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { authService } from '@/services/auth-service';
-import { userService } from '@/services/user-service';
+import { authService } from '@shared/services/auth-service';
+import { userService } from '@shared/services/user-service';
 import { showToast } from '@/lib/toast';
 import { Eye, EyeOff, Check, X } from 'lucide-react';
-import type { User } from '@/types/user';
-import { useTranslations } from '@/contexts/language-context';
+import type { User } from '@shared/types/user';
+import { useTranslations } from '@shared/contexts/language-context';
 
 interface UpdateEmailModalProps {
   open: boolean;

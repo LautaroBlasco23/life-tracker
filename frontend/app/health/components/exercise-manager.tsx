@@ -7,11 +7,11 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Plus, Trash2, Loader2, Dumbbell } from 'lucide-react';
-import type { Exercise } from '@/types';
-import { MUSCLE_GROUPS } from '@/types';
-import { healthService } from '@/services/health-service';
+import type { Exercise } from '@shared/types';
+import { MUSCLE_GROUPS } from '@shared/types';
+import { healthService } from '@shared/services/health-service';
 import { showToast } from '@/lib/toast';
-import { useTranslations } from '@/contexts/language-context';
+import { useTranslations } from '@shared/contexts/language-context';
 import { DeleteModal } from '@/components/ui/card/delete-modal';
 
 interface ExerciseManagerProps {

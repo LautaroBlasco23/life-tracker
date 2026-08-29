@@ -1,6 +1,6 @@
-import type { User, UpdateUserRequest } from '@/types/user';
+import type { User, UpdateUserRequest } from '../types/user';
 import { authService } from './auth-service';
-import { getConfig } from '@/lib/config';
+import { getConfig } from '../lib/config';
 
 interface ApiResponse<T> {
   message: string;

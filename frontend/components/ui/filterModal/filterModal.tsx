@@ -11,8 +11,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
-import type { Category } from '@/types';
-import { useTranslations } from '@/contexts/language-context';
+import type { Category } from '@shared/types';
+import { useTranslations } from '@shared/contexts/language-context';
 
 export type FilterValue = string | number | undefined;
 

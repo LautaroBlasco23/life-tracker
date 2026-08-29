@@ -15,7 +15,7 @@ import {
   ListChecks,
   HeartPulse,
 } from 'lucide-react';
-import { useTranslations } from '@/contexts/language-context';
+import { useTranslations } from '@shared/contexts/language-context';
 import { ThemeToggle } from '@/components/theme-toggle';
 
 export function Navigation() {

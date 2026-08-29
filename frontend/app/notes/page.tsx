@@ -6,8 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { AuthGuard } from '@/components/auth-guard';
 import { Navigation } from '@/components/navigation';
-import { noteService } from '@/services/note-service';
-import type { Note } from '@/types/note';
+import { noteService } from '@shared/services/note-service';
+import type { Note } from '@shared/types/note';
 import {
   Plus,
   Search,
@@ -19,7 +19,7 @@ import {
 import { showToast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 import { DeleteModal } from '@/components/ui/card/delete-modal';
-import { useTranslations } from '@/contexts/language-context';
+import { useTranslations } from '@shared/contexts/language-context';
 import { MarkdownView } from '@/components/notes/markdown-view';
 import { NoteToolbar } from '@/components/notes/note-toolbar';
 

@@ -1,4 +1,4 @@
-import { DayOfWeek, DayTime, Frequency } from "@/types/activity"
+import { DayOfWeek, DayTime, Frequency } from "../types/activity"
 
 export interface CreateActivityRequest {
   title: string

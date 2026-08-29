@@ -15,13 +15,13 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { authService } from '@/services/auth-service';
+import { authService } from '@shared/services/auth-service';
 import { showToast } from '@/lib/toast';
 import {
   useTranslations,
   useLanguage,
   type Locale,
-} from '@/contexts/language-context';
+} from '@shared/contexts/language-context';
 import { Languages } from 'lucide-react';
 import {
   Select,

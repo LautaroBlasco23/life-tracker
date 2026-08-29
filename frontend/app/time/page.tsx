@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { AuthGuard } from '@/components/auth-guard';
 import { Navigation } from '@/components/navigation';
-import { timeService } from '@/services/time-service';
-import type { TimeRecord } from '@/types/time';
+import { timeService } from '@shared/services/time-service';
+import type { TimeRecord } from '@shared/types/time';
 import {
   Plus,
   Clock,
@@ -24,7 +24,7 @@ import { EditTimeRecordModal } from './modal/edit-time-record-modal';
 import { CategoryHeader } from '@/components/ui/category/categoryHeader';
 import { EntityCard } from '@/components/ui/card/entityCard';
 import { Badge } from '@/components/ui/badge';
-import { TIME_CATEGORIES } from '@/types/time';
+import { TIME_CATEGORIES } from '@shared/types/time';
 
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -40,7 +40,7 @@ import {
   YEARS,
 } from '@/components/ui/filterModal/filterModal';
 import { FilterSidebar } from '@/components/ui/filterModal/filterSidebar';
-import { useTranslations } from '@/contexts/language-context';
+import { useTranslations } from '@shared/contexts/language-context';
 
 type TimePeriodFilter = 'thisWeek' | 'thisMonth' | 'lastMonth' | 'allTime';
 type TimerState = 'idle' | 'running' | 'paused';

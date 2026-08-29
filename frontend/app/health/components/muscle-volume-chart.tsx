@@ -9,8 +9,8 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { useTranslations } from '@/contexts/language-context';
-import type { MuscleVolume } from '@/types';
+import { useTranslations } from '@shared/contexts/language-context';
+import type { MuscleVolume } from '@shared/types';
 
 interface MuscleVolumeChartProps {
   muscleVolume: MuscleVolume[];

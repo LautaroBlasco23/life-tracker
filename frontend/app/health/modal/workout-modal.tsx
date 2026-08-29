@@ -25,11 +25,11 @@ import type {
   WorkoutSession,
   SessionExercise,
   WorkoutSet,
-} from '@/types';
-import { healthService } from '@/services/health-service';
+} from '@shared/types';
+import { healthService } from '@shared/services/health-service';
 import { showToast } from '@/lib/toast';
 import { dateInputToISO, isoToDateInput, todayInput } from '@/utils/dateLabels';
-import { useTranslations } from '@/contexts/language-context';
+import { useTranslations } from '@shared/contexts/language-context';
 
 interface WorkoutModalProps {
   open: boolean;

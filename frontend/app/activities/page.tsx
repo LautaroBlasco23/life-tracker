@@ -5,9 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { AuthGuard } from '@/components/auth-guard';
 import { Navigation } from '@/components/navigation';
-import { activityService } from '@/services/activity-service';
-import type { Activity, DayTime } from '@/types/activity';
-import type { StreakInfo } from '@/types/activity';
+import { activityService } from '@shared/services/activity-service';
+import type { Activity, DayTime } from '@shared/types/activity';
+import type { StreakInfo } from '@shared/types/activity';
 import { StreakBadge } from '@/components/ui/streak-badge';
 import {
   Plus,
@@ -22,14 +22,14 @@ import {
 } from 'lucide-react';
 import { showToast } from '@/lib/toast';
 import { Badge } from '@/components/ui/badge';
-import { ActivityFilter } from '@/types';
+import { ActivityFilter } from '@shared/types';
 import { CategoryHeader } from '@/components/ui/category/categoryHeader';
 import { EntityCard } from '@/components/ui/card/entityCard';
 import { CreateActivityModal } from './modal/create-activity-modal';
 import { EditActivityModal } from './modal/edit-activity-modal';
 import { RoutineDetailModal } from '@/app/routines/modal/routine-detail-modal';
 import { FilterSidebar } from '@/components/ui/filterModal/filterSidebar';
-import { useTranslations } from '@/contexts/language-context';
+import { useTranslations } from '@shared/contexts/language-context';
 
 type ViewMode = 'today' | 'filtered';
 

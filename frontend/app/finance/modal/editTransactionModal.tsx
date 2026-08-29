@@ -19,7 +19,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { financeService } from '@/services/finance-service';
+import { financeService } from '@shared/services/finance-service';
 import { showToast } from '@/lib/toast';
 import type {
   Transaction,
@@ -27,10 +27,10 @@ import type {
   TransactionFrequency,
   PaymentFrequency,
   Category,
-} from '@/types';
+} from '@shared/types';
 import { formatInputValue, parseInputValue } from '@/utils/formatNumbers';
 import { dateInputToISO, isoToDateInput } from '@/utils/dateLabels';
-import { useTranslations } from '@/contexts/language-context';
+import { useTranslations } from '@shared/contexts/language-context';
 
 interface EditTransactionModalProps {
   open: boolean;

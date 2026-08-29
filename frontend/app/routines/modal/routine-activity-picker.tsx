@@ -5,12 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
 import { Plus, ChevronUp, ChevronDown, X, Pencil, Loader2 } from 'lucide-react';
-import { activityService } from '@/services/activity-service';
-import type { Activity } from '@/types/activity';
+import { activityService } from '@shared/services/activity-service';
+import type { Activity } from '@shared/types/activity';
 import { CreateActivityModal } from '@/app/activities/modal/create-activity-modal';
 import { EditActivityModal } from '@/app/activities/modal/edit-activity-modal';
 import { showToast } from '@/lib/toast';
-import { useTranslations } from '@/contexts/language-context';
+import { useTranslations } from '@shared/contexts/language-context';
 
 interface RoutineActivityPickerProps {
   selectedIds: number[];

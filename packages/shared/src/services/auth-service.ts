@@ -1,4 +1,5 @@
-import { getConfig } from '@/lib/config';
+import { getConfig } from '../lib/config';
+import { storage } from '../lib/storage';
 import type {
   User,
   LoginRequest,
@@ -6,7 +7,7 @@ import type {
   AuthResponse,
   UpdatePasswordRequest,
   UpdateEmailRequest,
-} from '@/types';
+} from '../types';
 
 interface BackendRefreshResponse {
   data: TokenResponse;
@@ -58,17 +59,15 @@ class AuthService {
   private authChangeCallbacks: Set<AuthChangeCallback> = new Set();
 
   constructor() {
-    if (typeof window !== 'undefined') {
-      this.accessToken = localStorage.getItem('accessToken');
-      this.refreshToken = localStorage.getItem('refreshToken');
-      const userData = localStorage.getItem('currentUser');
-      if (userData) {
-        try {
-          this.currentUser = JSON.parse(userData);
-        } catch (error) {
-          console.error('Failed to parse user data from localStorage:', error);
-          localStorage.removeItem('currentUser');
-        }
+    this.accessToken = storage.getItem('accessToken');
+    this.refreshToken = storage.getItem('refreshToken');
+    const userData = storage.getItem('currentUser');
+    if (userData) {
+      try {
+        this.currentUser = JSON.parse(userData);
+      } catch (error) {
+        console.error('Failed to parse user data from storage:', error);
+        storage.removeItem('currentUser');
       }
     }
   }
@@ -131,11 +130,9 @@ class AuthService {
     this.refreshToken = tokens.refreshToken;
     this.currentUser = user;
 
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('accessToken', tokens.accessToken);
-      localStorage.setItem('refreshToken', tokens.refreshToken);
-      localStorage.setItem('currentUser', JSON.stringify(user));
-    }
+    storage.setItem('accessToken', tokens.accessToken);
+    storage.setItem('refreshToken', tokens.refreshToken);
+    storage.setItem('currentUser', JSON.stringify(user));
 
     this.notifyAuthChange(true);
 
@@ -171,11 +168,9 @@ class AuthService {
     this.refreshToken = tokens.refreshToken;
     this.currentUser = user;
 
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('accessToken', tokens.accessToken);
-      localStorage.setItem('refreshToken', tokens.refreshToken);
-      localStorage.setItem('currentUser', JSON.stringify(user));
-    }
+    storage.setItem('accessToken', tokens.accessToken);
+    storage.setItem('refreshToken', tokens.refreshToken);
+    storage.setItem('currentUser', JSON.stringify(user));
 
     this.notifyAuthChange(true);
 
@@ -208,11 +203,8 @@ class AuthService {
 
     this.accessToken = tokens.accessToken;
     this.refreshToken = tokens.refreshToken;
-
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('accessToken', tokens.accessToken);
-      localStorage.setItem('refreshToken', tokens.refreshToken);
-    }
+    storage.setItem('accessToken', tokens.accessToken);
+    storage.setItem('refreshToken', tokens.refreshToken);
 
     return this.accessToken;
   }
@@ -221,12 +213,9 @@ class AuthService {
     this.currentUser = null;
     this.accessToken = null;
     this.refreshToken = null;
-
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
-      localStorage.removeItem('currentUser');
-    }
+    storage.removeItem('accessToken');
+    storage.removeItem('refreshToken');
+    storage.removeItem('currentUser');
 
     this.notifyAuthChange(false);
   }
@@ -306,9 +295,7 @@ class AuthService {
 
   setCurrentUser(user: User): void {
     this.currentUser = user;
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('currentUser', JSON.stringify(user));
-    }
+    storage.setItem('currentUser', JSON.stringify(user));
   }
 
   async updatePassword(request: UpdatePasswordRequest): Promise<void> {
@@ -348,12 +335,10 @@ class AuthService {
       this.currentUser = { ...this.currentUser, email: request.newEmail };
     }
 
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('accessToken', tokens.accessToken);
-      localStorage.setItem('refreshToken', tokens.refreshToken);
-      if (this.currentUser) {
-        localStorage.setItem('currentUser', JSON.stringify(this.currentUser));
-      }
+    storage.setItem('accessToken', tokens.accessToken);
+    storage.setItem('refreshToken', tokens.refreshToken);
+    if (this.currentUser) {
+      storage.setItem('currentUser', JSON.stringify(this.currentUser));
     }
   }
 

@@ -2,7 +2,7 @@
 import type React from 'react';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { authService } from '@/services/auth-service';
+import { authService } from '@shared/services/auth-service';
 
 interface AuthGuardProps {
   children: React.ReactNode;

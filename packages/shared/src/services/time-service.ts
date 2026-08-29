@@ -3,9 +3,9 @@ import type {
   TimeRecord,
   TimeStats,
   UpdateTimeRecordInput,
-} from '@/types/time';
+} from '../types/time';
 import { authService } from './auth-service';
-import { getConfig } from '@/lib/config';
+import { getConfig } from '../lib/config';
 
 interface ApiResponse<T> {
   message: string;

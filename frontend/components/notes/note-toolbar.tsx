@@ -2,7 +2,7 @@
 
 import { Button } from '@/components/ui/button';
 import { Pencil, Eye, Save, RotateCcw } from 'lucide-react';
-import { useTranslations } from '@/contexts/language-context';
+import { useTranslations } from '@shared/contexts/language-context';
 
 interface NoteToolbarProps {
   isEditing: boolean;

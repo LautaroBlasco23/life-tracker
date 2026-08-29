@@ -11,9 +11,9 @@ import type {
   UpdateWorkoutSessionRequest,
   GymStats,
   MealType,
-} from '@/types';
+} from '../types';
 import { authService } from './auth-service';
-import { getConfig } from '@/lib/config';
+import { getConfig } from '../lib/config';
 
 interface ApiResponse<T> {
   message: string;

@@ -9,8 +9,8 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { useTranslations } from '@/contexts/language-context';
-import type { DailyNutritionSummary } from '@/types';
+import { useTranslations } from '@shared/contexts/language-context';
+import type { DailyNutritionSummary } from '@shared/types';
 
 interface NutritionChartProps {
   daily: DailyNutritionSummary[];

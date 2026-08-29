@@ -3,9 +3,9 @@ import type {
   CreateNoteRequest,
   UpdateNoteRequest,
   NoteFilter,
-} from '@/types/note';
+} from '../types/note';
 import { authService } from './auth-service';
-import { getConfig } from '@/lib/config';
+import { getConfig } from '../lib/config';
 
 interface BackendListResponse<T> {
   count: number;

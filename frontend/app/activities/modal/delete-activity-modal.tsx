@@ -11,8 +11,8 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { AlertTriangle } from 'lucide-react';
-import type { Activity } from '@/types/activity';
-import { useTranslations } from '@/contexts/language-context';
+import type { Activity } from '@shared/types/activity';
+import { useTranslations } from '@shared/contexts/language-context';
 
 interface DeleteActivityModalProps {
   open: boolean;

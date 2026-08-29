@@ -8,8 +8,9 @@ import {
   useCallback,
 } from 'react';
 import type React from 'react';
-import en from '@/messages/en.json';
-import es from '@/messages/es.json';
+import en from '../messages/en.json';
+import es from '../messages/es.json';
+import { storage } from '../lib/storage';
 
 export type Locale = 'en' | 'es';
 
@@ -33,7 +34,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>('en');
 
   useEffect(() => {
-    const saved = localStorage.getItem('locale') as Locale | null;
+    const saved = storage.getItem('locale') as Locale | null;
     if (saved === 'en' || saved === 'es') {
       setLocaleState(saved);
     }
@@ -41,7 +42,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 
   const setLocale = useCallback((newLocale: Locale) => {
     setLocaleState(newLocale);
-    localStorage.setItem('locale', newLocale);
+    storage.setItem('locale', newLocale);
   }, []);
 
   return (

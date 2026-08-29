@@ -7,14 +7,14 @@ import { Badge } from '@/components/ui/badge';
 import { AuthGuard } from '@/components/auth-guard';
 import { Navigation } from '@/components/navigation';
 import { EntityCard } from '@/components/ui/card/entityCard';
-import { routineService } from '@/services/routine-service';
-import type { Routine } from '@/types';
+import { routineService } from '@shared/services/routine-service';
+import type { Routine } from '@shared/types';
 import { Plus, ListChecks } from 'lucide-react';
 import { showToast } from '@/lib/toast';
 import { CreateRoutineModal } from './modal/create-routine-modal';
 import { EditRoutineModal } from './modal/edit-routine-modal';
 import { RoutineDetailModal } from './modal/routine-detail-modal';
-import { useTranslations } from '@/contexts/language-context';
+import { useTranslations } from '@shared/contexts/language-context';
 
 const CHIP_LIMIT = 3;
 

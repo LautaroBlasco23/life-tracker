@@ -12,11 +12,11 @@ import type {
   GymStats,
   MuscleVolume,
   WeeklyVolume,
-} from '@/types';
-import { healthService } from '@/services/health-service';
+} from '@shared/types';
+import { healthService } from '@shared/services/health-service';
 import { showToast } from '@/lib/toast';
 import { getDayKey, formatShortDate } from '@/utils/dateLabels';
-import { useTranslations } from '@/contexts/language-context';
+import { useTranslations } from '@shared/contexts/language-context';
 import { DeleteModal } from '@/components/ui/card/delete-modal';
 import { WorkoutModal } from '../modal/workout-modal';
 import { ExerciseManager } from './exercise-manager';

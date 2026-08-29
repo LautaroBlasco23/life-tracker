@@ -10,10 +10,10 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AuthGuard } from '@/components/auth-guard';
 import { Navigation } from '@/components/navigation';
-import { socialService } from '@/services/social-service';
-import type { PublicUserCard, FollowerItem } from '@/types/user';
+import { socialService } from '@shared/services/social-service';
+import type { PublicUserCard, FollowerItem } from '@shared/types/user';
 import { showToast } from '@/lib/toast';
-import { useTranslations } from '@/contexts/language-context';
+import { useTranslations } from '@shared/contexts/language-context';
 import {
   Search,
   UserPlus,

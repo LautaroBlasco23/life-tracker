@@ -12,9 +12,9 @@ import type {
   Category,
   FixedTransaction,
   Movement,
-} from '@/types';
+} from '@shared/types';
 import { Plus, Filter, X, TrendingUp, TrendingDown } from 'lucide-react';
-import { financeService } from '@/services/finance-service';
+import { financeService } from '@shared/services/finance-service';
 import { showToast } from '@/lib/toast';
 import { CategoryHeader } from '@/components/ui/category/categoryHeader';
 import { formatCurrency } from '@/utils/formatNumbers';
@@ -32,7 +32,7 @@ import {
 } from '@/components/ui/filterModal/filterModal';
 import { FilterSidebar } from '@/components/ui/filterModal/filterSidebar';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { useTranslations } from '@/contexts/language-context';
+import { useTranslations } from '@shared/contexts/language-context';
 
 export interface TransactionFilter
   extends Record<string, string | number | undefined> {

@@ -5,7 +5,7 @@ import { GeistMono } from 'geist/font/mono';
 import { Playfair_Display } from 'next/font/google';
 import { Analytics } from '@vercel/analytics/next';
 import { ThemeProvider } from '@/contexts/theme-context';
-import { LanguageProvider } from '@/contexts/language-context';
+import { LanguageProvider } from '@shared/contexts/language-context';
 import { ToastProvider } from '@/lib/toast';
 import { Suspense } from 'react';
 import './globals.css';

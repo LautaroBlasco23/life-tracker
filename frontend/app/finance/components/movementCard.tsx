@@ -2,7 +2,7 @@
 
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import type { Movement } from '@/types';
+import type { Movement } from '@shared/types';
 import { formatCurrency } from '@/utils/formatNumbers';
 import { formatTime } from '@/utils/dateLabels';
 import { AlertCircle, Edit, Trash2 } from 'lucide-react';
@@ -10,7 +10,7 @@ import {
   EntityDropdown,
   DropdownMenuItem,
 } from '@/components/ui/card/entityDropdown';
-import { useTranslations } from '@/contexts/language-context';
+import { useTranslations } from '@shared/contexts/language-context';
 
 interface MovementCardProps {
   movement: Movement;

@@ -18,10 +18,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { timeService } from '@/services/time-service';
+import { timeService } from '@shared/services/time-service';
 import { showToast } from '@/lib/toast';
-import { TIME_CATEGORIES, TimeRecord } from '@/types/time';
-import { useTranslations } from '@/contexts/language-context';
+import { TIME_CATEGORIES, TimeRecord } from '@shared/types/time';
+import { useTranslations } from '@shared/contexts/language-context';
 
 interface CreateTimeRecordModalProps {
   open: boolean;

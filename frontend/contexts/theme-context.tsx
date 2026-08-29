@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { createContext, useContext, useEffect, useState } from "react"
-import { themeColors, type ThemeMode } from "@/lib/theme-colors"
+import { themeColors, type ThemeMode } from "@shared/lib/theme-colors"
 
 interface ThemeContextType {
   theme: ThemeMode

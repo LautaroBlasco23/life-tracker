@@ -25,12 +25,12 @@ import type {
   TransactionType,
   PaymentFrequency,
   Category,
-} from '@/types';
-import { financeService } from '@/services/finance-service';
+} from '@shared/types';
+import { financeService } from '@shared/services/finance-service';
 import { showToast } from '@/lib/toast';
 import { formatInputValue, parseInputValue } from '@/utils/formatNumbers';
 import { dateInputToISO, todayInput } from '@/utils/dateLabels';
-import { useTranslations } from '@/contexts/language-context';
+import { useTranslations } from '@shared/contexts/language-context';
 
 interface CreateTransactionModalProps {
   open: boolean;

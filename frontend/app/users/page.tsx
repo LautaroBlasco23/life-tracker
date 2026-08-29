@@ -10,15 +10,15 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { AuthGuard } from '@/components/auth-guard';
 import { Navigation } from '@/components/navigation';
 import { StreakBadge } from '@/components/ui/streak-badge';
-import { socialService } from '@/services/social-service';
-import { authService } from '@/services/auth-service';
+import { socialService } from '@shared/services/social-service';
+import { authService } from '@shared/services/auth-service';
 import type {
   PublicProfileResponse,
   PublicRoutineCard,
   PublicActivityCard,
-} from '@/types/user';
+} from '@shared/types/user';
 import { showToast } from '@/lib/toast';
-import { useTranslations } from '@/contexts/language-context';
+import { useTranslations } from '@shared/contexts/language-context';
 import {
   ArrowLeft,
   Flame,

@@ -11,10 +11,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { routineService } from '@/services/routine-service';
-import type { Routine, RoutineActivityItem } from '@/types';
+import { routineService } from '@shared/services/routine-service';
+import type { Routine, RoutineActivityItem } from '@shared/types';
 import { showToast } from '@/lib/toast';
-import { useTranslations } from '@/contexts/language-context';
+import { useTranslations } from '@shared/contexts/language-context';
 
 interface RoutineDetailModalProps {
   open: boolean;
