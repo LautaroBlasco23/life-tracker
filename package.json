@@ -1,0 +1,13 @@
+{
+  "name": "life-tracker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Life Tracker monorepo. The web app (frontend/) is intentionally NOT part of the npm workspaces — it keeps its own self-contained install for CI/Docker.",
+  "workspaces": [
+    "apps/mobile",
+    "packages/shared"
+  ],
+  "dependencies": {
+    "expo-sqlite": "~57.0.1"
+  }
+}

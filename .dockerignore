@@ -1,0 +1,9 @@
+# Applies to Docker builds that use the repository root as context
+# (currently the frontend image, see frontend/Dockerfile).
+**/.git
+**/node_modules
+**/.next
+**/out
+**/.env
+**/.env.*
+backend/.env
