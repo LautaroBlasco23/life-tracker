@@ -28,8 +28,8 @@ import type {
   PaymentFrequency,
   Category,
 } from '@shared/types';
-import { formatInputValue, parseInputValue } from '@/utils/formatNumbers';
-import { dateInputToISO, isoToDateInput } from '@/utils/dateLabels';
+import { formatInputValue, parseInputValue } from '@shared/utils/format';
+import { dateInputToISO, isoToDateInput } from '@shared/utils/format';
 import { useTranslations } from '@shared/contexts/language-context';
 
 interface EditTransactionModalProps {

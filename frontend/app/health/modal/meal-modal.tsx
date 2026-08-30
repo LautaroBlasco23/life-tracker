@@ -22,7 +22,7 @@ import type { MealLog, MealType } from '@shared/types';
 import { MEAL_TYPES } from '@shared/types';
 import { healthService } from '@shared/services/health-service';
 import { showToast } from '@/lib/toast';
-import { dateInputToISO, isoToDateInput } from '@/utils/dateLabels';
+import { dateInputToISO, isoToDateInput } from '@shared/utils/format';
 import { useTranslations } from '@shared/contexts/language-context';
 
 interface MealModalProps {

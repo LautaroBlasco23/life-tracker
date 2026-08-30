@@ -1,27 +1,31 @@
 import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Modal, Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, ActivityIndicator, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { Plus, ChevronUp, ChevronDown } from 'lucide-react-native';
 import { useFocusEffect } from 'expo-router';
 import { activityService, routineService, useTranslations } from '@shared';
-import type { Activity } from '@shared/types/activity';
+import type { Activity, PrivacyStatus } from '@shared/types/activity';
 import type { Routine } from '@shared/types/routine';
 import { Button } from '../../components/ui/button';
 import { FormField } from '../../components/ui/form-field';
+import { OptionSelect } from '../../components/ui/option-select';
 import { useTheme } from '../../lib/theme-provider';
 import { cn } from '../../lib/cn';
 
 export default function RoutinesScreen() {
   const t = useTranslations('routines');
   const tCommon = useTranslations('common');
+  const tPrivacy = useTranslations('privacy');
   const { theme } = useTheme();
   const [routines, setRoutines] = useState<Routine[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<Routine | null>(null);
   const [detail, setDetail] = useState<Routine | null>(null);
 
   // Form state
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [privacyStatus, setPrivacyStatus] = useState<PrivacyStatus>('private');
   const [allActivities, setAllActivities] = useState<Activity[]>([]);
   const [selected, setSelected] = useState<Activity[]>([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -43,14 +47,26 @@ export default function RoutinesScreen() {
     }, [loadRoutines])
   );
 
-  const openCreate = async () => {
-    setTitle('');
-    setDescription('');
+  const openForm = async (routine?: Routine) => {
+    setEditing(routine ?? null);
+    setTitle(routine?.title ?? '');
+    setDescription(routine?.description ?? '');
+    setPrivacyStatus(routine?.privacyStatus ?? 'private');
     setSelected([]);
     setShowForm(true);
     try {
       const activities = await activityService.getActivities();
       setAllActivities(activities);
+      if (routine) {
+        setSelected(
+          routine.activities.map((ra) => {
+            const found = activities.find((a) => a.id === ra.activityId);
+            return (
+              found ?? ({ id: ra.activityId, title: ra.activityTitle } as Activity)
+            );
+          })
+        );
+      }
     } catch {
       Alert.alert(t('failedToLoadActivities'));
     }
@@ -77,13 +93,19 @@ export default function RoutinesScreen() {
     }
     setIsSaving(true);
     try {
-      await routineService.createRoutine({
+      const payload = {
         title: title.trim(),
         description: description.trim(),
-        privacyStatus: 'private',
+        privacyStatus,
         activityIds: selected.map((a, i) => ({ activityId: a.id, position: i })),
-      });
+      };
+      if (editing) {
+        await routineService.updateRoutine(editing.id, payload);
+      } else {
+        await routineService.createRoutine(payload);
+      }
       setShowForm(false);
+      setEditing(null);
       loadRoutines();
     } catch {
       Alert.alert(t('createFailed'));
@@ -137,7 +159,7 @@ export default function RoutinesScreen() {
                 <Text className="text-sm text-muted dark:text-dark-muted mt-2 text-center">
                   {t('noRoutinesDescription')}
                 </Text>
-                <Button className="mt-4" onPress={openCreate}>
+                <Button className="mt-4" onPress={() => openForm()}>
                   {t('createFirstRoutine')}
                 </Button>
               </View>
@@ -172,7 +194,7 @@ export default function RoutinesScreen() {
       />
 
       <Pressable
-        onPress={openCreate}
+        onPress={() => openForm()}
         className="absolute bottom-6 right-5 h-14 w-14 rounded-full bg-primary dark:bg-dark-primary items-center justify-center shadow-lg"
       >
         <Plus size={26} color="#0d1117" />
@@ -180,14 +202,23 @@ export default function RoutinesScreen() {
 
       {/* Create routine modal */}
       <Modal visible={showForm} animationType="slide" transparent onRequestClose={() => setShowForm(false)}>
-        <View className="flex-1 justify-end bg-black/50">
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1 justify-end bg-black/50">
           <View className="max-h-[90%] rounded-t-2xl bg-background dark:bg-dark-background p-5">
             <Text className="text-xl font-semibold text-foreground dark:text-dark-foreground mb-4">
-              {t('createRoutine')}
+              {editing ? t('updateRoutine') : t('createRoutine')}
             </Text>
             <ScrollView keyboardShouldPersistTaps="handled" className="space-y-4">
               <FormField label={t('titleLabel')} placeholder={t('titlePlaceholder')} value={title} onChangeText={setTitle} />
               <FormField label={t('descriptionLabel')} placeholder={t('descriptionPlaceholder')} value={description} onChangeText={setDescription} />
+              <OptionSelect
+                label={tPrivacy('privacyStatus')}
+                value={privacyStatus}
+                options={[
+                  { value: 'private', label: tPrivacy('private') },
+                  { value: 'public', label: tPrivacy('public') },
+                ]}
+                onSelect={(v) => setPrivacyStatus(v as PrivacyStatus)}
+              />
 
               <Text className="text-sm text-foreground dark:text-dark-foreground">{t('selectedActivities')}</Text>
               {selected.length === 0 ? (
@@ -230,12 +261,12 @@ export default function RoutinesScreen() {
                   {tCommon('cancel')}
                 </Button>
                 <Button className="flex-1" onPress={handleSubmit} loading={isSaving}>
-                  {t('createRoutine')}
+                  {editing ? t('updateRoutine') : t('createRoutine')}
                 </Button>
               </View>
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Routine detail modal */}
@@ -258,9 +289,22 @@ export default function RoutinesScreen() {
                 </View>
               ))}
             </View>
-            <Button variant="outline" className="mt-5" onPress={() => setDetail(null)}>
-              {tCommon('close')}
-            </Button>
+            <View className="flex-row gap-3 mt-5">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onPress={() => {
+                  const routine = detail;
+                  setDetail(null);
+                  if (routine) openForm(routine);
+                }}
+              >
+                {tCommon('edit')}
+              </Button>
+              <Button variant="outline" className="flex-1" onPress={() => setDetail(null)}>
+                {tCommon('close')}
+              </Button>
+            </View>
           </View>
         </View>
       </Modal>

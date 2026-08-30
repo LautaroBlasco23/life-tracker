@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Alert, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, Image, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
-import { authService, getConfig, setApiUrl, useLanguage, useTranslations } from '@shared';
+import * as ImagePicker from 'expo-image-picker';
+import { authService, getConfig, setApiUrl, useLanguage, useTranslations, userService } from '@shared';
 import { Button } from '../../components/ui/button';
 import { FormField } from '../../components/ui/form-field';
 import { useTheme } from '../../lib/theme-provider';
@@ -12,9 +13,54 @@ export default function ProfileScreen() {
   const tCommon = useTranslations('common');
   const { locale, setLocale } = useLanguage();
   const { theme, toggleTheme } = useTheme();
-  const user = authService.getCurrentUser();
+  const [user, setUser] = useState(authService.getCurrentUser());
   const [showApiUrlModal, setShowApiUrlModal] = useState(false);
   const [apiUrlInput, setApiUrlInput] = useState(getConfig().apiUrl);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+
+  const pickImage = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'],
+      quality: 0.8,
+      allowsEditing: true,
+      aspect: [1, 1],
+    });
+    if (result.canceled || result.assets.length === 0) return;
+    const asset = result.assets[0];
+    setIsUploadingImage(true);
+    try {
+      const updated = await userService.uploadProfilePicture({
+        uri: asset.uri,
+        name: asset.fileName ?? 'profile.jpg',
+        type: asset.mimeType ?? 'image/jpeg',
+      });
+      setUser(updated);
+    } catch {
+      Alert.alert(tCommon('error'));
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  const removeImage = () => {
+    Alert.alert(tCommon('delete'), undefined, [
+      { text: tCommon('cancel'), style: 'cancel' },
+      {
+        text: tCommon('delete'),
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            const updated = await userService.deleteProfilePicture();
+            setUser(updated);
+          } catch {
+            Alert.alert(tCommon('error'));
+          }
+        },
+      },
+    ]);
+  };
 
   const handleLogout = () => {
     Alert.alert(t('signOut'), undefined, [
@@ -55,11 +101,43 @@ export default function ProfileScreen() {
       </Text>
 
       <View className="rounded-xl border border-border dark:border-dark-border p-4 mb-6">
-        <Text className="text-lg font-medium text-foreground dark:text-dark-foreground">
-          {user ? `${user.firstName} ${user.lastName}` : ''}
-        </Text>
-        <Text className="text-sm text-muted dark:text-dark-muted mt-1">@{user?.username}</Text>
-        <Text className="text-sm text-muted dark:text-dark-muted mt-1">{user?.email}</Text>
+        <View className="flex-row items-center">
+          {user?.thumbnailUrl || user?.profilePicUrl ? (
+            <Image
+              source={{ uri: user.thumbnailUrl ?? user.profilePicUrl }}
+              className="h-16 w-16 rounded-full mr-4"
+            />
+          ) : (
+            <View className="h-16 w-16 rounded-full bg-surface dark:bg-dark-surface items-center justify-center mr-4">
+              <Text className="text-xl font-semibold text-muted dark:text-dark-muted">
+                {user?.firstName?.[0] ?? '?'}
+              </Text>
+            </View>
+          )}
+          <View className="flex-1">
+            <Text className="text-lg font-medium text-foreground dark:text-dark-foreground">
+              {user ? `${user.firstName} ${user.lastName}` : ''}
+            </Text>
+            <Text className="text-sm text-muted dark:text-dark-muted mt-0.5">@{user?.username}</Text>
+            <Text className="text-sm text-muted dark:text-dark-muted mt-0.5">{user?.email}</Text>
+          </View>
+        </View>
+        <View className="flex-row gap-3 mt-4">
+          <Button
+            variant="outline"
+            className="flex-1 h-9"
+            textClassName="text-sm"
+            onPress={pickImage}
+            loading={isUploadingImage}
+          >
+            {t('changePicture') ?? 'Change picture'}
+          </Button>
+          {user?.profilePicUrl ? (
+            <Button variant="ghost" className="h-9" textClassName="text-sm text-danger dark:text-dark-danger" onPress={removeImage}>
+              {tCommon('delete')}
+            </Button>
+          ) : null}
+        </View>
       </View>
 
       <View className="rounded-xl border border-border dark:border-dark-border overflow-hidden">

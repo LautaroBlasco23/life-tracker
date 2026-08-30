@@ -1,15 +1,23 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, Text, View, type AlertButton } from 'react-native';
-import { Plus, Flame } from 'lucide-react-native';
+import { ActivityIndicator, Alert, FlatList, Modal, Pressable, Text, View, type AlertButton } from 'react-native';
+import { Plus, Flame, SlidersHorizontal, X } from 'lucide-react-native';
 import { useFocusEffect } from 'expo-router';
 import { activityService, useTranslations } from '@shared';
 import type { Activity, DayTime, StreakInfo } from '@shared/types/activity';
 import { Button } from '../../components/ui/button';
 import { ActivityCard } from '../../components/ui/activity-card';
 import { ActivityFormModal } from '../../components/activity/activity-form-modal';
+import { OptionSelect } from '../../components/ui/option-select';
+import { FormField } from '../../components/ui/form-field';
 import { useTheme } from '../../lib/theme-provider';
 
 const CATEGORY_ORDER: DayTime[] = ['notSpecified', 'morning', 'afternoon', 'evening'];
+
+interface ActivityFilterState extends Record<string, string | undefined> {
+  frequency?: string;
+  dayTime?: string;
+  scheduledFor?: string;
+}
 
 export default function ActivitiesScreen() {
   const t = useTranslations('activities');
@@ -21,12 +29,15 @@ export default function ActivitiesScreen() {
   const [processingIds, setProcessingIds] = useState<Set<number>>(new Set());
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Activity | null>(null);
+  const [filter, setFilter] = useState<ActivityFilterState>({});
+  const [showFilterModal, setShowFilterModal] = useState(false);
   const { theme } = useTheme();
 
   const loadActivities = useCallback(async () => {
     try {
+      const hasFilter = Object.values(filter).some((v) => v !== undefined);
       const [items, streak] = await Promise.all([
-        activityService.getTodayActivities(),
+        hasFilter ? activityService.getActivities(filter) : activityService.getTodayActivities(),
         activityService.getGlobalStreak(),
       ]);
       setActivities(items);
@@ -37,7 +48,7 @@ export default function ActivitiesScreen() {
     } finally {
       setIsLoading(false);
     }
-  }, [t]);
+  }, [t, filter]);
 
   useFocusEffect(
     useCallback(() => {
@@ -187,6 +198,27 @@ export default function ActivitiesScreen() {
             </Text>
             <Text className="text-sm text-muted dark:text-dark-muted mt-1">{t('description')}</Text>
 
+            <View className="flex-row items-center gap-2 mt-3">
+              <Button variant="outline" className="h-9" onPress={() => setShowFilterModal(true)}>
+                <View className="flex-row items-center gap-1.5">
+                  <SlidersHorizontal size={14} color={theme === 'dark' ? '#61dafb' : '#0583f2'} />
+                  <Text className="text-sm text-foreground dark:text-dark-foreground">
+                    {t('filterActivities')}
+                  </Text>
+                </View>
+              </Button>
+              {Object.values(filter).some((v) => v !== undefined) ? (
+                <Button variant="ghost" className="h-9" onPress={() => setFilter({})}>
+                  <View className="flex-row items-center gap-1">
+                    <X size={14} color={theme === 'dark' ? '#61dafb' : '#0583f2'} />
+                    <Text className="text-sm text-primary dark:text-dark-primary">
+                      {tCommon('clearFilters')}
+                    </Text>
+                  </View>
+                </Button>
+              ) : null}
+            </View>
+
             {error ? (
               <Text className="text-danger dark:text-dark-danger text-sm mt-3">{error}</Text>
             ) : null}
@@ -257,6 +289,94 @@ export default function ActivitiesScreen() {
         onClose={() => { setShowForm(false); setEditing(null); }}
         onSaved={onSaved}
       />
+
+      <Modal visible={showFilterModal} animationType="fade" transparent onRequestClose={() => setShowFilterModal(false)}>
+        <View className="flex-1 justify-center bg-black/50 p-6">
+          <View className="rounded-2xl bg-background dark:bg-dark-background p-5">
+            <Text className="text-lg font-semibold text-foreground dark:text-dark-foreground mb-4">
+              {t('filterActivities')}
+            </Text>
+            <ActivityFilterForm
+              initial={filter}
+              onApply={(f) => {
+                setFilter(f);
+                setShowFilterModal(false);
+              }}
+              onCancel={() => setShowFilterModal(false)}
+            />
+          </View>
+        </View>
+      </Modal>
+    </View>
+  );
+}
+
+function ActivityFilterForm({
+  initial,
+  onApply,
+  onCancel,
+}: {
+  initial: ActivityFilterState;
+  onApply: (filter: ActivityFilterState) => void;
+  onCancel: () => void;
+}) {
+  const t = useTranslations('activities');
+  const tCommon = useTranslations('common');
+  const [frequency, setFrequency] = useState<string | null>(initial.frequency ?? null);
+  const [dayTime, setDayTime] = useState<string | null>(initial.dayTime ?? null);
+  const [scheduledFor, setScheduledFor] = useState(initial.scheduledFor ?? '');
+
+  return (
+    <View>
+      <OptionSelect
+        label={t('frequency')}
+        value={frequency}
+        options={[
+          { value: 'daily', label: t('daily') },
+          { value: 'weekly', label: t('weekly') },
+          { value: 'monthly', label: t('monthly') },
+          { value: 'oneTime', label: t('oneTime') },
+        ]}
+        onSelect={setFrequency}
+        placeholder={t('allFrequencies')}
+      />
+      <View className="h-4" />
+      <OptionSelect
+        label={t('timeOfDay')}
+        value={dayTime}
+        options={[
+          { value: 'notSpecified', label: t('anyMoment') },
+          { value: 'morning', label: t('morning') },
+          { value: 'afternoon', label: t('afternoon') },
+          { value: 'evening', label: t('evening') },
+        ]}
+        onSelect={setDayTime}
+        placeholder={t('allTimes')}
+      />
+      <View className="h-4" />
+      <FormField
+        label={t('scheduledFor')}
+        placeholder="YYYY-MM-DD"
+        value={scheduledFor}
+        onChangeText={setScheduledFor}
+      />
+      <View className="flex-row gap-3 mt-5">
+        <Button variant="outline" className="flex-1" onPress={onCancel}>
+          {tCommon('cancel')}
+        </Button>
+        <Button
+          className="flex-1"
+          onPress={() =>
+            onApply({
+              frequency: frequency ?? undefined,
+              dayTime: dayTime ?? undefined,
+              scheduledFor: scheduledFor.trim() || undefined,
+            })
+          }
+        >
+          {tCommon('save')}
+        </Button>
+      </View>
     </View>
   );
 }

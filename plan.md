@@ -58,11 +58,18 @@ life-tracker/
 - **Notes** ✅: list, debounced search, create/edit modal (title + multiline content), long-press delete.
 - **Profile** ✅: user info, theme toggle, language toggle, logout.
 
-### 4. Wave 2 (post-v1)
-Finance (3 tabs, infinite scroll, bar chart via react-native-gifted-charts, dolarapi widget), Social (follow flows), Health (nutrition/gym, nested workout form, 2 charts). Also: notes markdown preview, avatar upload (expo-image-picker → same `FormData` endpoint), activity filters, routine edit/subscribe.
+### 4. Wave 2 ✅
+- **Finance** ✅: movements feed (day-grouped, infinite scroll, filters month/year/category), dashboard (summary cards, dolarapi widget, monthly bar chart via react-native-gifted-charts, category breakdown, upcoming bills), bills (fixed transactions + payment modal with history/delete), create/edit transaction modal.
+- **Social** ✅: user search + follow/unfollow, pending requests accept/reject, public profile screen (`app/user/[username]`) with subscribe/unsubscribe to public activities/routines, private-profile lock state.
+- **Health** ✅: nutrition (meal CRUD modal, daily totals + calories chart), gym (workout CRUD with nested exercise/sets form, exercise manager with muscle-group picker, muscle-volume + weekly-volume charts).
+- **Polish** ✅: notes markdown preview (react-native-markdown-display), avatar upload/delete (expo-image-picker → `{uri,name,type}` FormData), activity filters (frequency/dayTime/scheduledFor), routine edit (title/description/privacy/ordered activities).
 
-### 5. Android hardening & release
-Safe-area, hardware back, keyboard handling, edge-to-edge, splash + adaptive icon, Play Console signing, CI job for mobile (type-check + `expo export`).
+### 5. Android hardening & release ✅
+- Safe-area top inset via root `SafeAreaView` (SafeAreaProvider), KeyboardAvoidingView on all bottom-sheet modals, splash-screen plugin config, 8-tab layout (activities/routines/time/notes/finance/health/social/profile).
+- Shared utils moved: `frontend/utils/{formatNumbers,dateLabels}.ts` → `packages/shared/src/utils/format.ts` (date-fns dependency dropped; web imports updated).
+- `userService.uploadProfilePicture` accepts `File | { uri, name, type }` (web + RN).
+- CI: `.github/workflows/mobile-ci.yml` (type-check + `expo export --platform android`).
+- Release: `eas.json` has `preview` profile (APK, internal distribution) and `production` (app-bundle).
 
 ## Key decisions / deviations from original plan
 - **`frontend/` kept in place** (not moved to `apps/web`): CI/Docker/README reference `frontend/**` paths; moving added churn with no benefit. Same end state.

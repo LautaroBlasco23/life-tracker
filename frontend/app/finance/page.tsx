@@ -17,7 +17,7 @@ import { Plus, Filter, X, TrendingUp, TrendingDown } from 'lucide-react';
 import { financeService } from '@shared/services/finance-service';
 import { showToast } from '@/lib/toast';
 import { CategoryHeader } from '@/components/ui/category/categoryHeader';
-import { formatCurrency } from '@/utils/formatNumbers';
+import { formatCurrency } from '@shared/utils/format';
 import { CreateTransactionModal } from './modal/createTransactionModal';
 import { EditTransactionModal } from './modal/editTransactionModal';
 import { PaymentModal } from './modal/paymentModal';

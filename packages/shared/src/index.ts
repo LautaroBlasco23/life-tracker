@@ -14,4 +14,5 @@ export * from './lib/config';
 export * from './lib/storage';
 export * from './lib/theme-colors';
 export * from './utils/translateEnums';
+export * from './utils/format';
 export * from './contexts/language-context';

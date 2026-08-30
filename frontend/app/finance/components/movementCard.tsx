@@ -3,8 +3,8 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import type { Movement } from '@shared/types';
-import { formatCurrency } from '@/utils/formatNumbers';
-import { formatTime } from '@/utils/dateLabels';
+import { formatCurrency } from '@shared/utils/format';
+import { formatTime } from '@shared/utils/format';
 import { AlertCircle, Edit, Trash2 } from 'lucide-react';
 import {
   EntityDropdown,

@@ -28,8 +28,8 @@ import type {
 } from '@shared/types';
 import { financeService } from '@shared/services/finance-service';
 import { showToast } from '@/lib/toast';
-import { formatInputValue, parseInputValue } from '@/utils/formatNumbers';
-import { dateInputToISO, todayInput } from '@/utils/dateLabels';
+import { formatInputValue, parseInputValue } from '@shared/utils/format';
+import { dateInputToISO, todayInput } from '@shared/utils/format';
 import { useTranslations } from '@shared/contexts/language-context';
 
 interface CreateTransactionModalProps {

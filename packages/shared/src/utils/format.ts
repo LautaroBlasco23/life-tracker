@@ -1,4 +1,21 @@
-import { isToday, isYesterday } from 'date-fns';
+// Platform-agnostic formatting/date helpers shared by web and mobile.
+
+export function formatCurrency(amount: number): string {
+  return amount.toLocaleString('en-US', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  });
+}
+
+export function formatInputValue(value: string): string {
+  const numericValue = value.replace(/[^0-9]/g, '');
+  if (!numericValue) return '';
+  return Number(numericValue).toLocaleString('en-US');
+}
+
+export function parseInputValue(formattedValue: string): string {
+  return formattedValue.replace(/,/g, '');
+}
 
 /** Local-timezone day key (YYYY-MM-DD) used to group movements by day. */
 export function getDayKey(date: Date): string {
@@ -13,8 +30,9 @@ export function getDayLabel(
   date: Date,
   t: (key: string) => string
 ): string {
-  if (isToday(date)) return t('today');
-  if (isYesterday(date)) return t('yesterday');
+  if (getDayKey(date) === getDayKey(new Date())) return t('today');
+  if (getDayKey(date) === getDayKey(new Date(Date.now() - 86_400_000)))
+    return t('yesterday');
 
   const sameYear = date.getFullYear() === new Date().getFullYear();
   return date.toLocaleDateString('en-US', {

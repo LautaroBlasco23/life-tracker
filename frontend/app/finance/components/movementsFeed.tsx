@@ -4,7 +4,7 @@ import { useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import type { Movement } from '@shared/types';
-import { getDayKey, getDayLabel } from '@/utils/dateLabels';
+import { getDayKey, getDayLabel } from '@shared/utils/format';
 import { Plus, ChevronDown, Loader2 } from 'lucide-react';
 import { MovementCard } from './movementCard';
 import { useTranslations } from '@shared/contexts/language-context';

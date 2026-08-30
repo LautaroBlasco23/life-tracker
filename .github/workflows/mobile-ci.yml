@@ -1,0 +1,35 @@
+name: Mobile CI
+
+on:
+  push:
+    branches: [main, develop]
+    paths: ["apps/mobile/**", "packages/shared/**"]
+  pull_request:
+    branches: [main]
+    paths: ["apps/mobile/**", "packages/shared/**"]
+
+jobs:
+  type-check-and-export:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      # Root workspace install covers apps/mobile + packages/shared.
+      # frontend/ is intentionally NOT a workspace (self-contained npm ci).
+      - name: Install dependencies
+        run: npm install
+
+      - name: Type-check
+        working-directory: apps/mobile
+        run: npm run type-check
+
+      - name: Export Android bundle
+        working-directory: apps/mobile
+        run: npx expo export --platform android

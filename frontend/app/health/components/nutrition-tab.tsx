@@ -10,7 +10,7 @@ import { Plus, Pencil, Trash2, Loader2 } from 'lucide-react';
 import type { MealLog, MealType, NutritionSummary } from '@shared/types';
 import { healthService } from '@shared/services/health-service';
 import { showToast } from '@/lib/toast';
-import { getDayKey } from '@/utils/dateLabels';
+import { getDayKey } from '@shared/utils/format';
 import { useTranslations } from '@shared/contexts/language-context';
 import { DeleteModal } from '@/components/ui/card/delete-modal';
 import { MealModal } from '../modal/meal-modal';

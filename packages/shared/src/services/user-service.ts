@@ -52,9 +52,10 @@ class UserService {
     return result.data;
   }
 
-  async uploadProfilePicture(file: File): Promise<User> {
+  // Web passes a DOM File; React Native passes { uri, name, type }.
+  async uploadProfilePicture(file: File | { uri: string; name: string; type: string }): Promise<User> {
     const formData = new FormData();
-    formData.append('image', file);
+    formData.append('image', file as unknown as File);
     const response = await authService.makeAuthenticatedRequest(
       `${this.baseUrl}/users/me/image`,
       {

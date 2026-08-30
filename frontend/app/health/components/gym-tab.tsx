@@ -15,7 +15,7 @@ import type {
 } from '@shared/types';
 import { healthService } from '@shared/services/health-service';
 import { showToast } from '@/lib/toast';
-import { getDayKey, formatShortDate } from '@/utils/dateLabels';
+import { getDayKey, formatShortDate } from '@shared/utils/format';
 import { useTranslations } from '@shared/contexts/language-context';
 import { DeleteModal } from '@/components/ui/card/delete-modal';
 import { WorkoutModal } from '../modal/workout-modal';

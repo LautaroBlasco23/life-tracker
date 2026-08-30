@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Modal, Pressable, Text, TextInput, View } from 'react-native';
+import { Alert, ActivityIndicator, FlatList, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { Plus, Search } from 'lucide-react-native';
+import Markdown from 'react-native-markdown-display';
 import { useFocusEffect } from 'expo-router';
 import { noteService, useTranslations } from '@shared';
 import type { Note } from '@shared/types/note';
@@ -25,6 +26,7 @@ export default function NotesScreen() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
 
   const loadNotes = useCallback(async (q?: string) => {
     try {
@@ -54,6 +56,7 @@ export default function NotesScreen() {
     setEditing(null);
     setTitle('');
     setContent('');
+    setShowPreview(false);
     setShowForm(true);
   };
 
@@ -61,6 +64,7 @@ export default function NotesScreen() {
     setEditing(note);
     setTitle(note.title);
     setContent(note.content);
+    setShowPreview(false);
     setShowForm(true);
   };
 
@@ -176,23 +180,58 @@ export default function NotesScreen() {
       </Pressable>
 
       <Modal visible={showForm} animationType="slide" transparent onRequestClose={() => setShowForm(false)}>
-        <View className="flex-1 justify-end bg-black/50">
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} className="flex-1 justify-end bg-black/50">
           <View className="max-h-[90%] rounded-t-2xl bg-background dark:bg-dark-background p-5">
             <Text className="text-xl font-semibold text-foreground dark:text-dark-foreground mb-4">
               {editing ? t('editNote') : t('newNote')}
             </Text>
             <View className="space-y-4">
               <FormField label={t('titlePlaceholder')} placeholder={t('titlePlaceholder')} value={title} onChangeText={setTitle} />
-              <Text className="text-sm text-foreground dark:text-dark-foreground">{t('contentPlaceholder')}</Text>
-              <TextInput
-                className="min-h-[160px] rounded-lg border border-border dark:border-dark-border p-3 text-foreground dark:text-dark-foreground"
-                placeholder={t('contentPlaceholder')}
-                placeholderTextColor="#57606a"
-                value={content}
-                onChangeText={setContent}
-                multiline
-                textAlignVertical="top"
-              />
+              <View className="flex-row items-center justify-between">
+                <Text className="text-sm text-foreground dark:text-dark-foreground">
+                  {t('contentPlaceholder')}
+                </Text>
+                <Pressable onPress={() => setShowPreview((s) => !s)} className="p-1">
+                  <Text className="text-sm text-primary dark:text-dark-primary">
+                    {showPreview ? t('editNote') : t('preview')}
+                  </Text>
+                </Pressable>
+              </View>
+              {showPreview ? (
+                <ScrollView className="min-h-[160px] rounded-lg border border-border dark:border-dark-border p-3" nestedScrollEnabled>
+                  <Markdown
+                    style={{
+                      body: { color: theme === 'dark' ? '#f0f6fc' : '#1f2328' },
+                      heading1: { color: theme === 'dark' ? '#f0f6fc' : '#1f2328' },
+                      heading2: { color: theme === 'dark' ? '#f0f6fc' : '#1f2328' },
+                      heading3: { color: theme === 'dark' ? '#f0f6fc' : '#1f2328' },
+                      link: { color: theme === 'dark' ? '#61dafb' : '#0583f2' },
+                      strong: { color: theme === 'dark' ? '#f0f6fc' : '#1f2328' },
+                      blockquote: {
+                        backgroundColor: theme === 'dark' ? '#161b22' : '#f6f8fa',
+                        borderColor: theme === 'dark' ? '#30363d' : '#d0d7de',
+                      },
+                      code_inline: {
+                        color: theme === 'dark' ? '#f0f6fc' : '#1f2328',
+                        backgroundColor: theme === 'dark' ? '#161b22' : '#f6f8fa',
+                      },
+                      hr: { backgroundColor: theme === 'dark' ? '#30363d' : '#d0d7de' },
+                    }}
+                  >
+                    {content || ''}
+                  </Markdown>
+                </ScrollView>
+              ) : (
+                <TextInput
+                  className="min-h-[160px] rounded-lg border border-border dark:border-dark-border p-3 text-foreground dark:text-dark-foreground"
+                  placeholder={t('contentPlaceholder')}
+                  placeholderTextColor="#57606a"
+                  value={content}
+                  onChangeText={setContent}
+                  multiline
+                  textAlignVertical="top"
+                />
+              )}
               <View className="flex-row gap-3 pt-2">
                 <Button variant="outline" className="flex-1" onPress={() => setShowForm(false)}>
                   {tCommon('cancel')}
@@ -203,7 +242,7 @@ export default function NotesScreen() {
               </View>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

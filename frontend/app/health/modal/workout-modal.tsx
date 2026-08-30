@@ -28,7 +28,7 @@ import type {
 } from '@shared/types';
 import { healthService } from '@shared/services/health-service';
 import { showToast } from '@/lib/toast';
-import { dateInputToISO, isoToDateInput, todayInput } from '@/utils/dateLabels';
+import { dateInputToISO, isoToDateInput, todayInput } from '@shared/utils/format';
 import { useTranslations } from '@shared/contexts/language-context';
 
 interface WorkoutModalProps {

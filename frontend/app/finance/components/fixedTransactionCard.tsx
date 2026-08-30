@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import type { FixedTransaction, Transaction } from '@shared/types';
-import { formatCurrency } from '@/utils/formatNumbers';
+import { formatCurrency } from '@shared/utils/format';
 import { Calendar, CreditCard, Check, Edit, Trash2 } from 'lucide-react';
 import { DeleteModal } from '@/components/ui/card/delete-modal';
 import {
@@ -12,7 +12,7 @@ import {
   DropdownMenuItem,
 } from '@/components/ui/card/entityDropdown';
 import { useTranslations } from '@shared/contexts/language-context';
-import { formatShortDate } from '@/utils/dateLabels';
+import { formatShortDate } from '@shared/utils/format';
 
 interface FixedTransactionCardProps {
   transaction: FixedTransaction;

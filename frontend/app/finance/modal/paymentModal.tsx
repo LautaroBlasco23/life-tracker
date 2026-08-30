@@ -28,14 +28,14 @@ import {
   formatCurrency,
   formatInputValue,
   parseInputValue,
-} from '@/utils/formatNumbers';
+} from '@shared/utils/format';
 import { Calendar, DollarSign, Trash2, Plus, History } from 'lucide-react';
 import { useTranslations } from '@shared/contexts/language-context';
 import {
   dateInputToISO,
   formatShortDate,
   todayInput,
-} from '@/utils/dateLabels';
+} from '@shared/utils/format';
 
 interface PaymentModalProps {
   open: boolean;
