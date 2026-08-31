@@ -13,19 +13,19 @@ Stack: **Expo SDK 57 (React Native 0.86, React 19) + expo-router + NativeWind (T
 ```
 life-tracker/
   frontend/                # Next.js 14 web app (kept in place — see decisions)
-  packages/shared/src/     # shared business layer (services, types, dtos, i18n, contexts, config)
+  packages/shared/src/     # shared business layer (services, types, i18n, contexts, config)
   apps/mobile/             # Expo React Native app (Android-first)
   package.json             # npm workspaces: ["apps/mobile", "packages/shared"] (frontend NOT a workspace)
 ```
 
 `packages/shared/src`:
 - `services/` — auth, activity, routine, time, note, user, finance, health, social services (all REST + JWT)
-- `types/`, `dtos/`, `utils/translateEnums.ts`
+- `types/`, `utils/translateEnums.ts`
 - `contexts/language-context.tsx` — i18n provider + `useTranslations` (en/es JSON in `messages/`)
 - `lib/config.ts` — API URL: web uses `window.__ENV__`; native uses `setApiUrl()` override
 - `lib/storage.ts` — storage adapter: web=localStorage, native must call `setStorageAdapter()` at startup (before any service import)
 - `lib/theme-colors.ts` — light/dark color tokens (pure data)
-- `index.ts` — barrel (dtos excluded: dead code, name-collides with types)
+- `index.ts` — barrel
 
 ## DONE
 
@@ -74,7 +74,6 @@ life-tracker/
 ## Key decisions / deviations from original plan
 - **`frontend/` kept in place** (not moved to `apps/web`): CI/Docker/README reference `frontend/**` paths; moving added churn with no benefit. Same end state.
 - **No npm workspaces for web**: `frontend` is deliberately excluded from root workspaces to keep its self-contained `npm ci` (CI + Docker) working. Mobile + shared install via root workspace.
-- **`dtos/` moved but dead code**: web never imported them; excluded from barrel due to name collisions with `types/`. Candidate for deletion later.
 - **`theme-context.tsx` stayed web-only**: it applies CSS vars to `document`; mobile needs its own theme provider using shared `theme-colors`.
 - **`eslint` for web**: pre-existing broken config, out of scope.
 
