@@ -10,8 +10,12 @@ COMPOSE := docker compose
 DC := $(COMPOSE) -f docker-compose.yml
 DB := $(COMPOSE) -f docker-compose.db.yml
 FE := $(COMPOSE) -f docker-compose.frontend.yml
+# Frontend with nginx proxying /api -> the api container (:8080) instead of the
+# floci gateway — used by the container-mode lanes (dev / dev-full).
+FEO := $(COMPOSE) -f docker-compose.frontend.yml -f docker-compose.frontend.override.yml
 
 .PHONY: help up down build \
+	dev-up dev-emulator-up dev-full-up dev-down dev-migrate \
 	db-up db-down db-remove db-test-up db-test-down db-test-remove \
 	floci-up floci-provision floci-status floci-down floci-deploy \
 	monitoring-up monitoring-down \
@@ -24,8 +28,17 @@ help:
 	@echo ""
 	@echo "  infra — docker compose commands for life-tracker"
 	@echo ""
+	@echo "  Run modes (one at a time; dev-down stops any of them):"
+	@echo "    dev-up            - Container mode: api + postgres + mongodb +"
+	@echo "                        frontend (nginx /api -> api:8080). No floci."
+	@echo "    dev-emulator-up   - AWS-emulated mode: floci + API as Lambda behind"
+	@echo "                        API Gateway v2 + frontend (nginx /api -> gateway)."
+	@echo "    dev-full-up       - Container mode + observability (Prometheus,"
+	@echo "                        Grafana, Loki, Promtail, node-exporter)."
+	@echo "    dev-down          - Stop whichever mode is running."
+	@echo ""
 	@echo "  Full stack (floci + api + postgres + mongodb + monitoring):"
-	@echo "    up                - Start all services"
+	@echo "    up                - Start all services (every profile)"
 	@echo "    down              - Stop all services"
 	@echo "    build             - Build the API image"
 	@echo ""
@@ -46,7 +59,7 @@ help:
 	@echo "    db-test-remove    - Remove test databases and volumes"
 	@echo ""
 	@echo "  📊 Monitoring:"
-	@echo "    monitoring-up     - Start Prometheus and Grafana"
+	@echo "    monitoring-up     - Start Prometheus, Grafana, Loki, Promtail, node-exporter"
 	@echo "    monitoring-down   - Stop monitoring services"
 	@echo ""
 	@echo "  🖥️  Frontend (docker-compose.frontend.yml):"
@@ -56,11 +69,75 @@ help:
 	@echo "    frontend-logs     - Follow frontend logs"
 	@echo "    frontend-build    - Build the frontend image"
 
+# --- Run modes ---
+
+# Container mode: api + databases + frontend, no floci, no observability.
+dev-up:
+	@[ -f ../backend/.env ] || (echo "../backend/.env not found — run 'make -C ../backend setup'"; exit 1)
+	@echo "==> api + postgres + mongodb (container mode)"
+	$(DC) --env-file ../backend/.env up -d --build
+	@echo "==> migrations"
+	@$(MAKE) --no-print-directory dev-migrate
+	@echo "==> frontend (nginx /api -> api:8080)"
+	$(FEO) --env-file ../backend/.env up -d web
+	DEPLOY_S3=0 bash scripts/deploy-frontend.sh
+	@echo ""
+	@echo "Container mode ready:"
+	@echo "  API:      http://localhost:8080/api"
+	@echo "  Frontend: http://localhost:3000  (proxies /api to :8080)"
+
+# AWS-emulated mode: floci + API as Lambda behind API Gateway v2.
+dev-emulator-up:
+	@echo "==> floci emulator"
+	$(MAKE) --no-print-directory floci-up
+	@echo "==> provisioning floci services (idempotent)"
+	$(MAKE) --no-print-directory floci-provision
+	@echo "==> backend API (migrate + Lambda deploy, idempotent)"
+	$(MAKE) --no-print-directory floci-deploy
+	@echo "==> frontend (build + deploy current source to web container + S3)"
+	$(MAKE) --no-print-directory deploy-frontend
+	@echo ""
+	@echo "AWS-emulated mode ready:"
+	@echo "  API:      http://localhost:3000/api  (same-origin via nginx proxy)"
+	@echo "  Gateway:  http://localhost:4566/execute-api/lifetracker-api/dev/health"
+	@echo "  Frontend: http://localhost:3000"
+
+# Container mode + observability (Prometheus, Grafana, Loki, Promtail,
+# node-exporter). Prometheus scrapes api:8080; Grafana on :3001.
+dev-full-up:
+	@[ -f ../backend/.env ] || (echo "../backend/.env not found — run 'make -C ../backend setup'"; exit 1)
+	@echo "==> api + postgres + mongodb + observability (container mode)"
+	$(DC) --env-file ../backend/.env --profile observability up -d --build
+	@echo "==> migrations"
+	@$(MAKE) --no-print-directory dev-migrate
+	@echo "==> frontend (nginx /api -> api:8080)"
+	$(FEO) --env-file ../backend/.env up -d web
+	DEPLOY_S3=0 bash scripts/deploy-frontend.sh
+	@echo ""
+	@echo "Container mode + observability ready:"
+	@echo "  API:         http://localhost:8080/api"
+	@echo "  Frontend:    http://localhost:3000  (proxies /api to :8080)"
+	@echo "  Prometheus:  http://localhost:9090  (targets: api:8080, node-exporter)"
+	@echo "  Grafana:     http://localhost:3001  (admin/admin by default)"
+	@echo "  Loki:        http://localhost:3100"
+
+# Stops whichever mode is up: compose down ignores profiles and removes every
+# running service of the project, including the frontend container.
+dev-down:
+	$(DC) --profile emulator --profile observability down
+	$(FE) down
+
+# Migrations for the container-mode lanes: same in-network pattern as the floci
+# path (migrate.sh defaults), but against the compose network and backend/.env.
+dev-migrate:
+	ENV_FILE=$(abspath ../backend/.env) NETWORK=infra_golang_api_network bash scripts/migrate.sh
+
 # --- Full stack ---
 
+# Every profile: container API + floci + observability (legacy target).
 up:
 	@[ -f ../backend/.env ] || (echo "../backend/.env not found — run 'make -C ../backend setup'"; exit 1)
-	$(DC) --env-file ../backend/.env up -d
+	$(DC) --env-file ../backend/.env --profile emulator --profile observability up -d
 
 down:
 	$(DC) down
@@ -72,7 +149,7 @@ build:
 # --- AWS (floci) path ---
 
 floci-up:
-	$(DC) up -d floci
+	$(DC) --profile emulator up -d floci
 	@echo "Waiting for floci health..."
 	@until docker exec floci curl -sf http://localhost:4566/_localstack/health >/dev/null 2>&1; do sleep 2; done
 	@echo "✓ floci is ready at http://localhost:4566"
@@ -127,10 +204,10 @@ db-test-remove:
 # --- Monitoring ---
 
 monitoring-up:
-	$(DC) up -d prometheus grafana node-exporter
+	$(DC) --profile observability up -d node-exporter prometheus grafana loki promtail
 
 monitoring-down:
-	$(DC) stop prometheus grafana node-exporter
+	$(DC) stop node-exporter prometheus grafana loki promtail
 
 # --- Frontend container ---
 

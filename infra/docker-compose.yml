@@ -1,8 +1,11 @@
 services:
+  # AWS emulator — only started by the emulator/full lanes (make dev-emulator,
+  # make -C infra up). Plain `make dev` runs the API as a container instead.
   floci:
     image: floci/floci:1.6.0-compat
     container_name: floci
     restart: unless-stopped
+    profiles: ["emulator"]
     ports:
       - "4566:4566"
     volumes:
@@ -90,6 +93,7 @@ services:
     image: prom/node-exporter:latest
     container_name: golang_api_node_exporter
     restart: unless-stopped
+    profiles: ["observability"]
     command:
       - "--path.procfs=/host/proc"
       - "--path.sysfs=/host/sys"
@@ -106,6 +110,7 @@ services:
     image: prom/prometheus:latest
     container_name: golang_api_prometheus
     restart: unless-stopped
+    profiles: ["observability"]
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
@@ -130,6 +135,7 @@ services:
     image: grafana/grafana:latest
     container_name: golang_api_grafana
     restart: unless-stopped
+    profiles: ["observability"]
     environment:
       - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
       - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
@@ -151,6 +157,7 @@ services:
     image: grafana/loki:3.3.2
     container_name: golang_api_loki
     restart: unless-stopped
+    profiles: ["observability"]
     command:
       - "-config.file=/etc/loki/loki.yml"
     volumes:
@@ -165,6 +172,7 @@ services:
     image: grafana/promtail:3.3.2
     container_name: golang_api_promtail
     restart: unless-stopped
+    profiles: ["observability"]
     command:
       - "-config.file=/etc/promtail/promtail.yml"
     volumes:

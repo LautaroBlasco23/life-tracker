@@ -1,33 +1,51 @@
-# Root Makefile — orchestrate the life-tracker dev stack (floci path).
+# Root Makefile — orchestrate the life-tracker dev stack.
 #
 # Run from the repository root. Delegates to the infra Makefile.
 #
-# Why the API is deployed as a Lambda rather than run on the host:
-# the floci-provisioned RDS/DocumentDB containers live on the emulator's docker
-# network and are unreachable from the host (see infra/scripts/migrate.sh), so
-# anything that talks to them must run inside that network. The repo's mechanism
-# for that is `floci-deploy` (Lambda behind API Gateway v2), which is also what
-# the frontend's nginx proxy targets (/api -> gateway). Re-running `make start`
-# redeploys the Lambda, so it doubles as the "restart the API" command.
+# Three run modes (see infra/Makefile for the compose-level detail):
+#   make dev           - container mode: API as a plain container (:8080) +
+#                        postgres + mongodb + frontend on :3000. No floci.
+#   make dev-emulator  - AWS-emulated mode: floci + the API deployed as a
+#                        Lambda behind API Gateway v2 + frontend on :3000.
+#                        This is the pre-deploy test of the real AWS path.
+#   make dev-full      - container mode + observability (Prometheus, Grafana,
+#                        Loki, Promtail, node-exporter).
+#
+# Why the API is deployed as a Lambda rather than run on the host in emulator
+# mode: the floci-provisioned RDS/DocumentDB containers live on the emulator's
+# docker network and are unreachable from the host (see infra/scripts/migrate.sh),
+# so anything that talks to them must run inside that network. The repo's
+# mechanism for that is `floci-deploy` (Lambda behind API Gateway v2), which is
+# also what the frontend's nginx proxy targets (/api -> gateway). Re-running
+# `make dev-emulator` redeploys the Lambda, so it doubles as the "restart the
+# API" command in that mode.
 
 INFRA := $(abspath infra)
 
-.PHONY: help start stop restart status logs loadtest loadtest-%
+.PHONY: help dev dev-emulator dev-full dev-down start stop restart status logs loadtest loadtest-%
 
 .DEFAULT_GOAL := help
 
 help:
-	@echo "Life Tracker — dev stack orchestration (floci path)"
+	@echo "Life Tracker — dev stack orchestration"
 	@echo ""
-	@echo "  make start     - Start the full stack: floci + provisioned DBs +"
-	@echo "                   backend API (Lambda + API Gateway) + frontend on :3000."
-	@echo "                   Idempotent: re-running redeploys BOTH the backend"
-	@echo "                   Lambda and the frontend build, so it also restarts"
-	@echo "                   the app with the latest code."
-	@echo "  make stop      - Stop floci and the frontend container."
-	@echo "  make restart   - stop + start"
-	@echo "  make status    - Show what is running and health-check the API"
-	@echo "  make logs      - Follow floci (emulator) logs"
+	@echo "  Run modes (one at a time; make dev-down stops any of them):"
+	@echo "    make dev          - Container mode: backend API container (:8080) +"
+	@echo "                        postgres + mongodb + frontend on :3000."
+	@echo "                        No floci, no observability."
+	@echo "    make dev-emulator - AWS-emulated mode: floci + provisioned DBs +"
+	@echo "                        backend API (Lambda + API Gateway) + frontend"
+	@echo "                        on :3000. Test of the real-AWS deploy path."
+	@echo "    make dev-full     - Container mode + observability: Prometheus (:9090),"
+	@echo "                        Grafana (:3001), Loki, Promtail, node-exporter."
+	@echo "    make dev-down     - Stop whichever mode is running."
+	@echo ""
+	@echo "  Aliases:"
+	@echo "    make start        - same as dev-emulator (kept for compatibility)."
+	@echo "    make stop         - stop the emulator-mode stack (floci + frontend)."
+	@echo "    make restart      - stop + start (emulator mode)."
+	@echo "    make status       - Show what is running and health-check the API"
+	@echo "    make logs         - Follow floci (emulator) logs"
 	@echo ""
 	@echo "  Load testing (k6, see loadtest/):"
 	@echo "    make loadtest                  - run the FULL load test: stack up,"
@@ -37,6 +55,7 @@ help:
 	@echo "    make loadtest-tap              - live API response watcher"
 	@echo ""
 	@echo "  Per-component (see infra/Makefile and backend/Makefile):"
+	@echo "    make -C infra dev-up / dev-emulator-up / dev-full-up / dev-down"
 	@echo "    make -C infra floci-up / floci-provision / floci-deploy / frontend-up / deploy-frontend"
 	@echo "    make -C backend floci-status / floci-down / test-floci / migrate-floci"
 
@@ -49,31 +68,40 @@ loadtest:
 loadtest-%:
 	$(MAKE) -C loadtest $*
 
-start:
-	@echo "==> floci emulator"
-	$(MAKE) -C $(INFRA) floci-up
-	@echo "==> provisioning floci services (idempotent)"
-	$(MAKE) -C $(INFRA) floci-provision
-	@echo "==> backend API (migrate + Lambda deploy, idempotent)"
-	$(MAKE) -C $(INFRA) floci-deploy
-	@echo "==> frontend (build + deploy current source to web container + S3)"
-	$(MAKE) -C $(INFRA) deploy-frontend
-	@echo ""
-	@echo "Stack ready:"
-	@echo "  API:       http://localhost:3000/api  (same-origin via nginx proxy)"
-	@echo "  Gateway:   http://localhost:4566/execute-api/lifetracker-api/dev/health"
-	@echo "  Frontend:  http://localhost:3000"
+dev:
+	@echo "==> container mode: api + postgres + mongodb + frontend"
+	$(MAKE) -C $(INFRA) dev-up
+
+dev-emulator:
+	@echo "==> AWS-emulated mode: floci + Lambda + frontend"
+	$(MAKE) -C $(INFRA) dev-emulator-up
+
+# Kept for compatibility: the emulator path was the original `make start`.
+start: dev-emulator
+
+dev-full:
+	@echo "==> container mode + observability"
+	$(MAKE) -C $(INFRA) dev-full-up
+
+dev-down:
+	$(MAKE) -C $(INFRA) dev-down
 
 stop:
 	$(MAKE) -C $(INFRA) floci-down
 	$(MAKE) -C $(INFRA) frontend-down
 
-restart: stop start
+restart: stop dev-emulator
 
 status:
-	@echo "==> floci"
-	@docker ps --filter name=^/floci$$ --format '  floci: {{.Status}}' || true
-	@echo "==> backend API (Lambda + API Gateway)"
+	@echo "==> containers"
+	@docker ps --filter name=^/floci$$ --filter name=^/golang_api_server$$ --filter name=^/lifetracker-web$$ \
+		--format '  {{.Names}}: {{.Status}}' || true
+	@echo "==> backend API"
+	@if curl -sf --max-time 3 http://localhost:8080/health >/dev/null 2>&1; then \
+		echo "  Container API (:8080): healthy"; \
+	else \
+		echo "  Container API (:8080): not running"; \
+	fi
 	@docker exec floci aws --endpoint-url http://localhost:4566 --region us-east-1 lambda get-function \
 		--function-name lifetracker-api --query 'Configuration.{State:State,LastModified:LastModified}' \
 		--output text 2>/dev/null | sed 's/^/  Lambda: /' || echo "  Lambda: not deployed"
