@@ -35,5 +35,8 @@ fi
 cd "${BACKEND_DIR}"
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /tmp/lifetracker-migrate ./cmd/migrate
 docker run --rm --network "${NETWORK}" --env-file "${ENV_FILE}" \
+  -e DB_HOST=postgres \
+  -e MONGO_URI= \
+  -e MONGO_HOST=mongodb \
   -v /tmp/lifetracker-migrate:/migrate:ro alpine /migrate
 echo "  migrations applied"
