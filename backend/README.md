@@ -2,7 +2,7 @@
 
 Go (Gin) REST API for the Life Tracker platform: authentication, user profiles, habits & activities, finances, notes, time tracking, routines, social, and screen time.
 
-This README covers the backend **logic only** — domain models/schemas, business rules, and the HTTP API. For how the app is built, deployed, and run (AWS-shaped stack, floci emulation, `make start`), see the [root README](../README.md).
+This README covers the backend **logic only** — domain models/schemas, business rules, and the HTTP API. For how the app is built, deployed, and run (AWS-shaped stack, floci emulation, `make backend-dev`), see the [root README](../README.md).
 
 ---
 

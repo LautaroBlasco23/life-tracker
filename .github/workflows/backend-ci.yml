@@ -31,7 +31,7 @@ jobs:
         run: go mod download
 
       - name: Install tools
-        run: make install-tools
+        run: make -C .. install-tools
 
       - name: Start floci
         run: |
@@ -47,7 +47,7 @@ jobs:
 
       - name: Provision AWS services on floci
         timeout-minutes: 10
-        run: make floci-provision
+        run: make -C .. floci-provision
 
       - name: Run tests against floci
         run: |
@@ -57,7 +57,7 @@ jobs:
           ENVIRONMENT=test gotestsum --format=short-verbose -- -race -p 1 ./...
 
       - name: Deploy Lambda + API Gateway
-        run: make floci-deploy
+        run: make -C .. floci-deploy
 
       - name: Smoke test Lambda endpoint
         run: |

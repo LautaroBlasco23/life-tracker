@@ -6,7 +6,7 @@ A personal life-tracking platform covering **habits & activities**, **finances**
 
 ## Deployment Modes
 
-The stack runs in three modes, one diagram each. All three are started from the repository root (`make dev`, `make dev-emulator`, `make dev-full`) and stopped with `make dev-down`; see [Getting Started](#getting-started) for details.
+The stack runs in three modes, one diagram each. All three are started from the repository root (`make dev`, `make dev-emulator`, `make dev-full`) and stopped with `make stop`; see [Getting Started](#getting-started) for details.
 
 ### 1. `make dev` — container mode
 
@@ -57,7 +57,7 @@ Each project has its own `README.md` with detailed documentation. This root READ
 │   └── frontend-ci.yml    # Frontend static export + Docker image build/push
 ├── backend/               # Go REST API
 ├── frontend/              # Next.js web application
-├── infra/                 # All docker compose files + commands (docker/floci tooling)
+├── infra/                 # All docker compose files + scripts (docker/floci tooling)
 ├── loadtest/              # k6 load/stress tests + live monitoring setup
 ├── chrome-extension/      # Chrome MV3 extension
 └── README.md
@@ -65,10 +65,10 @@ Each project has its own `README.md` with detailed documentation. This root READ
 
 ### Conventions
 
-- Each sub-project is fully self-contained (own dependencies, tests, Dockerfile, and Makefile).
+- Each sub-project is fully self-contained (own dependencies, tests, Dockerfile).
 - **Path-filtered CI**: workflows trigger only when files under their directory change (e.g., `backend/**`).
 - The backend and frontend workflows push Docker images to Docker Hub using repository secrets (see below).
-- **All docker compose definitions and commands live in `infra/`** (`infra/docker-compose*.yml`, `infra/Makefile`, `infra/scripts/`). The backend/frontend Makefiles delegate their compose targets there (`make -C infra <target>`).
+- **All docker compose definitions live in `infra/`** (`infra/docker-compose*.yml`, `infra/scripts/`). **Every make command lives in the root `Makefile`** — run `make` (or `make help`) from the repo root for the main commands (run modes, stop, tests), and `make components` for the full backend/frontend/databases/infra list.
 
 ---
 
@@ -118,7 +118,7 @@ The nginx proxy keeps API calls same-origin because floci's gateway does not ans
 - `infra/scripts/deploy-lambda.sh` — runs migrations, builds the Go Lambda, and creates/updates the function plus the API Gateway route.
 - `infra/scripts/deploy-frontend.sh` — `next build` (static export), bakes the runtime `env-config.js`, syncs to S3, and copies the output into the nginx volume.
 
-`make start` (repo root) runs all three against the current source, so re-running it is the "restart with the latest code" command.
+`make dev-emulator` (repo root) runs all three against the current source, so re-running it is the "restart with the latest code" command.
 
 ---
 
@@ -146,12 +146,12 @@ The Go test suite (testify + httptest) runs against isolated Docker databases. F
 
 | Command | What it does |
 |---|---|
-| `make -C backend test` | Starts test DBs (`docker-compose.db.yml`), runs `gotestsum -race`, stops DBs |
-| `make -C backend test-only` | Runs the suite against already-running test DBs |
-| `make -C backend code-check` | Format + lint (`golangci-lint`) |
-| `make -C infra db-test-up` / `db-test-down` | Manage the test databases manually |
+| `make test` | Starts test DBs (`docker-compose.db.yml`), runs `gotestsum -race`, stops DBs |
+| `make test-only` | Runs the suite against already-running test DBs |
+| `make code-check` | Format + lint (`golangci-lint`) |
+| `make db-test-up` / `make db-test-down` | Manage the test databases manually |
 
-`make -C backend test-floci` runs the suite against the floci-provisioned services instead of the compose test DBs (the path CI uses).
+`make test-floci` runs the suite against the floci-provisioned services instead of the compose test DBs (the path CI uses).
 
 ### Load testing (k6)
 
@@ -223,7 +223,7 @@ The workflows rely on Docker Hub credentials. Configure these in **Settings → 
 
 Each project is self-contained; see its README for setup.
 
-Three run modes from the repository root (one at a time; `make dev-down` stops whichever is running):
+Three run modes from the repository root (one at a time; `make stop` stops whichever is running):
 
 | Command | Mode | What runs | URLs |
 |---|---|---|---|
@@ -233,11 +233,11 @@ Three run modes from the repository root (one at a time; `make dev-down` stops w
 
 All three are idempotent — re-running a mode's command redeploys the backend and frontend with the latest code, so it doubles as the restart command.
 
-- `make start` is kept as an alias of `make dev-emulator`; `make stop` / `make restart` / `make status` / `make logs` target the emulator path.
+- `make stop` tears down everything (compose down ignores profiles, so it removes every running service of the project, including floci, observability, and the frontend container).
 - Note: in emulator mode the API runs as a Lambda because the floci-provisioned databases are only reachable from the emulator's docker network (see `infra/scripts/migrate.sh`). The legacy Postgres/Mongo compose path (`docker-compose.db.yml`) is optional rollback tooling; CI and `make dev-emulator` do not use it.
-- **Backend**: [`backend/README.md`](./backend/README.md) — `make start` runs the API with databases (Docker Compose). For the AWS-shaped path: `make -C infra floci-up` / `floci-provision` / `floci-deploy`, or from `backend/`: `make floci-up` / `floci-provision` / `floci-dev` / `floci-deploy`.
-- **Infrastructure**: [`infra/Makefile`](./infra/Makefile) — every docker compose command (`make -C infra help`). Compose files: `docker-compose.yml` (all services; floci and the monitoring stack are compose *profiles* — `emulator` and `observability` — so the plain `dev` lanes never start them), `docker-compose.db.yml` (legacy DBs), `docker-compose.frontend.yml` (frontend container; the `.override` variant points nginx at the API container instead of the gateway).
-- **Frontend**: [`frontend/README.md`](./frontend/README.md) — install dependencies and run the Next.js dev server. The static export is served at `http://localhost:3000` via `make -C infra frontend-up` (nginx; the local stand-in for CloudFront, since floci's CloudFront data-plane has parity gaps) and synced to S3 as a deploy artifact via `make -C infra deploy-frontend` (set `DEPLOY_S3=0` to skip the S3/CloudFront steps in container mode — the `make dev` lanes do this automatically).
+- **Backend**: [`backend/README.md`](./backend/README.md) — `make backend-dev` runs the API with databases (air hot reload). For the AWS-shaped path: `make floci-up` / `floci-provision` / `floci-dev` / `floci-deploy`.
+- **Infrastructure**: the root `Makefile` (`make help`) owns every docker compose command. Compose files: `docker-compose.yml` (all services; floci and the monitoring stack are compose *profiles* — `emulator` and `observability` — so the plain `dev` lanes never start them), `docker-compose.db.yml` (legacy DBs), `docker-compose.frontend.yml` (frontend container; the `.override` variant points nginx at the API container instead of the gateway).
+- **Frontend**: [`frontend/README.md`](./frontend/README.md) — install dependencies and run the Next.js dev server. The static export is served at `http://localhost:3000` via `make frontend-up` (nginx; the local stand-in for CloudFront, since floci's CloudFront data-plane has parity gaps) and synced to S3 as a deploy artifact via `make deploy-frontend` (set `DEPLOY_S3=0` to skip the S3/CloudFront steps in container mode — the `make dev` lanes do this automatically).
 - **Chrome Extension**: [`chrome-extension/README.md`](./chrome-extension/README.md) — load as an unpacked extension pointing at a local backend.
 
 ---

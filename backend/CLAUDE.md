@@ -55,24 +55,26 @@ MongoDB does not use file-based migrations. Index creation is managed in `intern
 
 ## Key Commands
 
+Run from the repo root (the root Makefile owns every command):
+
 ```bash
-make start        # setup .env + start app with hot reload
-make dev          # start app (requires .env)
-make test         # run tests with isolated test DB
-make code-check   # format + lint
-make db-up        # start dev databases only
-make db-remove    # wipe dev databases
+make backend-start # setup .env + start app with hot reload
+make backend-dev   # start app (requires .env)
+make test          # run tests with isolated test DB
+make code-check    # format + lint
+make db-up         # start dev databases only
+make db-remove     # wipe dev databases
 ```
 
 ## Preflight
 
 **Ecosystem**: Go 1.26.2
-**Config**: go.mod, Makefile
+**Config**: go.mod, root Makefile
 **Status**: ready
 
 | Category | Status | Command |
 |----------|--------|---------|
-| Build    | ready  | `go build ./...` |
+| Build    | ready  | `go build ./...` (in `backend/`) |
 | Check    | ready  | `make code-check` |
 | Test     | ready  | `make test` |
 

@@ -5,8 +5,8 @@
 #   docker compose -f docker-compose.frontend.yml -f docker-compose.frontend.override.yml up -d
 #
 # Compose merges volume mounts by target path, so this replaces the base
-# nginx.conf with nginx.api.conf for the web container only. The default stack
-# (make start) is unaffected.
+# nginx.conf with nginx.api.conf for the web container only. The emulator stack
+# (make dev-emulator, which proxies /api to the gateway) is unaffected.
 services:
   web:
     volumes:

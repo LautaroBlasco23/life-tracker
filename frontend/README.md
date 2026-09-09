@@ -86,13 +86,13 @@ frontend/
 
 ```bash
 git clone <your-repo-url>
-cd frontend
-make start
+cd life-tracker
+make dev
 ```
 
 Application runs at `http://localhost:3000`
 
-> **Note:** This creates `.env` from `.env.example` and starts the development server.
+> **Note:** This starts the full container-mode stack (API + databases + frontend). See the [root README](../README.md) for the other run modes.
 
 ### Standard Setup (More Control)
 

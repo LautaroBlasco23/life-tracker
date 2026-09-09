@@ -1,6 +1,6 @@
 services:
   # AWS emulator — only started by the emulator/full lanes (make dev-emulator,
-  # make -C infra up). Plain `make dev` runs the API as a container instead.
+  # make up). Plain `make dev` runs the API as a container instead.
   floci:
     image: floci/floci:1.6.0-compat
     container_name: floci

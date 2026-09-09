@@ -199,10 +199,10 @@ stack-down:
 	$(LTC) stop api postgres mongodb node-exporter prometheus grafana
 
 monitoring-up:
-	$(MAKE) -C ../infra monitoring-up
+	$(MAKE) -C .. monitoring-up
 
 # nginx frontend proxying /api directly to the compose API (not floci).
-# Requires the static export in the web volume (run `make -C ../infra deploy-frontend` once).
+# Requires the static export in the web volume (run `make deploy-frontend` once from the repo root).
 fe-up:
 	docker compose -f ../infra/docker-compose.frontend.yml -f ../infra/docker-compose.frontend.override.yml up -d
 
