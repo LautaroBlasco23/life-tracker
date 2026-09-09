@@ -202,7 +202,7 @@ make loadtest-tap                      # raw API responses in the terminal
 make loadtest-tap TAP_PATH=/api/notes TAP_INTERVAL=2   # time | status | latency | body
 ```
 
-Notes: disable live streaming with `REMOTE_WRITE=0`; the floci/Lambda path is not scraped (separate docker network), so dashboards cover the compose lane. The load-test stack is self-contained (`infra/docker-compose.loadtest.yml` — pinned credentials, its own volumes), so it works regardless of `backend/.env` and never touches dev DB data or floci. Prometheus runs with remote-write receiver + native histograms enabled (`infra/docker-compose.yml`), and app metrics are scraped every 5s (`backend/monitoring/prometheus.yml`). Dashboards are provisioned automatically from `backend/monitoring/grafana/provisioning/dashboards/`.
+Notes: disable live streaming with `REMOTE_WRITE=0`; the floci/Lambda path is not scraped (separate docker network), so dashboards cover the compose lane. The load-test stack is self-contained (`infra/docker-compose.loadtest.yml` — pinned credentials, its own volumes), so it works regardless of `.env` and never touches dev DB data or floci. Prometheus runs with remote-write receiver + native histograms enabled (`infra/docker-compose.yml`), and app metrics are scraped every 5s (`backend/monitoring/prometheus.yml`). Dashboards are provisioned automatically from `backend/monitoring/grafana/provisioning/dashboards/`.
 
 ---
 

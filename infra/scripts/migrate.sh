@@ -9,8 +9,9 @@
 # Env:
 #   ENV_FILE   env file with DB/Mongo connection settings.
 #              Default: ../.floci.env (floci path). Container mode passes
-#              ../backend/.env (DB_HOST/MONGO_URI must use compose service
-#              hostnames — the api container already relies on that).
+#              the repo-root .env (DB_HOST/MONGO_URI must use compose service
+#              hostnames — the api container already relies on that; this
+#              script overrides them onto the network anyway).
 #   NETWORK    docker network to attach to. Default: the floci container's
 #              first network (floci path); container mode passes
 #              infra_golang_api_network.

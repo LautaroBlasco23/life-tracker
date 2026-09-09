@@ -98,7 +98,7 @@ help:
 	@echo ""
 	@echo "  Stack targets:"
 	@echo "    stack-up       - start self-contained load-test stack (api + DBs +"
-	@echo "                     monitoring; own volumes, independent of backend/.env)"
+	@echo "                     monitoring; own volumes, independent of .env)"
 	@echo "    stack-down     - stop it (dev stack and floci are untouched)"
 	@echo "    monitoring-up  - start Prometheus + Grafana only (needs API/DBs running)"
 	@echo "    fe-up          - nginx frontend with /api -> direct API (load-test lane)"
@@ -189,7 +189,7 @@ tap:
 
 # Self-contained load-test stack: api + postgres + mongodb + monitoring.
 # Uses docker-compose.loadtest.yml (pinned credentials, own volumes), so it
-# does NOT depend on backend/.env and does not touch dev DB data or floci.
+# does NOT depend on .env and does not touch dev DB data or floci.
 LTC := docker compose -f ../infra/docker-compose.yml -f ../infra/docker-compose.loadtest.yml
 
 stack-up:

@@ -1,6 +1,6 @@
 # Load-testing override: self-contained stack for the load-test lane.
 #
-# The base docker-compose.yml reads DB credentials from ../backend/.env, which
+# The base docker-compose.yml reads DB credentials from ../.env, which
 # may hold dev/placeholder values — that makes the legacy compose API unable to
 # start. This override pins explicit credentials and gives the load-test lane
 # its OWN volumes, so `make loadtest` works regardless of .env and never

@@ -41,7 +41,7 @@ provision, cleanup, stack-*, monitoring-up, fe-*) — see `make loadtest-help` o
 
 The load-test stack is **self-contained** (`infra/docker-compose.loadtest.yml`):
 pinned DB credentials and its own volumes, so it works regardless of
-`backend/.env` and never touches dev DB data or the floci stack.
+`.env` and never touches dev DB data or the floci stack.
 
 ```bash
 make loadtest-stack-up                 # api + postgres + mongodb + prometheus + grafana + node-exporter

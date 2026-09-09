@@ -33,6 +33,11 @@ GREEN := \033[1;32m
 DIM   := \033[2m
 RST   := \033[0m
 
+# Env file for infra commands: root .env when present, else .env.example (dev
+# defaults). Absolute so it survives the `cd infra` compose wrappers; consumed
+# via --env-file (variable substitution) and by scripts/migrate.sh.
+ENV_FILE := $(if $(wildcard $(CURDIR)/.env),$(CURDIR)/.env,$(CURDIR)/.env.example)
+
 # Compose wrappers (executed inside infra/).
 DC  := cd infra && docker compose -p infra -f docker-compose.yml
 DB  := cd infra && docker compose -p infra -f docker-compose.db.yml
@@ -80,7 +85,7 @@ components:
 	@printf "$(GREEN)  🧠 Backend only$(RST)\n"
 	@printf "    make %-18s %s\n" "backend-dev"      "hot-reload Go app with air (starts dev databases)"
 	@printf "    make %-18s %s\n" "backend-start"    "setup + backend-dev"
-	@printf "    make %-18s %s\n" "setup"            "create backend/.env from backend/.env.example"
+	@printf "    make %-18s %s\n" "setup"            "create .env from .env.example"
 	@printf "    make %-18s %s\n" "code-check"       "gofumpt + golangci-lint (with --fix)"
 	@printf "    make %-18s %s\n" "install-tools"    "gofumpt, golangci-lint, air, gotestsum"
 	@printf "    make %-18s %s\n" "hooks"            "install git hooks (backend/.githooks)"
@@ -125,12 +130,13 @@ components:
 # Container mode: api + databases + frontend, no floci, no observability.
 dev:
 	@echo "==> container mode: api + postgres + mongodb + frontend"
-	@cd infra && [ -f ../backend/.env ] || (echo "../backend/.env not found — run 'make setup'"; exit 1)
-	$(DC) --env-file ../backend/.env up -d --build
+	@echo "==> env file: $(notdir $(ENV_FILE))"
+	@[ -f "$(ENV_FILE)" ] || (echo ".env/.env.example not found — run 'make setup'"; exit 1)
+	$(DC) --env-file $(ENV_FILE) up -d --build
 	@echo "==> migrations"
 	@$(MAKE) --no-print-directory dev-migrate
 	@echo "==> frontend (nginx /api -> api:8080)"
-	$(FEO) --env-file ../backend/.env up -d web
+	$(FEO) --env-file $(ENV_FILE) up -d web
 	cd infra && DEPLOY_S3=0 bash scripts/deploy-frontend.sh
 	@echo ""
 	@echo "Container mode ready:"
@@ -158,12 +164,13 @@ dev-emulator:
 # node-exporter). Prometheus scrapes api:8080; Grafana on :3001.
 dev-full:
 	@echo "==> container mode + observability"
-	@cd infra && [ -f ../backend/.env ] || (echo "../backend/.env not found — run 'make setup'"; exit 1)
-	$(DC) --env-file ../backend/.env --profile observability up -d --build
+	@echo "==> env file: $(notdir $(ENV_FILE))"
+	@[ -f "$(ENV_FILE)" ] || (echo ".env/.env.example not found — run 'make setup'"; exit 1)
+	$(DC) --env-file $(ENV_FILE) --profile observability up -d --build
 	@echo "==> migrations"
 	@$(MAKE) --no-print-directory dev-migrate
 	@echo "==> frontend (nginx /api -> api:8080)"
-	$(FEO) --env-file ../backend/.env up -d web
+	$(FEO) --env-file $(ENV_FILE) up -d web
 	cd infra && DEPLOY_S3=0 bash scripts/deploy-frontend.sh
 	@echo ""
 	@echo "Container mode + observability ready:"
@@ -180,23 +187,23 @@ stop:
 	$(FE) down
 
 # Migrations for the container-mode lanes: same in-network pattern as the floci
-# path (migrate.sh defaults), but against the compose network and backend/.env.
+# path (migrate.sh defaults), but against the compose network and the root .env.
 dev-migrate:
-	cd infra && ENV_FILE=$(abspath backend)/.env NETWORK=infra_golang_api_network bash scripts/migrate.sh
+	cd infra && ENV_FILE='$(ENV_FILE)' NETWORK=infra_golang_api_network bash scripts/migrate.sh
 
 # --- Full stack (legacy) ---
 
 # Every profile: container API + floci + observability.
 up:
-	@cd infra && [ -f ../backend/.env ] || (echo "../backend/.env not found — run 'make setup'"; exit 1)
-	$(DC) --env-file ../backend/.env --profile emulator --profile observability up -d
+	@[ -f "$(ENV_FILE)" ] || (echo ".env/.env.example not found — run 'make setup'"; exit 1)
+	$(DC) --env-file $(ENV_FILE) --profile emulator --profile observability up -d
 
 down:
 	$(DC) down
 
 build:
-	@cd infra && [ -f ../backend/.env ] || (echo "../backend/.env not found — run 'make setup'"; exit 1)
-	$(DC) --env-file ../backend/.env build api
+	@[ -f "$(ENV_FILE)" ] || (echo ".env/.env.example not found — run 'make setup'"; exit 1)
+	$(DC) --env-file $(ENV_FILE) build api
 
 # --- AWS (floci) path ---
 
@@ -232,12 +239,12 @@ deploy-frontend: frontend-up
 # --- Backend ---
 
 setup:
-	@if [ ! -f backend/.env ]; then \
-		echo "Creating backend/.env from backend/.env.example..."; \
-		cp backend/.env.example backend/.env; \
-		echo "✓ backend/.env created. Review and update configuration if needed."; \
+	@if [ ! -f .env ]; then \
+		echo "Creating .env from .env.example..."; \
+		cp .env.example .env; \
+		echo "✓ .env created. Review and update configuration if needed."; \
 	else \
-		echo "✓ backend/.env already exists"; \
+		echo "✓ .env already exists"; \
 	fi
 
 backend-start: setup backend-dev
@@ -258,7 +265,8 @@ hooks:
 
 backend-dev: hooks db-up
 	@until docker exec golang_api_postgres pg_isready -U postgres >/dev/null 2>&1; do sleep 1; done
-	cd backend && ENV_FILE=.env air -c .air.toml
+	# config.Load() walks up from backend/ and picks up the root .env.
+	cd backend && air -c .air.toml
 
 floci-dev: floci-up floci-provision
 	@set -a; . "$(INFRA)/.floci.env"; set +a; \
@@ -341,14 +349,14 @@ fe-shell-dev:
 # --- Legacy databases (docker-compose.db.yml, rollback path) ---
 
 db-up:
-	@cd infra && [ -f ../backend/.env ] || (echo "../backend/.env not found — run 'make setup'"; exit 1)
-	$(DB) --env-file ../backend/.env up -d
+	@[ -f "$(ENV_FILE)" ] || (echo ".env/.env.example not found — run 'make setup'"; exit 1)
+	$(DB) --env-file $(ENV_FILE) up -d
 
 db-down:
-	$(DB) --env-file ../backend/.env stop
+	$(DB) --env-file $(ENV_FILE) stop
 
 db-remove:
-	$(DB) --env-file ../backend/.env down -v
+	$(DB) --env-file $(ENV_FILE) down -v
 
 db-test-up:
 	@cd infra && [ -f ../backend/.env.test ] || (echo "../backend/.env.test not found"; exit 1)
