@@ -28,6 +28,13 @@ services:
       - "8080:8080"
     env_file:
       - ../backend/.env
+    # .env keeps localhost hosts (host-run backend needs them); override
+    # with compose service names for the container network. Mirrors the
+    # docker-compose.loadtest.yml api overrides.
+    environment:
+      DB_HOST: postgres
+      MONGO_URI: "" # empty -> config falls back to building from MONGO_HOST
+      MONGO_HOST: mongodb
     depends_on:
       postgres:
         condition: service_healthy
