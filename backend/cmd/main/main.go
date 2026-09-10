@@ -17,6 +17,7 @@ import (
 
 	activityRoutes "life-tracker-backend/internal/domain/activity/routes"
 	authRoutes "life-tracker-backend/internal/domain/auth/routes"
+	dataRoutes "life-tracker-backend/internal/domain/data/routes"
 	financeRoutes "life-tracker-backend/internal/domain/finance/routes"
 	healthRoutes "life-tracker-backend/internal/domain/health/routes"
 	noteRoutes "life-tracker-backend/internal/domain/note/routes"
@@ -168,6 +169,7 @@ func newRouter(cfg *config.Config, dbs *database.Connections, imageClient *image
 			// Social has /users/:username/followers which is more specific than user's /users/:param
 			socialRoutes.RegisterSocialRoutes(protected, dbs.PostgreSQL, dbs.MongoDB)
 			userRoutes.RegisterUserRoutes(protected, dbs.PostgreSQL, imageClient)
+			dataRoutes.RegisterDataRoutes(protected, dbs.PostgreSQL, dbs.MongoDB)
 			activityRoutes.RegisterActivityRoutes(protected, dbs.PostgreSQL, dbs.MongoDB)
 			financeRoutes.RegisterFinanceRoutes(protected, dbs.MongoDB)
 			healthRoutes.RegisterHealthRoutes(protected, dbs.MongoDB)

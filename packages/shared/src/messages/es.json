@@ -439,6 +439,25 @@
     "english": "Inglés",
     "spanish": "Español"
   },
+  "dataBackup": {
+    "title": "Copia de seguridad",
+    "description": "Descargá una copia de seguridad de todos tus datos, o restáurala desde una exportación anterior.",
+    "exportButton": "Exportar datos",
+    "exporting": "Exportando...",
+    "exportSuccess": "Copia descargada",
+    "exportSuccessDescription": "Tu copia de seguridad se descargó correctamente.",
+    "exportFailed": "Error al exportar",
+    "importButton": "Importar datos",
+    "importing": "Restaurando...",
+    "importWarningTitle": "¿Restaurar desde la copia?",
+    "importWarningDescription": "Esto eliminará permanentemente todos los datos actuales de tu cuenta y los reemplazará con el contenido de \"{filename}\". Esta acción no se puede deshacer.",
+    "importCancel": "Cancelar",
+    "importConfirm": "Eliminar y restaurar",
+    "importSuccess": "Datos restaurados",
+    "importSuccessDescription": "{count} elementos restaurados.",
+    "importFailed": "Error al restaurar",
+    "backupHint": "Las copias de seguridad son archivos XLSX. No los edites en Excel antes de restaurarlos."
+  },
   "updatePassword": {
     "title": "Actualizar contraseña",
     "description": "Ingresá tu contraseña actual y elegí una nueva.",

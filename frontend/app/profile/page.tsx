@@ -18,11 +18,30 @@ import { AuthGuard } from '@/components/auth-guard';
 import { Navigation } from '@/components/navigation';
 import { authService } from '@shared/services/auth-service';
 import { userService } from '@shared/services/user-service';
+import { dataService } from '@shared/services/data-service';
 import type { User, ProfilePrivacyStatus } from '@shared/types/user';
-import { LogOut, KeyRound, Mail, Languages, Lock } from 'lucide-react';
+import {
+  LogOut,
+  KeyRound,
+  Mail,
+  Languages,
+  Lock,
+  Download,
+  Upload,
+} from 'lucide-react';
 import { showToast } from '@/lib/toast';
 import { UpdatePasswordModal } from './modals/update-password-modal';
 import { UpdateEmailModal } from './modals/update-email-modal';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   useTranslations,
   useLanguage,
@@ -39,6 +58,7 @@ import {
 export default function ProfilePage() {
   const t = useTranslations('profile');
   const tPrivacy = useTranslations('privacy');
+  const tBackup = useTranslations('dataBackup');
   const { locale, setLocale } = useLanguage();
 
   const router = useRouter();
@@ -52,6 +72,9 @@ export default function ProfilePage() {
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
   const [isEmailModalOpen, setIsEmailModalOpen] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+  const [pendingImportFile, setPendingImportFile] = useState<File | null>(null);
 
   useEffect(() => {
     const loadProfile = async () => {
@@ -151,6 +174,60 @@ export default function ProfilePage() {
 
   const handleEmailUpdated = (updatedUser: User) => {
     setUser(updatedUser);
+  };
+
+  const handleExportData = async () => {
+    setIsExporting(true);
+    try {
+      await dataService.exportData();
+      showToast({
+        title: tBackup('exportSuccess'),
+        description: tBackup('exportSuccessDescription'),
+      });
+    } catch (error) {
+      showToast({
+        title: tBackup('exportFailed'),
+        description:
+          error instanceof Error ? error.message : 'An error occurred',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleImportFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setPendingImportFile(file);
+    }
+    // Reset so selecting the same file twice still opens the dialog.
+    e.target.value = '';
+  };
+
+  const handleRestoreConfirmed = async () => {
+    if (!pendingImportFile) return;
+    const file = pendingImportFile;
+    setPendingImportFile(null);
+
+    setIsImporting(true);
+    try {
+      const counts = await dataService.importData(file);
+      const total = Object.values(counts).reduce((sum, n) => sum + n, 0);
+      showToast({
+        title: tBackup('importSuccess'),
+        description: tBackup('importSuccessDescription', { count: total }),
+      });
+    } catch (error) {
+      showToast({
+        title: tBackup('importFailed'),
+        description:
+          error instanceof Error ? error.message : 'An error occurred',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsImporting(false);
+    }
   };
 
   if (isLoading) {
@@ -395,9 +472,85 @@ export default function ProfilePage() {
                 </div>
               </CardContent>
             </Card>
+            <Card className="bg-muted/30">
+              <CardHeader>
+                <CardTitle>{tBackup('title')}</CardTitle>
+                <CardDescription>{tBackup('description')}</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={handleExportData}
+                    disabled={isExporting || isImporting}
+                    className="flex-1 flex items-center justify-center gap-2"
+                  >
+                    <Download className="h-4 w-4" />
+                    {isExporting
+                      ? tBackup('exporting')
+                      : tBackup('exportButton')}
+                  </Button>
+                  <Label
+                    htmlFor="import-data"
+                    className={`flex-1 ${isExporting || isImporting ? 'opacity-50' : 'cursor-pointer'}`}
+                  >
+                    <Button
+                      variant="outline"
+                      disabled={isExporting || isImporting}
+                      asChild
+                    >
+                      <span className="flex items-center justify-center gap-2">
+                        <Upload className="h-4 w-4" />
+                        {isImporting
+                          ? tBackup('importing')
+                          : tBackup('importButton')}
+                      </span>
+                    </Button>
+                  </Label>
+                  <Input
+                    id="import-data"
+                    type="file"
+                    accept=".xlsx"
+                    onChange={handleImportFileSelected}
+                    className="hidden"
+                    disabled={isExporting || isImporting}
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {tBackup('backupHint')}
+                </p>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </div>
+
+      <AlertDialog
+        open={pendingImportFile !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingImportFile(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{tBackup('importWarningTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {tBackup('importWarningDescription', {
+                filename: pendingImportFile?.name ?? '',
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{tBackup('importCancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRestoreConfirmed}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {tBackup('importConfirm')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <UpdatePasswordModal
         open={isPasswordModalOpen}

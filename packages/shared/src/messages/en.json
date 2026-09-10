@@ -439,6 +439,25 @@
     "english": "English",
     "spanish": "Spanish"
   },
+  "dataBackup": {
+    "title": "Data Backup",
+    "description": "Download a backup of all your data, or restore it from a previous export.",
+    "exportButton": "Export data",
+    "exporting": "Exporting...",
+    "exportSuccess": "Backup downloaded",
+    "exportSuccessDescription": "Your data backup has been downloaded.",
+    "exportFailed": "Export failed",
+    "importButton": "Import data",
+    "importing": "Restoring...",
+    "importWarningTitle": "Restore from backup?",
+    "importWarningDescription": "This will permanently delete all data currently in your account and replace it with the contents of \"{filename}\". This action cannot be undone.",
+    "importCancel": "Cancel",
+    "importConfirm": "Delete and restore",
+    "importSuccess": "Data restored",
+    "importSuccessDescription": "{count} items restored.",
+    "importFailed": "Restore failed",
+    "backupHint": "Backups are XLSX files. Don't edit them in Excel before restoring."
+  },
   "updatePassword": {
     "title": "Update Password",
     "description": "Enter your current password and choose a new one.",
