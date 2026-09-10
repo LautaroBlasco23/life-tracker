@@ -4,6 +4,36 @@ A personal life-tracking platform covering **habits & activities**, **finances**
 
 ---
 
+## Data Schemas
+
+Entities and relationships from [`packages/shared/src/types/`](./packages/shared/src/types/) — one excalidraw diagram per domain. Sources: [`docs/schema-*.excalidraw`](./docs/).
+
+### Overview
+
+![data schema overview](docs/schema-overview.png)
+
+### Activities & routines
+
+![activities & routines schema](docs/schema-activities-routines.png)
+
+### Finance
+
+![finance schema](docs/schema-finance.png)
+
+### Health
+
+![health schema](docs/schema-health.png)
+
+### User & social
+
+![user & social schema](docs/schema-user-social.png)
+
+### Personal
+
+![personal schema](docs/schema-personal.png)
+
+---
+
 ## Deployment Modes
 
 The stack runs in three modes, one diagram each. All three are started from the repository root (`make dev`, `make dev-emulator`, `make dev-full`) and stopped with `make stop`; see [Getting Started](#getting-started) for details.
