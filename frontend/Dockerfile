@@ -14,28 +14,27 @@ COPY frontend/ ./
 COPY packages/shared/ /app/packages/shared/
 RUN npm run build
 
-FROM base AS runner
-WORKDIR /app
-ENV NODE_ENV=production
+# Static-export runner: next.config.mjs uses output:'export' (plain HTML in
+# out/), so `next start` is not an option. nginx serves out/ on :3000 (the
+# container contract). At startup inject-env.sh writes env-config.js into the
+# web root and hands off to nginx's entrypoint, which envsubst-renders
+# /etc/nginx/templates/default.conf.template (the /api proxy upstream) first.
+FROM nginx:alpine AS runner
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
-
-COPY --from=builder /app/frontend/next.config.* ./
-COPY --from=builder /app/frontend/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/frontend/.next ./.next
-COPY --from=builder /app/frontend/node_modules ./node_modules
-COPY --from=builder /app/frontend/package.json ./package.json
-
+COPY --from=builder /app/frontend/out/ /usr/share/nginx/html/
+COPY frontend/nginx-templates/ /etc/nginx/templates/
 COPY frontend/inject-env.sh /usr/local/bin/inject-env.sh
+
 RUN chmod +x /usr/local/bin/inject-env.sh
 
-RUN chown -R nextjs:nodejs /app/public
-
-USER nextjs
 EXPOSE 3000
-ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
+
+# Same-origin defaults: the frontend calls /api (proxied below), so no CORS.
+# Override both in the server compose if the topology differs.
+# NGINX_ENTRYPOINT_LOCAL_RESOLVERS makes the image's 15-local-resolvers.envsh
+# export NGINX_LOCAL_RESOLVERS (from /etc/resolv.conf) for the template.
+ENV NEXT_PUBLIC_API_URL=/api
+ENV GATEWAY_UPSTREAM=api-gateway:8080
+ENV NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1
 
 ENTRYPOINT ["/usr/local/bin/inject-env.sh"]
-CMD ["npm", "start"]
