@@ -9,9 +9,14 @@
 # Env:
 #   ENV_FILE   env file with DB/Mongo connection settings.
 #              Default: ../.floci.env (floci path). Container mode passes
-#              the repo-root .env (DB_HOST/MONGO_URI must use compose service
-#              hostnames — the api container already relies on that; this
-#              script overrides them onto the network anyway).
+#              the repo-root .env.
+#   CONTAINER_MODE
+#              Set to 1 for the compose path: overrides DB/Mongo hosts with
+#              the compose service names (postgres/mongodb), which only
+#              resolve on infra_golang_api_network. Must stay off for the
+#              floci path — floci spawns its own DB containers with
+#              different names, and the override breaks it (CI's
+#              floci-deploy uses this path).
 #   NETWORK    docker network to attach to. Default: the floci container's
 #              first network (floci path); container mode passes
 #              infra_golang_api_network.
@@ -35,9 +40,14 @@ fi
 
 cd "${BACKEND_DIR}"
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /tmp/lifetracker-migrate ./cmd/migrate
-docker run --rm --network "${NETWORK}" --env-file "${ENV_FILE}" \
-  -e DB_HOST=postgres \
-  -e MONGO_URI= \
-  -e MONGO_HOST=mongodb \
-  -v /tmp/lifetracker-migrate:/migrate:ro alpine /migrate
+CONTAINER_MODE="${CONTAINER_MODE:-0}"
+
+docker_opts=(--rm --network "${NETWORK}" --env-file "${ENV_FILE}"
+  -v /tmp/lifetracker-migrate:/migrate:ro)
+if [ "${CONTAINER_MODE}" = "1" ]; then
+  # Compose network: rewrite the .env hosts to the compose service names.
+  docker_opts+=(-e DB_HOST=postgres -e MONGO_URI= -e MONGO_HOST=mongodb)
+fi
+
+docker run "${docker_opts[@]}" alpine /migrate
 echo "  migrations applied"

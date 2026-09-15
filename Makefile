@@ -189,7 +189,7 @@ stop:
 # Migrations for the container-mode lanes: same in-network pattern as the floci
 # path (migrate.sh defaults), but against the compose network and the root .env.
 dev-migrate:
-	cd infra && ENV_FILE='$(ENV_FILE)' NETWORK=infra_golang_api_network bash scripts/migrate.sh
+	cd infra && CONTAINER_MODE=1 ENV_FILE='$(ENV_FILE)' NETWORK=infra_golang_api_network bash scripts/migrate.sh
 
 # --- Full stack (legacy) ---
 
