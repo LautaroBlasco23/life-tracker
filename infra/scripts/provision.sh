@@ -118,6 +118,23 @@ echo "  waiting for postgres to accept connections"
 wait_for "postgres readiness" docker run --rm --network "${FLOCI_NETWORK}" postgres:16-alpine \
   pg_isready -h "${RDS_ENDPOINT}" -p "${RDS_PORT}" -U "${DB_USER}"
 
+# Separate database for the test suite: tests build their schema with GORM
+# AutoMigrate and drop tables between runs, which is incompatible with the
+# migration-managed app database (schema_migrations would disagree with the
+# actual tables). Keeping them apart lets `make test-floci` and `floci-deploy`
+# run against the same RDS instance without clobbering each other.
+TEST_DB_NAME="${DB_NAME}_test"
+echo "  ensuring test database ${TEST_DB_NAME}"
+if [ "$(docker run --rm --network "${FLOCI_NETWORK}" -e PGPASSWORD="${DB_PASSWORD}" postgres:16-alpine \
+  psql -h "${RDS_ENDPOINT}" -p "${RDS_PORT}" -U "${DB_USER}" -d postgres -tAc \
+  "SELECT 1 FROM pg_database WHERE datname='${TEST_DB_NAME}'" 2>/dev/null)" != "1" ]; then
+  docker run --rm --network "${FLOCI_NETWORK}" -e PGPASSWORD="${DB_PASSWORD}" postgres:16-alpine \
+    createdb -h "${RDS_ENDPOINT}" -p "${RDS_PORT}" -U "${DB_USER}" "${TEST_DB_NAME}"
+  echo "  created ${TEST_DB_NAME}"
+else
+  echo "  ${TEST_DB_NAME} already exists"
+fi
+
 echo "==> DocumentDB cluster (${DOCDB_ID})"
 # floci persists cluster records but does not restart the backing mongo
 # container on boot (unlike RDS, whose backend is auto-restarted). A record

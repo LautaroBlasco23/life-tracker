@@ -278,8 +278,9 @@ migrate-floci:
 
 test-floci:
 	@[ -f "$(INFRA)/.floci.env" ] || (echo ".floci.env not found — run 'make floci-provision' first"; exit 1)
-	@echo "Note: tests truncate tables in the provisioned DB."
+	@echo "Note: tests truncate tables in the provisioned test DB (provision.sh creates it)."
 	@set -a; . "$(INFRA)/.floci.env"; set +a; \
+	export DB_NAME="$${DB_NAME}_test" MONGO_DATABASE="$${MONGO_DATABASE}_test"; \
 	cd backend && ENVIRONMENT=test gotestsum --format=short-verbose -- -race -p 1 ./...
 
 # --- Tests ---
