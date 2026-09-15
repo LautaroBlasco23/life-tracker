@@ -5,10 +5,16 @@ on:
     branches: [main, develop]
     tags:
       - 'v*'
-    paths: ["frontend/**", "packages/shared/**"]
+    paths:
+      - "frontend/**"
+      - "packages/shared/**"
+      - ".github/workflows/frontend-ci.yml"
   pull_request:
     branches: [main]
-    paths: ["frontend/**", "packages/shared/**"]
+    paths:
+      - "frontend/**"
+      - "packages/shared/**"
+      - ".github/workflows/frontend-ci.yml"
 
 env:
   DOCKER_IMAGE: lautaroblasco1998/lifetracker-frontend
@@ -49,7 +55,7 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          dockerfile: frontend/Dockerfile
+          file: frontend/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
