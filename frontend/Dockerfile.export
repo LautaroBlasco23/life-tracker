@@ -1,0 +1,22 @@
+# Build context is the repository root (packages/shared lives outside frontend/).
+# Static-export variant of Dockerfile: the final stage contains only the build
+# output (out/) so it can be docker-cp'd into the nginx web volume
+# (infra/scripts/deploy-frontend.sh). Docker cannot cp directly out of a build
+# stage, hence this scratch image that ships nothing but the static site.
+FROM node:22-alpine AS base
+
+FROM base AS deps
+RUN apk add --no-cache libc6-compat
+WORKDIR /app/frontend
+COPY frontend/package*.json ./
+RUN npm ci
+
+FROM base AS builder
+WORKDIR /app/frontend
+COPY --from=deps /app/frontend/node_modules ./node_modules
+COPY frontend/ ./
+COPY packages/shared/ /app/packages/shared/
+RUN npm run build
+
+FROM scratch AS export
+COPY --from=builder /app/frontend/out/ /out/
