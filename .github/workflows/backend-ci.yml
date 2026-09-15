@@ -3,9 +3,17 @@ name: Backend CI
 on:
   push:
     branches: ["main"]
-    paths: ["backend/**"]
+    paths:
+      - "backend/**"
+      - "infra/**"
+      - "Makefile"
+      - ".github/workflows/backend-ci.yml"
   pull_request:
-    paths: ["backend/**"]
+    paths:
+      - "backend/**"
+      - "infra/**"
+      - "Makefile"
+      - ".github/workflows/backend-ci.yml"
 
 env:
   IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/lifetracker-backend
@@ -50,11 +58,7 @@ jobs:
         run: make -C .. floci-provision
 
       - name: Run tests against floci
-        run: |
-          set -a
-          source .floci.env
-          set +a
-          ENVIRONMENT=test gotestsum --format=short-verbose -- -race -p 1 ./...
+        run: make -C .. test-floci
 
       - name: Deploy Lambda + API Gateway
         run: make -C .. floci-deploy
