@@ -29,12 +29,18 @@ type NavItem = {
   children?: NavSubItem[];
 };
 
-const isItemActive = (pathname: string, item: NavItem) =>
-  pathname === item.href ||
-  (item.children?.some((child) => child.href === pathname) ?? false);
+// With `trailingSlash: true` (next.config.ts), usePathname() returns paths
+// like '/activities/' — strip the trailing slash so href comparisons match.
+const normalizePath = (path: string) =>
+  path.length > 1 && path.endsWith('/') ? path.slice(0, -1) : path;
+
+const isItemActive = (currentPath: string, item: NavItem) =>
+  currentPath === item.href ||
+  (item.children?.some((child) => child.href === currentPath) ?? false);
 
 export function Navigation() {
   const pathname = usePathname();
+  const currentPath = normalizePath(pathname);
   const [isOpen, setIsOpen] = useState(false);
   const t = useTranslations('nav');
 
@@ -103,7 +109,7 @@ export function Navigation() {
             <Link
               href="/profile"
               className={`flex items-center justify-center w-10 h-10 rounded-lg transition-colors ${
-                pathname === '/profile'
+                currentPath === '/profile'
                   ? 'text-primary bg-primary/10'
                   : 'text-muted-foreground hover:text-foreground hover:bg-accent'
               }`}
@@ -137,7 +143,7 @@ export function Navigation() {
             .filter((item) => item.href !== '/profile')
             .map((item) => {
               const Icon = item.icon;
-              const isActive = isItemActive(pathname, item);
+              const isActive = isItemActive(currentPath, item);
               return (
                 <li key={item.href} className="flex flex-col">
                   <Link
@@ -160,9 +166,9 @@ export function Navigation() {
                             href={child.href}
                             onClick={closeMenu}
                             className={`flex items-center py-2 pl-14 pr-6 transition-colors ${
-                              pathname === child.href
-                                ? 'text-primary'
-                                : 'text-muted-foreground hover:text-foreground'
+                              currentPath === child.href
+                                ? 'text-primary bg-primary/10 font-medium'
+                                : 'text-muted-foreground hover:bg-accent hover:text-foreground'
                             }`}
                           >
                             <span className="text-xs">{child.label}</span>
@@ -198,14 +204,14 @@ export function Navigation() {
           <ul className="space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const isActive = isItemActive(pathname, item);
+              const isActive = isItemActive(currentPath, item);
               return (
                 <li key={item.href} className="flex flex-col">
                   <Link
                     href={item.href}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-200 ${
                       isActive
-                        ? 'text-sidebar-primary-foreground bg-sidebar-primary font-medium'
+                        ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
                         : 'text-sidebar-foreground hover:text-sidebar-accent-foreground hover:bg-sidebar-accent'
                     }`}
                   >
@@ -218,10 +224,10 @@ export function Navigation() {
                         <li key={child.label}>
                           <Link
                             href={child.href}
-                            className={`flex items-center py-1.5 pl-11 pr-3 transition-colors ${
-                              pathname === child.href
-                                ? 'text-sidebar-primary'
-                                : 'text-sidebar-foreground/70 hover:text-sidebar-accent-foreground'
+                            className={`flex items-center py-1.5 pl-11 pr-3 rounded-md transition-colors ${
+                              currentPath === child.href
+                                ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
+                                : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
                             }`}
                           >
                             <span className="text-xs">{child.label}</span>
