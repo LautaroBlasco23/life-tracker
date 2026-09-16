@@ -305,6 +305,7 @@
     "allTime": "All Time",
     "recordingTime": "Recording Time",
     "startRecording": "Start Recording",
+ "activeRecordings": "Active Recordings",
     "category": "Category",
     "selectCategory": "Select category",
     "description": "Description",

@@ -305,6 +305,7 @@
     "allTime": "Todo el tiempo",
     "recordingTime": "Registrando tiempo",
     "startRecording": "Iniciar registro",
+ "activeRecordings": "Registros en curso",
     "category": "Categoría",
     "selectCategory": "Seleccioná categoría",
     "description": "Descripción",
