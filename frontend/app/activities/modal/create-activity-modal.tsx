@@ -92,6 +92,9 @@ export function CreateActivityModal({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Stop the submit from bubbling up the React tree into a parent form
+    // (e.g. the routine form when this modal is nested in the activity picker).
+    e.stopPropagation();
 
     if (frequency === 'weekly' && selectedDays.length === 0) {
       showToast({

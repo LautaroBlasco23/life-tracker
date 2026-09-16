@@ -106,7 +106,7 @@ export function CreateRoutineModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{t('createTitle')}</DialogTitle>
           <DialogDescription>{t('createDescription')}</DialogDescription>
