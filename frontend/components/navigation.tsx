@@ -29,6 +29,10 @@ type NavItem = {
   children?: NavSubItem[];
 };
 
+const isItemActive = (pathname: string, item: NavItem) =>
+  pathname === item.href ||
+  (item.children?.some((child) => child.href === pathname) ?? false);
+
 export function Navigation() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
@@ -50,22 +54,22 @@ export function Navigation() {
     },
     { href: '/notes', icon: StickyNote, label: t('notes') },
     {
-      href: '/finance',
+      href: '/finance/transactions',
       icon: Wallet,
       label: t('finance'),
       children: [
-        { href: '/finance', label: t('transactions') },
-        { href: '/finance', label: t('dashboard') },
-        { href: '/finance', label: t('bills') },
+        { href: '/finance/transactions', label: t('transactions') },
+        { href: '/finance/dashboard', label: t('dashboard') },
+        { href: '/finance/bills', label: t('bills') },
       ],
     },
     {
-      href: '/health',
+      href: '/health/nutrition',
       icon: HeartPulse,
       label: t('health'),
       children: [
-        { href: '/health', label: t('nutrition') },
-        { href: '/health', label: t('gym') },
+        { href: '/health/nutrition', label: t('nutrition') },
+        { href: '/health/gym', label: t('gym') },
       ],
     },
     { href: '/social', icon: Users, label: t('social') },
@@ -133,7 +137,7 @@ export function Navigation() {
             .filter((item) => item.href !== '/profile')
             .map((item) => {
               const Icon = item.icon;
-              const isActive = pathname === item.href;
+              const isActive = isItemActive(pathname, item);
               return (
                 <li key={item.href} className="flex flex-col">
                   <Link
@@ -194,7 +198,7 @@ export function Navigation() {
           <ul className="space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const isActive = pathname === item.href;
+              const isActive = isItemActive(pathname, item);
               return (
                 <li key={item.href} className="flex flex-col">
                   <Link
