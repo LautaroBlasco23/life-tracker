@@ -7,16 +7,27 @@ import {
   Activity,
   User,
   Wallet,
-  Clock,
   StickyNote,
   Menu,
   X,
   Users,
-  ListChecks,
   HeartPulse,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { useTranslations } from '@shared/contexts/language-context';
 import { ThemeToggle } from '@/components/theme-toggle';
+
+type NavSubItem = {
+  href: string;
+  label: string;
+};
+
+type NavItem = {
+  href: string;
+  icon: LucideIcon;
+  label: string;
+  children?: NavSubItem[];
+};
 
 export function Navigation() {
   const pathname = usePathname();
@@ -26,13 +37,37 @@ export function Navigation() {
   const toggleMenu = useCallback(() => setIsOpen((prev) => !prev), []);
   const closeMenu = useCallback(() => setIsOpen(false), []);
 
-  const navItems = [
-    { href: '/activities', icon: Activity, label: t('activities') },
-    { href: '/routines', icon: ListChecks, label: t('routines') },
-    { href: '/time', icon: Clock, label: t('time') },
+  const navItems: NavItem[] = [
+    {
+      href: '/activities',
+      icon: Activity,
+      label: t('activities'),
+      children: [
+        { href: '/activities', label: t('daily') },
+        { href: '/routines', label: t('routines') },
+        { href: '/time', label: t('time') },
+      ],
+    },
     { href: '/notes', icon: StickyNote, label: t('notes') },
-    { href: '/finance', icon: Wallet, label: t('finance') },
-    { href: '/health', icon: HeartPulse, label: t('health') },
+    {
+      href: '/finance',
+      icon: Wallet,
+      label: t('finance'),
+      children: [
+        { href: '/finance', label: t('transactions') },
+        { href: '/finance', label: t('dashboard') },
+        { href: '/finance', label: t('bills') },
+      ],
+    },
+    {
+      href: '/health',
+      icon: HeartPulse,
+      label: t('health'),
+      children: [
+        { href: '/health', label: t('nutrition') },
+        { href: '/health', label: t('gym') },
+      ],
+    },
     { href: '/social', icon: Users, label: t('social') },
     { href: '/profile', icon: User, label: t('profile') },
   ];
@@ -100,7 +135,7 @@ export function Navigation() {
               const Icon = item.icon;
               const isActive = pathname === item.href;
               return (
-                <li key={item.href}>
+                <li key={item.href} className="flex flex-col">
                   <Link
                     href={item.href}
                     onClick={closeMenu}
@@ -113,6 +148,25 @@ export function Navigation() {
                     <Icon className="h-5 w-5" />
                     <span className="text-sm font-medium">{item.label}</span>
                   </Link>
+                  {item.children && (
+                    <ul>
+                      {item.children.map((child) => (
+                        <li key={child.label}>
+                          <Link
+                            href={child.href}
+                            onClick={closeMenu}
+                            className={`flex items-center py-2 pl-14 pr-6 transition-colors ${
+                              pathname === child.href
+                                ? 'text-primary'
+                                : 'text-muted-foreground hover:text-foreground'
+                            }`}
+                          >
+                            <span className="text-xs">{child.label}</span>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </li>
               );
             })}
@@ -142,7 +196,7 @@ export function Navigation() {
               const Icon = item.icon;
               const isActive = pathname === item.href;
               return (
-                <li key={item.href}>
+                <li key={item.href} className="flex flex-col">
                   <Link
                     href={item.href}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-200 ${
@@ -154,6 +208,24 @@ export function Navigation() {
                     <Icon className="h-5 w-5 flex-shrink-0" />
                     <span className="text-sm">{item.label}</span>
                   </Link>
+                  {item.children && (
+                    <ul>
+                      {item.children.map((child) => (
+                        <li key={child.label}>
+                          <Link
+                            href={child.href}
+                            className={`flex items-center py-1.5 pl-11 pr-3 transition-colors ${
+                              pathname === child.href
+                                ? 'text-sidebar-primary'
+                                : 'text-sidebar-foreground/70 hover:text-sidebar-accent-foreground'
+                            }`}
+                          >
+                            <span className="text-xs">{child.label}</span>
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </li>
               );
             })}
