@@ -4,10 +4,15 @@
 # merged into this file). `make` / `make help` shows the main commands only;
 # `make components` lists the backend/frontend/databases/infra commands.
 #
-# The three run modes (see infra/docker-compose*.yml + infra/scripts/ for the
-# details; floci = local AWS emulator):
-#   make dev           - container mode: API as a plain container (:8080) +
+# The run modes (see infra/docker-compose*.yml + infra/scripts/ for the
+# details; floci = local AWS emulator). One mode at a time; stop before
+# switching (ports and compose project names overlap):
+#   make dev           - fast lane: air hot-reload on the host (:8080) +
+#                        compose postgres + mongodb + `next dev` (:3000).
+#                        No app containers; fastest feedback loop.
+#   make dev-container - container mode: API as a plain container (:8080) +
 #                        postgres + mongodb + frontend on :3000. No floci.
+#                        Prod-built image + static export; parity check.
 #   make dev-emulator  - AWS-emulated mode: floci + the API deployed as a
 #                        Lambda behind API Gateway v2 + frontend on :3000.
 #                        This is the pre-deploy test of the real AWS path.
@@ -29,6 +34,12 @@
 
 INFRA := $(abspath infra)
 
+# Host-run Go tooling (air, gotestsum, ...) is installed via `make
+# install-tools` into GOPATH/bin, which is often not on PATH — expose it to
+# every recipe shell so `air` etc. resolve without shell config changes.
+GOPATH_BIN := $(shell go env GOPATH 2>/dev/null)/bin
+export PATH := $(GOPATH_BIN):$(PATH)
+
 GREEN := \033[1;32m
 DIM   := \033[2m
 RST   := \033[0m
@@ -46,7 +57,7 @@ FE  := cd infra && docker compose -p infra -f docker-compose.frontend.yml
 # floci gateway — used by the container-mode lanes (dev / dev-full).
 FEO := cd infra && docker compose -p infra -f docker-compose.frontend.yml -f docker-compose.frontend.override.yml
 
-.PHONY: help components dev dev-emulator dev-full stop test test-only loadtest loadtest-% \
+.PHONY: help components dev dev-container dev-emulator dev-full stop test test-only loadtest loadtest-% \
 	backend-dev backend-start setup install-tools code-check hooks \
 	floci-dev migrate-floci test-floci \
 	fe-run-dev fe-build-dev fe-logs-dev fe-shell-dev fe-clean \
@@ -63,7 +74,8 @@ help:
 	@printf "  Run from the repo root.\n"
 	@printf "\n"
 	@printf "$(GREEN)  RUN$(RST) — one mode at a time; stop before switching\n"
-	@printf "    make dev            container mode: API :8080 · postgres · mongo · web :3000\n"
+	@printf "    make dev            fast lane: air (api :8080) · next dev (web :3000) · compose db\n"
+	@printf "    make dev-container  container mode: API :8080 · postgres · mongo · web :3000\n"
 	@printf "    make dev-emulator   AWS path: floci + Lambda + API Gateway · web :3000\n"
 	@printf "    make dev-full       container mode + observability: Prometheus :9090 · Grafana :3001\n"
 	@printf "\n"
@@ -127,8 +139,32 @@ components:
 
 # --- Run modes ---
 
+# Fast lane: backend hot-reloads with air on the host (config.Load() walks up
+# from backend/ and picks up the root .env, which points at localhost hosts);
+# frontend hot-reloads with `next dev` hitting the API directly on :8080 (the
+# backend's CORS middleware allows it in dev). Databases run in compose via
+# db-up; the API runs its embedded migrations on every (re)start, so no
+# explicit migrate step is needed. Ctrl-C stops air + the frontend; the
+# databases stay up (make stop / make db-down to stop them).
+dev: setup db-up
+	@echo "==> fast lane: air (api :8080) + next dev (web :3000) + compose databases"
+	@echo "==> env file: $(notdir $(ENV_FILE))"
+	@[ -f "$(ENV_FILE)" ] || (echo ".env/.env.example not found — run 'make setup'"; exit 1)
+	@until docker exec golang_api_postgres pg_isready -U postgres >/dev/null 2>&1; do sleep 1; done
+	@[ -d frontend/node_modules ] || (echo "==> installing frontend deps"; cd frontend && npm install)
+	@echo "==> frontend: next dev on :3000 (NEXT_PUBLIC_API_URL -> :8080/api)"
+# setsid gives the frontend its own process group so the cleanup kill
+# (`kill -- -$$fe_pid`) takes down the whole npm -> node -> next-server tree;
+# killing just the npm pid leaves next-server orphaned, holding :3000.
+	setsid sh -c 'cd frontend && NEXT_PUBLIC_API_URL=http://localhost:8080/api exec npm run dev' & \
+	fe_pid=$$!; \
+	trap 'kill -- -$$fe_pid 2>/dev/null' EXIT INT; \
+	echo "==> backend: air on :8080 (Ctrl-C stops both)"; \
+	cd backend && air -c .air.toml; \
+	status=$$?; kill -- -$$fe_pid 2>/dev/null; exit $$status
+
 # Container mode: api + databases + frontend, no floci, no observability.
-dev:
+dev-container:
 	@echo "==> container mode: api + postgres + mongodb + frontend"
 	@echo "==> env file: $(notdir $(ENV_FILE))"
 	@[ -f "$(ENV_FILE)" ] || (echo ".env/.env.example not found — run 'make setup'"; exit 1)

@@ -36,17 +36,23 @@ Entities and relationships from [`packages/shared/src/types/`](./packages/shared
 
 ## Deployment Modes
 
-The stack runs in three modes, one diagram each. All three are started from the repository root (`make dev`, `make dev-emulator`, `make dev-full`) and stopped with `make stop`; see [Getting Started](#getting-started) for details.
+The stack runs in four modes, one diagram each. All are started from the repository root (`make dev`, `make dev-container`, `make dev-emulator`, `make dev-full`) and stopped with `make stop`; see [Getting Started](#getting-started) for details.
 
-### 1. `make dev` — container mode
+### 1. `make dev` — fast lane (host-run, hot reload)
+
+`next dev` serves the app on `:3000` with HMR and the API hot-reloads on the host with air (`:8080`), so a save is live in seconds — no image rebuild, no static export. Only the databases run in compose (`:5432`, `:27017`); the frontend talks to the API directly and the backend's CORS middleware allows it in dev. Migrations run from the API on every (re)start. Ctrl-C stops air and the frontend; the databases stay up until `make stop` / `make db-down`.
+
+Use this for the daily edit loop. It does not exercise the prod Dockerfile, the static export, or the nginx proxy — that's what the container lane is for.
+
+### 2. `make dev-container` — container mode
 
 ![dev mode](docs/architecture-dev.png)
 
 Everything is a plain Docker container on a single compose network (`infra_golang_api_network`): the Go API (`:8080`), PostgreSQL (`:5432`), MongoDB (`:27017`), and the frontend. nginx serves the static Next.js export on `:3000` and proxies `/api/*` to the API container, so the browser talks same-origin and CORS never enters the picture. The mobile app and Chrome extension bypass nginx and hit the API directly on `:8080`. Migrations run once at startup from a one-shot container inside the network.
 
-No floci, no AWS emulation — this is the classic "compose up" deployment and the fastest loop for day-to-day backend/frontend development.
+No floci, no AWS emulation — this is the classic "compose up" deployment and the parity check that the prod-built image and export still work. Re-run it after changes (nothing watches files here).
 
-### 2. `make dev-emulator` — AWS-emulated mode
+### 3. `make dev-emulator` — AWS-emulated mode
 
 ![emulator mode](docs/architecture-dev-emulator.png)
 
@@ -54,7 +60,7 @@ No floci, no AWS emulation — this is the classic "compose up" deployment and t
 
 This is a rehearsal of the real AWS topology: if `make dev-emulator` is green, `terraform apply` against a real AWS account deploys the same shape. The Lambda runs inside the emulator's network because the emulated databases are only reachable from there (see `infra/scripts/migrate.sh`).
 
-### 3. `make dev-full` — container mode + observability
+### 4. `make dev-full` — container mode + observability
 
 ![full mode](docs/architecture-dev-full.png)
 
@@ -253,21 +259,22 @@ The workflows rely on Docker Hub credentials. Configure these in **Settings → 
 
 Each project is self-contained; see its README for setup.
 
-Three run modes from the repository root (one at a time; `make stop` stops whichever is running):
+Run modes from the repository root (one at a time; `make stop` stops whichever is running):
 
 | Command | Mode | What runs | URLs |
 |---|---|---|---|
-| `make dev` | Container | API container + postgres + mongodb + frontend (nginx proxies `/api` → `:8080`). No floci, no observability. | API `:8080/api`, app `:3000` |
+| `make dev` | Fast lane (host) | air hot-reload on the host (`:8080`) + postgres + mongodb in compose + `next dev` (`:3000`). No app containers, no floci, no observability. | API `:8080/api`, app `:3000` |
+| `make dev-container` | Container | API container + postgres + mongodb + frontend (nginx proxies `/api` → `:8080`). No floci, no observability. | API `:8080/api`, app `:3000` |
 | `make dev-emulator` | AWS-emulated | floci + provisioned RDS/DocumentDB + API as a Lambda behind API Gateway v2 + frontend (nginx proxies `/api` → gateway). This is the pre-deploy test of the real-AWS path. | Gateway `:4566/execute-api/lifetracker-api/dev/`, app `:3000` |
-| `make dev-full` | Container + observability | Same as `make dev` plus Prometheus, Grafana, Loki, Promtail, node-exporter. | + Prometheus `:9090`, Grafana `:3001`, Loki `:3100` |
+| `make dev-full` | Container + observability | Same as `make dev-container` plus Prometheus, Grafana, Loki, Promtail, node-exporter. | + Prometheus `:9090`, Grafana `:3001`, Loki `:3100` |
 
-All three are idempotent — re-running a mode's command redeploys the backend and frontend with the latest code, so it doubles as the restart command.
+All of them are idempotent — re-running a mode's command redeploys the backend and frontend with the latest code, so it doubles as the restart command (`make dev` needs no restart at all: air and `next dev` pick up changes live).
 
 - `make stop` tears down everything (compose down ignores profiles, so it removes every running service of the project, including floci, observability, and the frontend container).
 - Note: in emulator mode the API runs as a Lambda because the floci-provisioned databases are only reachable from the emulator's docker network (see `infra/scripts/migrate.sh`). The legacy Postgres/Mongo compose path (`docker-compose.db.yml`) is optional rollback tooling; CI and `make dev-emulator` do not use it.
 - **Backend**: [`backend/README.md`](./backend/README.md) — `make backend-dev` runs the API with databases (air hot reload). For the AWS-shaped path: `make floci-up` / `floci-provision` / `floci-dev` / `floci-deploy`.
 - **Infrastructure**: the root `Makefile` (`make help`) owns every docker compose command. Compose files: `docker-compose.yml` (all services; floci and the monitoring stack are compose *profiles* — `emulator` and `observability` — so the plain `dev` lanes never start them), `docker-compose.db.yml` (legacy DBs), `docker-compose.frontend.yml` (frontend container; the `.override` variant points nginx at the API container instead of the gateway).
-- **Frontend**: [`frontend/README.md`](./frontend/README.md) — install dependencies and run the Next.js dev server. The static export is served at `http://localhost:3000` via `make frontend-up` (nginx; the local stand-in for CloudFront, since floci's CloudFront data-plane has parity gaps) and synced to S3 as a deploy artifact via `make deploy-frontend` (set `DEPLOY_S3=0` to skip the S3/CloudFront steps in container mode — the `make dev` lanes do this automatically).
+- **Frontend**: [`frontend/README.md`](./frontend/README.md) — install dependencies and run the Next.js dev server. The static export is served at `http://localhost:3000` via `make frontend-up` (nginx; the local stand-in for CloudFront, since floci's CloudFront data-plane has parity gaps) and synced to S3 as a deploy artifact via `make deploy-frontend` (set `DEPLOY_S3=0` to skip the S3/CloudFront steps in container mode — the `make dev-container` / `dev-full` lanes do this automatically).
 - **Chrome Extension**: [`chrome-extension/README.md`](./chrome-extension/README.md) — load as an unpacked extension pointing at a local backend.
 
 ---

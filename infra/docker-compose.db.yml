@@ -1,6 +1,9 @@
 services:
   postgres:
-    image: postgres:16-alpine
+    # Must match docker-compose.yml (15): both files can run under the same
+    # compose project (`-p infra`) and share the postgres_data volume, and
+    # mismatched major versions crash-loop on each other's data dir.
+    image: postgres:15-alpine
     container_name: ${POSTGRES_CONTAINER_NAME:-golang_api_postgres}
     restart: unless-stopped
     environment:
