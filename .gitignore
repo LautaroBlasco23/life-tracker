@@ -19,3 +19,7 @@ out/
 .DS_Store
 *.pem
 *.log
+
+# diagram sources (kept local, only .png renders are tracked)
+docs/*.excalidraw
+docs/*.svg
