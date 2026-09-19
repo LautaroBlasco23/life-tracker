@@ -92,7 +92,7 @@ make dev
 
 Application runs at `http://localhost:3000` with hot reload (backend air + `next dev`).
 
-> **Note:** This starts the fast lane: databases in Docker, backend and frontend on the host with hot reload. Use `make dev-container` for the full container-mode stack (API container + static export + nginx). See the [root README](../README.md) for the other run modes.
+> **Note:** This starts the fast lane: databases in Docker, backend and frontend on the host with hot reload. Use `make dev-container` for the full container-mode stack (API container + static export + nginx). See [docs/getting-started.md](../docs/getting-started.md) for the other run modes.
 
 ### Standard Setup (More Control)
 
