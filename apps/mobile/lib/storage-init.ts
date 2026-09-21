@@ -18,9 +18,12 @@ const storedApiUrl = Storage.getItemSync('apiUrl');
 if (storedApiUrl) {
   setApiUrl(storedApiUrl);
 } else {
-  // Android emulator reaches the host via 10.0.2.2. Physical devices / real
-  // environments must set EXPO_PUBLIC_API_URL (see .env.example).
-  setApiUrl(process.env.EXPO_PUBLIC_API_URL ?? 'http://10.0.2.2:8080/api');
+  // Prod API is the default: a plain release build with no env config is the
+  // phone app. Dev builds set EXPO_PUBLIC_API_URL (see .env.example);
+  // the Profile-screen override (stored 'apiUrl') wins over both.
+  setApiUrl(
+    process.env.EXPO_PUBLIC_API_URL ?? 'https://lifetracker.lautaroblasco.com.ar/api',
+  );
 }
 
 export {};
