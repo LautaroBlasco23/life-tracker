@@ -2,7 +2,7 @@
 
 Go (Gin) REST API for the Life Tracker platform: authentication, user profiles, habits & activities, finances, notes, time tracking, routines, social, and screen time.
 
-This README covers the backend **logic only** — domain models/schemas, business rules, and the HTTP API. For how the app is built, deployed, and run (AWS-shaped stack, floci emulation), see [docs/architecture.md](../docs/architecture.md) and [docs/deployment-modes.md](../docs/deployment-modes.md). For run commands, see [docs/getting-started.md](../docs/getting-started.md).
+This doc covers the backend **logic only** — domain models/schemas, business rules, and the HTTP API. For how the app is built, deployed, and run (AWS-shaped stack, floci emulation), see [architecture.md](./architecture.md) and [deployment-modes.md](./deployment-modes.md). For run commands, see [getting-started.md](./getting-started.md).
 
 ---
 
@@ -325,7 +325,7 @@ All routes are mounted under the `/api` prefix. "Public" routes need no token; "
 | GET | /health | Service health incl. PostgreSQL + MongoDB status |
 | GET | /metrics | Prometheus metrics |
 
-Postman collections for all domains are available in `postman/`.
+Postman collections for all domains are available in `../backend/postman/`.
 
 ---
 

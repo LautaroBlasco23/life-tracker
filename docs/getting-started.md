@@ -1,6 +1,6 @@
 # Getting Started
 
-Each project is self-contained; see its README for setup.
+Each project is self-contained; see its doc in `docs/` for setup.
 
 Run modes from the repository root (one at a time; `make stop` stops whichever is running):
 
@@ -15,7 +15,7 @@ All of them are idempotent — re-running a mode's command redeploys the backend
 
 - `make stop` tears down everything (compose down ignores profiles, so it removes every running service of the project, including floci, observability, and the frontend container).
 - Note: in emulator mode the API runs as a Lambda because the floci-provisioned databases are only reachable from the emulator's docker network (see `infra/scripts/migrate.sh`). The legacy Postgres/Mongo compose path (`docker-compose.db.yml`) is optional rollback tooling; CI and `make dev-emulator` do not use it.
-- **Backend**: [`backend/README.md`](../backend/README.md) — `make backend-dev` runs the API with databases (air hot reload). For the AWS-shaped path: `make floci-up` / `floci-provision` / `floci-dev` / `floci-deploy`.
+- **Backend**: [`backend.md`](./backend.md) — `make backend-dev` runs the API with databases (air hot reload). For the AWS-shaped path: `make floci-up` / `floci-provision` / `floci-dev` / `floci-deploy`.
 - **Infrastructure**: the root `Makefile` (`make help`) owns every docker compose command. Compose files: `docker-compose.yml` (all services; floci and the monitoring stack are compose *profiles* — `emulator` and `observability` — so the plain `dev` lanes never start them), `docker-compose.db.yml` (legacy DBs), `docker-compose.frontend.yml` (frontend container; the `.override` variant points nginx at the API container instead of the gateway).
-- **Frontend**: [`frontend/README.md`](../frontend/README.md) — install dependencies and run the Next.js dev server. The static export is served at `http://localhost:3000` via `make frontend-up` (nginx; the local stand-in for CloudFront, since floci's CloudFront data-plane has parity gaps) and synced to S3 as a deploy artifact via `make deploy-frontend` (set `DEPLOY_S3=0` to skip the S3/CloudFront steps in container mode — the `make dev-container` / `dev-full` lanes do this automatically).
-- **Chrome Extension**: [`chrome-extension/README.md`](../chrome-extension/README.md) — load as an unpacked extension pointing at a local backend.
+- **Frontend**: [`frontend.md`](./frontend.md) — install dependencies and run the Next.js dev server. The static export is served at `http://localhost:3000` via `make frontend-up` (nginx; the local stand-in for CloudFront, since floci's CloudFront data-plane has parity gaps) and synced to S3 as a deploy artifact via `make deploy-frontend` (set `DEPLOY_S3=0` to skip the S3/CloudFront steps in container mode — the `make dev-container` / `dev-full` lanes do this automatically).
+- **Chrome Extension**: [`chrome-extension.md`](./chrome-extension.md) — load as an unpacked extension pointing at a local backend.

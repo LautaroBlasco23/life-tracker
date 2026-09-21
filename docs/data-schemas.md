@@ -4,24 +4,24 @@ Entities and relationships from [`packages/shared/src/types/`](../packages/share
 
 ## Overview
 
-![data schema overview](schema-overview.png)
+![data schema overview](diagrams/schema-overview.png)
 
 ## Activities & routines
 
-![activities & routines schema](schema-activities-routines.png)
+![activities & routines schema](diagrams/schema-activities-routines.png)
 
 ## Finance
 
-![finance schema](schema-finance.png)
+![finance schema](diagrams/schema-finance.png)
 
 ## Health
 
-![health schema](schema-health.png)
+![health schema](diagrams/schema-health.png)
 
 ## User & social
 
-![user & social schema](schema-user-social.png)
+![user & social schema](diagrams/schema-user-social.png)
 
 ## Personal
 
-![personal schema](schema-personal.png)
+![personal schema](diagrams/schema-personal.png)

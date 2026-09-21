@@ -10,6 +10,8 @@ Chrome extension (Manifest V3) that records visits to configured websites into t
 
 ## Files
 
+All file paths below are relative to [`chrome-extension/`](../chrome-extension/).
+
 | File | Purpose |
 |------|---------|
 | `manifest.json` | MV3 manifest — permissions, service worker, popup |
@@ -51,7 +53,7 @@ All screen-time endpoints require `Authorization: Bearer <token>`.
 1. Start the life-tracker backend locally on `http://localhost:8080`.
 2. Open `chrome://extensions`.
 3. Toggle **Developer mode** (top right).
-4. Click **Load unpacked** and select this `extension/` directory.
+4. Click **Load unpacked** and select the `chrome-extension/` directory.
 5. Click the extension icon and log in with your life-tracker credentials.
 6. Open any tracked site — the visit is recorded immediately.
 

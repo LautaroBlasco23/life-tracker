@@ -34,7 +34,7 @@ make loadtest                  # stack up -> provision users -> smoke -> read/wr
                                # Watch Grafana (:3001) while it runs.
 ```
 
-Overrides propagate to every step: `make loadtest USERS=500 RATE=600 DURATION=2m` (full list in [`loadtest/README.md`](../loadtest/README.md)). Skip the final user cleanup with `CLEANUP=0`.
+Overrides propagate to every step: `make loadtest USERS=500 RATE=600 DURATION=2m` (full list in [`loadtest.md`](./loadtest.md)). Skip the final user cleanup with `CLEANUP=0`.
 
 **Advanced runs** (fine-tuning / specialized):
 
@@ -47,7 +47,7 @@ make loadtest-provision USERS=500   # just create users
 make loadtest-cleanup          # just delete test users
 ```
 
-Every scenario streams its metrics live to Prometheus and stops on error-rate/p95 thresholds. Key overrides: `USERS`, `PREFIX`, `RATE`, `DURATION`, `BASE_URL`, `MAX_VUS`, `SOAK_*`, `LOGIN_RATE` (full table in [`loadtest/README.md`](../loadtest/README.md)).
+Every scenario streams its metrics live to Prometheus and stops on error-rate/p95 thresholds. Key overrides: `USERS`, `PREFIX`, `RATE`, `DURATION`, `BASE_URL`, `MAX_VUS`, `SOAK_*`, `LOGIN_RATE` (full table in [`loadtest.md`](./loadtest.md)).
 
 **Live monitoring** — k6 pushes metrics to the compose Prometheus every 1s (remote write), so Grafana (`http://localhost:3001`, default `admin/admin`) shows the load side and the app side while a test runs:
 

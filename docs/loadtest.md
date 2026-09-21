@@ -39,13 +39,13 @@ provision, cleanup, stack-*, monitoring-up, fe-*) — see `make loadtest-help` o
 
 ## Step-by-step (manual control)
 
-The load-test stack is **self-contained** (`infra/docker-compose.loadtest.yml`):
+The load-test stack is **self-contained** (`../infra/docker-compose.loadtest.yml`):
 pinned DB credentials and its own volumes, so it works regardless of
 `.env` and never touches dev DB data or the floci stack.
 
 ```bash
 make loadtest-stack-up                 # api + postgres + mongodb + prometheus + grafana + node-exporter
-make loadtest-provision USERS=500      # create users (pool: loadtest/users.json, always fresh)
+make loadtest-provision USERS=500      # create users (pool: ../loadtest/users.json, always fresh)
 make loadtest-smoke                    # sanity check
 make loadtest-read-heavy RATE=600 DURATION=2m
 make loadtest-mixed-rhythms            # readers/writers/financers/spike
@@ -116,16 +116,16 @@ Mechanics:
   (`K6_PROMETHEUS_RW_SERVER_URL`, push every 1s, trend metrics as native
   histograms). Disable with `REMOTE_WRITE=0`.
 - Prometheus must run with `--web.enable-remote-write-receiver` and
-  `--enable-feature=native-histograms` — already set in `infra/docker-compose.yml`.
+  `--enable-feature=native-histograms` — already set in `../infra/docker-compose.yml`.
 - App metrics (`lifetracker_http_*`, `lifetracker_db_connections_active`, ...)
-  are scraped every 5s (`backend/monitoring/prometheus.yml`).
+  are scraped every 5s (`../backend/monitoring/prometheus.yml`).
 
 > The floci/Lambda path is NOT scraped — live dashboards cover the compose lane
 > (`make loadtest-stack-up`), which is the lane the scenarios target by default.
 
 ## Reports & monitoring
 
-- Scenario runs write raw k6 metrics to `loadtest/reports/<script>-<timestamp>.json`.
+- Scenario runs write raw k6 metrics to `../loadtest/reports/<script>-<timestamp>.json`.
 - The terminal summary already prints req/s, p50/p95/p99, and error rates.
 - During a run, watch Grafana (`http://localhost:3001`, dashboards listed above)
   and optionally `make tap` for raw responses.
