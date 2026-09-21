@@ -8,13 +8,13 @@ A personal life-tracking platform covering **habits & activities**, **finances**
 
 | Directory | Project | Stack | Purpose |
 |---|---|---|---|
-| [`backend/`](./backend/README.md) | Life Tracker API | Go, Gin, GORM, PostgreSQL, MongoDB, JWT | REST API with domain modules: auth, user, activity (habits), finance, note, time, routine, social, screentime |
-| [`frontend/`](./frontend/README.md) | Life Tracker Web App | Next.js, TypeScript, shadcn/ui | Web application for tracking activities, finances, time, notes, and profile |
-| [`chrome-extension/`](./chrome-extension/README.md) | Life Tracker Screen Time Extension | JavaScript, Manifest V3 | Chrome extension that records visits to configured sites into the backend |
+| [`backend/`](./docs/backend.md) | Life Tracker API | Go, Gin, GORM, PostgreSQL, MongoDB, JWT | REST API with domain modules: auth, user, activity (habits), finance, note, time, routine, social, screentime |
+| [`frontend/`](./docs/frontend.md) | Life Tracker Web App | Next.js, TypeScript, shadcn/ui | Web application for tracking activities, finances, time, notes, and profile |
+| [`chrome-extension/`](./docs/chrome-extension.md) | Life Tracker Screen Time Extension | JavaScript, Manifest V3 | Chrome extension that records visits to configured sites into the backend |
 | [`infra/`](./infra/) | Infrastructure | docker compose, floci (AWS emulator) | All compose definitions and commands for running the stack locally |
-| [`loadtest/`](./loadtest/) | Load testing | k6 (Docker), Prometheus remote write, Grafana | Stress tests: hundreds of req/s, multi-user scenarios, live dashboards |
+| [`loadtest/`](./docs/loadtest.md) | Load testing | k6 (Docker), Prometheus remote write, Grafana | Stress tests: hundreds of req/s, multi-user scenarios, live dashboards |
 
-Each project has its own `README.md` with detailed documentation. This root README covers only the monorepo architecture and shared concerns.
+All documentation lives in [`docs/`](./docs/). This root README covers only the monorepo architecture and shared concerns.
 
 ### Conventions
 
@@ -35,8 +35,12 @@ Each project has its own `README.md` with detailed documentation. This root READ
 | [`docs/architecture.md`](./docs/architecture.md) | AWS-shaped architecture emulated locally with floci: service mapping, request flow, provisioning & deployment |
 | [`docs/ci-cd.md`](./docs/ci-cd.md) | GitHub Actions workflows (backend/frontend CI) and the required repository secrets |
 | [`docs/testing.md`](./docs/testing.md) | Backend integration tests and k6 load testing with live Grafana monitoring |
-| [`docs/mobile.md`](./docs/mobile.md) | Android app: building the APK via EAS, local build, and development |
+| [`docs/mobile.md`](./docs/mobile.md) | Android app: building the APK (local Gradle build or EAS) and development |
 | [`docs/health-roadmap.md`](./docs/health-roadmap.md) | Health section roadmap (nutrition + gym): shipped features and improvement backlog |
+| [`docs/backend.md`](./docs/backend.md) | Backend API: per-domain schemas, business logic, and the full HTTP API reference |
+| [`docs/frontend.md`](./docs/frontend.md) | Web app: features, tech stack, setup, and build commands |
+| [`docs/chrome-extension.md`](./docs/chrome-extension.md) | Screen time extension: how it works, configuration, install, troubleshooting |
+| [`docs/loadtest.md`](./docs/loadtest.md) | k6 load testing: test lanes, scenario matrix, live monitoring, cleanup |
 
 ---
 
