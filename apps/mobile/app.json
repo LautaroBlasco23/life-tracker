@@ -13,7 +13,6 @@
     },
     "android": {
       "package": "com.lifetracker.mobile",
-      "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -27,6 +26,7 @@
     },
     "plugins": [
       "expo-router",
+      "./plugin/withCleartextManifest.js",
       [
         "expo-splash-screen",
         {
