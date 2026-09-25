@@ -56,6 +56,7 @@ export function Navigation() {
         { href: '/activities', label: t('daily') },
         { href: '/routines', label: t('routines') },
         { href: '/time', label: t('time') },
+        { href: '/reminders', label: t('reminders') },
       ],
     },
     { href: '/notes', icon: StickyNote, label: t('notes') },

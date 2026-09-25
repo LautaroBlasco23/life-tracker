@@ -26,10 +26,13 @@ export function DropdownMenuItem({
     <RadixDropdownMenuItem
       variant={variant}
       disabled={disabled}
-      onSelect={(event) => {
-        event.preventDefault();
-        onClick?.();
-      }}
+      // No preventDefault on onSelect: Radix closes the menu unless the event
+      // is prevented.
+      onSelect={() => onClick?.()}
+      // Menu items are portaled divs; without this, the click bubbles up the
+      // React tree into EntityCard and triggers the card's onClick (e.g.
+      // recording a completion when picking "Edit").
+      onClick={(event) => event.stopPropagation()}
     >
       {children}
     </RadixDropdownMenuItem>
