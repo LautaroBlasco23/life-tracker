@@ -5,6 +5,9 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Activity,
+  Bell,
+  ChartPie,
+  Timer,
   User,
   Wallet,
   StickyNote,
@@ -16,26 +19,16 @@ import type { LucideIcon } from 'lucide-react';
 import { useTranslations } from '@shared/contexts/language-context';
 import { ThemeToggle } from '@/components/theme-toggle';
 
-type NavSubItem = {
-  href: string;
-  label: string;
-};
-
 type NavItem = {
   href: string;
   icon: LucideIcon;
   label: string;
-  children?: NavSubItem[];
 };
 
 // With `trailingSlash: true` (next.config.ts), usePathname() returns paths
 // like '/activities/' — strip the trailing slash so href comparisons match.
 const normalizePath = (path: string) =>
   path.length > 1 && path.endsWith('/') ? path.slice(0, -1) : path;
-
-const isItemActive = (currentPath: string, item: NavItem) =>
-  currentPath === item.href ||
-  (item.children?.some((child) => child.href === currentPath) ?? false);
 
 export function Navigation() {
   const pathname = usePathname();
@@ -47,27 +40,19 @@ export function Navigation() {
   const closeMenu = useCallback(() => setIsOpen(false), []);
 
   const navItems: NavItem[] = [
-    {
-      href: '/activities',
-      icon: Activity,
-      label: t('activities'),
-      children: [
-        { href: '/activities', label: t('daily') },
-        { href: '/routines', label: t('routines') },
-        { href: '/time', label: t('time') },
-        { href: '/reminders', label: t('reminders') },
-      ],
-    },
+    { href: '/activities', icon: Activity, label: t('activities') },
+    { href: '/time', icon: Timer, label: t('timeTracker') },
+    { href: '/reminders', icon: Bell, label: t('reminders') },
     { href: '/notes', icon: StickyNote, label: t('notes') },
     {
       href: '/finance/transactions',
       icon: Wallet,
-      label: t('finance'),
-      children: [
-        { href: '/finance/transactions', label: t('transactions') },
-        { href: '/finance/dashboard', label: t('dashboard') },
-        { href: '/finance/bills', label: t('bills') },
-      ],
+      label: t('financeTransactions'),
+    },
+    {
+      href: '/finance/dashboard',
+      icon: ChartPie,
+      label: t('financeDashboard'),
     },
     { href: '/social', icon: Users, label: t('social') },
     { href: '/profile', icon: User, label: t('profile') },
@@ -134,9 +119,9 @@ export function Navigation() {
             .filter((item) => item.href !== '/profile')
             .map((item) => {
               const Icon = item.icon;
-              const isActive = isItemActive(currentPath, item);
+              const isActive = currentPath === item.href;
               return (
-                <li key={item.href} className="flex flex-col">
+                <li key={item.href}>
                   <Link
                     href={item.href}
                     onClick={closeMenu}
@@ -149,25 +134,6 @@ export function Navigation() {
                     <Icon className="h-5 w-5" />
                     <span className="text-sm font-medium">{item.label}</span>
                   </Link>
-                  {item.children && (
-                    <ul>
-                      {item.children.map((child) => (
-                        <li key={child.label}>
-                          <Link
-                            href={child.href}
-                            onClick={closeMenu}
-                            className={`flex items-center py-2 pl-14 pr-6 transition-colors ${
-                              currentPath === child.href
-                                ? 'text-primary bg-primary/10 font-medium'
-                                : 'text-muted-foreground hover:bg-accent hover:text-foreground'
-                            }`}
-                          >
-                            <span className="text-xs">{child.label}</span>
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
                 </li>
               );
             })}
@@ -195,9 +161,9 @@ export function Navigation() {
           <ul className="space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon;
-              const isActive = isItemActive(currentPath, item);
+              const isActive = currentPath === item.href;
               return (
-                <li key={item.href} className="flex flex-col">
+                <li key={item.href}>
                   <Link
                     href={item.href}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-200 ${
@@ -209,24 +175,6 @@ export function Navigation() {
                     <Icon className="h-5 w-5 flex-shrink-0" />
                     <span className="text-sm">{item.label}</span>
                   </Link>
-                  {item.children && (
-                    <ul>
-                      {item.children.map((child) => (
-                        <li key={child.label}>
-                          <Link
-                            href={child.href}
-                            className={`flex items-center py-1.5 pl-11 pr-3 rounded-md transition-colors ${
-                              currentPath === child.href
-                                ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
-                                : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
-                            }`}
-                          >
-                            <span className="text-xs">{child.label}</span>
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
                 </li>
               );
             })}

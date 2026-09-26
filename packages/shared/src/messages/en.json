@@ -36,7 +36,10 @@
     "profile": "Profile",
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
-    "reminders": "Reminders"
+    "reminders": "Reminders",
+    "timeTracker": "Time tracker",
+    "financeTransactions": "Finance Transactions",
+    "financeDashboard": "Finance Dashboard"
   },
   "auth": {
     "signIn": "Sign in",
@@ -212,6 +215,7 @@
     "movements": "Transactions",
     "dashboard": "Dashboard",
     "bills": "Bills",
+    "billsSubtitle": "Recurring fixed transactions",
     "addMovement": "Add transaction",
     "today": "Today",
     "yesterday": "Yesterday",

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { AuthGuard } from '@/components/auth-guard';
@@ -19,6 +20,7 @@ import {
   Undo2,
   Clock,
   Flame,
+  Repeat,
 } from 'lucide-react';
 import { showToast } from '@/lib/toast';
 import { Badge } from '@/components/ui/badge';
@@ -76,6 +78,7 @@ function formatDayFrequency(dayFrequency?: string): string | null {
 
 export default function ActivitiesPage() {
   const t = useTranslations('activities');
+  const tRoutines = useTranslations('routines');
   const tCommon = useTranslations('common');
 
   const CATEGORY_CONFIG = {
@@ -440,6 +443,17 @@ export default function ActivitiesPage() {
             </div>
             <div className="flex items-center gap-2">
               <Button
+                asChild
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+              >
+                <Link href="/routines">
+                  <Repeat className="h-4 w-4" />
+                  {tRoutines('title')}
+                </Link>
+              </Button>
+              <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setShowFilterSidebar(true)}
@@ -475,6 +489,16 @@ export default function ActivitiesPage() {
               <p className="text-muted-foreground">{getPageDescription()}</p>
             </div>
             <div className="flex items-center gap-2">
+              <Button
+                asChild
+                variant="outline"
+                className="flex items-center gap-2"
+              >
+                <Link href="/routines">
+                  <Repeat className="h-4 w-4" />
+                  {tRoutines('title')}
+                </Link>
+              </Button>
               <Button
                 variant="outline"
                 onClick={() => setShowFilterSidebar(true)}

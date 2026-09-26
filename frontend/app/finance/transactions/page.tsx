@@ -17,6 +17,7 @@ import { EditTransactionModal } from '../modal/editTransactionModal';
 import { PaymentModal } from '../modal/paymentModal';
 import { DeleteModal } from '@/components/ui/card/delete-modal';
 import { MovementsFeed } from '../components/movementsFeed';
+import { BillsSection } from '../components/billsSection';
 import { FinanceHeader } from '../components/financeHeader';
 import { useFinanceCategories } from '../hooks/use-finance-categories';
 import {
@@ -310,6 +311,8 @@ export default function TransactionsPage() {
         onEditMovement={handleEditMovement}
         onDeleteMovement={handleDeleteMovement}
       />
+
+      <BillsSection categories={categories} />
 
       <CreateTransactionModal
         open={showCreateModal}

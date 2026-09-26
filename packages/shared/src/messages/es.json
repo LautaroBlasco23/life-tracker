@@ -36,7 +36,10 @@
     "profile": "Perfil",
     "openMenu": "Abrir menú",
     "closeMenu": "Cerrar menú",
-    "reminders": "Recordatorios"
+    "reminders": "Recordatorios",
+    "timeTracker": "Control de tiempo",
+    "financeTransactions": "Transacciones",
+    "financeDashboard": "Panel financiero"
   },
   "auth": {
     "signIn": "Iniciar sesión",
@@ -212,6 +215,7 @@
     "movements": "Transacciones",
     "dashboard": "Resumen",
     "bills": "Facturas",
+    "billsSubtitle": "Transacciones fijas recurrentes",
     "addMovement": "Agregar transacción",
     "today": "Hoy",
     "yesterday": "Ayer",
