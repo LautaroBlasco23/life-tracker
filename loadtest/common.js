@@ -104,18 +104,6 @@ export function transactionPayload() {
   };
 }
 
-export function mealPayload() {
-  return {
-    mealType: 'lunch',
-    name: 'loadtest meal',
-    calories: 600,
-    protein: 30,
-    carbs: 50,
-    fat: 20,
-    date: new Date().toISOString(),
-  };
-}
-
 // Query-parameter date format expected by summary endpoints (YYYY-MM-DD).
 export function todayISO() {
   return new Date().toISOString().slice(0, 10);

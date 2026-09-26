@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Activity, ClipboardList, Timer, StickyNote, User, Wallet, Dumbbell, Users } from 'lucide-react-native';
+import { Activity, ClipboardList, Timer, StickyNote, User, Wallet, Users } from 'lucide-react-native';
 import { useTheme } from '../../lib/theme-provider';
 import { useTranslations } from '@shared';
 
@@ -40,10 +40,6 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="finance"
         options={{ title: t('finance'), tabBarIcon: ({ color, size }) => <Wallet color={color} size={size} /> }}
-      />
-      <Tabs.Screen
-        name="health"
-        options={{ title: t('health'), tabBarIcon: ({ color, size }) => <Dumbbell color={color} size={size} /> }}
       />
       <Tabs.Screen
         name="social"

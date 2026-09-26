@@ -4,5 +4,4 @@ export * from './finance';
 export * from './user';
 export * from './auth';
 export * from './routine';
-export * from './health';
 export * from './reminder';

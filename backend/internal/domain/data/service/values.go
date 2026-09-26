@@ -1,7 +1,6 @@
 package service
 
 import (
-	"encoding/json"
 	"fmt"
 	"strconv"
 	"time"
@@ -41,14 +40,6 @@ func encFloat(f float64) string {
 
 func encObjectID(id primitive.ObjectID) string {
 	return id.Hex()
-}
-
-func encJSON(v interface{}) string {
-	b, err := json.Marshal(v)
-	if err != nil {
-		return ""
-	}
-	return string(b)
 }
 
 // ---- decoding (sheet cell string -> Go value) ----
@@ -95,15 +86,4 @@ func decObjectID(s string) (primitive.ObjectID, error) {
 		return primitive.NilObjectID, fmt.Errorf("invalid id %q", s)
 	}
 	return id, nil
-}
-
-func decOptionalInt(s string) (*int, error) {
-	if s == "" {
-		return nil, nil
-	}
-	i, err := decInt(s)
-	if err != nil {
-		return nil, err
-	}
-	return &i, nil
 }

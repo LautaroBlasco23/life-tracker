@@ -69,7 +69,7 @@ make loadtest-stack-down               # stop the load-test stack
 | `read-heavy.js` | constant-arrival-rate | flat req/s | read throughput; Postgres 10-conn pool cliff |
 | `write-heavy.js` | constant-arrival-rate | flat req/s | write throughput; Mongo `MaxConnecting(2)` throttle |
 | `mixed-rhythms.js` | ramping-vus + constant-vus | reader ~0.5–1.5s, writer ~4–8s, financer ~6–10s, spike burst | realistic multi-user traffic; per-VU identity via user pool |
-| `features.js` | constant-vus | full CRUD lifecycle sweep per iteration | **complete API coverage**: activities (+records/stats/revert/streak), notes, time records, routines, finances (transactions/fixed/payments/movements/monthly-stats), gym (exercises/workouts/stats), nutrition, screen time, social (follows/pending/accept/subscriptions), users (search/update/checks), auth (password/email change) |
+| `features.js` | constant-vus | full CRUD lifecycle sweep per iteration | **complete API coverage**: activities (+records/stats/revert/streak), notes, time records, routines, finances (transactions/fixed/payments/movements/monthly-stats), screen time, social (follows/pending/accept/subscriptions), users (search/update/checks), auth (password/email change) |
 | `breakpoint.js` | ramping-vus (stepped) | ramp to collapse | documented ceiling + failure mode |
 | `soak.js` | constant-arrival-rate | sustained minutes/hours | leaks, pool exhaustion, GC behavior |
 

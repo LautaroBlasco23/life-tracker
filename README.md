@@ -29,14 +29,13 @@ All documentation lives in [`docs/`](./docs/). This root README covers only the 
 
 | Doc | Contents |
 |---|---|
-| [`docs/data-schemas.md`](./docs/data-schemas.md) | Domain data schemas with one diagram per domain (activities, finance, health, user, personal) |
+| [`docs/data-schemas.md`](./docs/data-schemas.md) | Domain data schemas with one diagram per domain (activities, finance, user, personal) |
 | [`docs/getting-started.md`](./docs/getting-started.md) | Run modes from the repo root, how to start/stop the stack, per-project setup pointers |
 | [`docs/deployment-modes.md`](./docs/deployment-modes.md) | The four deployment modes (`make dev`, `dev-container`, `dev-emulator`, `dev-full`) with architecture diagrams |
 | [`docs/architecture.md`](./docs/architecture.md) | AWS-shaped architecture emulated locally with floci: service mapping, request flow, provisioning & deployment |
 | [`docs/ci-cd.md`](./docs/ci-cd.md) | GitHub Actions workflows (backend/frontend CI) and the required repository secrets |
 | [`docs/testing.md`](./docs/testing.md) | Backend integration tests and k6 load testing with live Grafana monitoring |
 | [`docs/mobile.md`](./docs/mobile.md) | Android app: building the APK (local Gradle build or EAS) and development |
-| [`docs/health-roadmap.md`](./docs/health-roadmap.md) | Health section roadmap (nutrition + gym): shipped features and improvement backlog |
 | [`docs/backend.md`](./docs/backend.md) | Backend API: per-domain schemas, business logic, and the full HTTP API reference |
 | [`docs/frontend.md`](./docs/frontend.md) | Web app: features, tech stack, setup, and build commands |
 | [`docs/chrome-extension.md`](./docs/chrome-extension.md) | Screen time extension: how it works, configuration, install, troubleshooting |

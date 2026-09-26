@@ -8,7 +8,6 @@ import (
 
 	activityModel "life-tracker-backend/internal/domain/activity/model"
 	financeModel "life-tracker-backend/internal/domain/finance/model"
-	healthModel "life-tracker-backend/internal/domain/health/model"
 	noteModel "life-tracker-backend/internal/domain/note/model"
 	routineModel "life-tracker-backend/internal/domain/routine/model"
 	timeModel "life-tracker-backend/internal/domain/time/model"
@@ -38,9 +37,6 @@ type backupData struct {
 	activityRecords   []activityModel.ActivityRecord
 	transactions      []financeModel.Transaction
 	payments          []financeModel.Payment
-	mealLogs          []healthModel.MealLog
-	exercises         []healthModel.Exercise
-	workoutSessions   []healthModel.WorkoutSession
 }
 
 // Export builds the XLSX backup workbook for one user.
@@ -89,15 +85,6 @@ func (s *BackupService) fetchData(userID uint) (*backupData, error) {
 	if err := fetchAll(ctx, s.mongo, "payments", userID, &data.payments); err != nil {
 		return nil, fmt.Errorf("failed to load payments: %w", err)
 	}
-	if err := fetchAll(ctx, s.mongo, "meal_logs", userID, &data.mealLogs); err != nil {
-		return nil, fmt.Errorf("failed to load meal logs: %w", err)
-	}
-	if err := fetchAll(ctx, s.mongo, "exercises", userID, &data.exercises); err != nil {
-		return nil, fmt.Errorf("failed to load exercises: %w", err)
-	}
-	if err := fetchAll(ctx, s.mongo, "workout_sessions", userID, &data.workoutSessions); err != nil {
-		return nil, fmt.Errorf("failed to load workout sessions: %w", err)
-	}
 
 	sortMongoDocs(data)
 	return data, nil
@@ -121,15 +108,6 @@ func sortMongoDocs(data *backupData) {
 	})
 	sort.Slice(data.payments, func(i, j int) bool {
 		return data.payments[i].ID.Hex() < data.payments[j].ID.Hex()
-	})
-	sort.Slice(data.mealLogs, func(i, j int) bool {
-		return data.mealLogs[i].ID.Hex() < data.mealLogs[j].ID.Hex()
-	})
-	sort.Slice(data.exercises, func(i, j int) bool {
-		return data.exercises[i].ID.Hex() < data.exercises[j].ID.Hex()
-	})
-	sort.Slice(data.workoutSessions, func(i, j int) bool {
-		return data.workoutSessions[i].ID.Hex() < data.workoutSessions[j].ID.Hex()
 	})
 }
 
@@ -164,9 +142,6 @@ func buildWorkbook(userID uint, data *backupData) (*excelize.File, error) {
 		{SheetActivityRecords, ActivityRecordsHeader, activityRecordRows(data.activityRecords)},
 		{SheetTransactions, TransactionsHeader, transactionRows(data.transactions)},
 		{SheetPayments, PaymentsHeader, paymentRows(data.payments)},
-		{SheetMealLogs, MealLogsHeader, mealLogRows(data.mealLogs)},
-		{SheetExercises, ExercisesHeader, exerciseRows(data.exercises)},
-		{SheetWorkoutSessions, WorkoutSessionsHeader, workoutSessionRows(data.workoutSessions)},
 	}
 	for _, w := range writers {
 		if err := writeSheet(f, w.sheet, w.headers, w.rows); err != nil {
@@ -209,12 +184,6 @@ func countOf(sheetName string, data *backupData) int {
 		return len(data.transactions)
 	case SheetPayments:
 		return len(data.payments)
-	case SheetMealLogs:
-		return len(data.mealLogs)
-	case SheetExercises:
-		return len(data.exercises)
-	case SheetWorkoutSessions:
-		return len(data.workoutSessions)
 	}
 	return 0
 }
@@ -308,45 +277,6 @@ func paymentRows(items []financeModel.Payment) [][]interface{} {
 		rows = append(rows, []interface{}{
 			encObjectID(p.ID), encUint(p.UserID), encObjectID(p.TransactionID),
 			encFloat(p.Amount), encTime(p.Date), encTime(p.CreatedAt),
-		})
-	}
-	return rows
-}
-
-func mealLogRows(items []healthModel.MealLog) [][]interface{} {
-	rows := make([][]interface{}, 0, len(items))
-	for _, m := range items {
-		rows = append(rows, []interface{}{
-			encObjectID(m.ID), encUint(m.UserID), m.MealType, m.Name,
-			encFloat(m.Calories), encFloat(m.Protein), encFloat(m.Carbs), encFloat(m.Fat),
-			encTime(m.Date), encTime(m.CreatedAt), encTime(m.UpdatedAt),
-		})
-	}
-	return rows
-}
-
-func exerciseRows(items []healthModel.Exercise) [][]interface{} {
-	rows := make([][]interface{}, 0, len(items))
-	for _, e := range items {
-		rows = append(rows, []interface{}{
-			encObjectID(e.ID), encUint(e.UserID), e.Name, encJSON(e.MuscleGroups),
-			encTime(e.CreatedAt),
-		})
-	}
-	return rows
-}
-
-func workoutSessionRows(items []healthModel.WorkoutSession) [][]interface{} {
-	rows := make([][]interface{}, 0, len(items))
-	for _, w := range items {
-		var duration string
-		if w.DurationMinutes != nil {
-			duration = encInt(*w.DurationMinutes)
-		}
-		rows = append(rows, []interface{}{
-			encObjectID(w.ID), encUint(w.UserID), encTime(w.Date), duration, w.Notes,
-			encJSON(w.Exercises),
-			encTime(w.CreatedAt), encTime(w.UpdatedAt),
 		})
 	}
 	return rows

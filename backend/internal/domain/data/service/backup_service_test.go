@@ -11,7 +11,6 @@ import (
 	"life-tracker-backend/internal/config"
 	activityModel "life-tracker-backend/internal/domain/activity/model"
 	financeModel "life-tracker-backend/internal/domain/finance/model"
-	healthModel "life-tracker-backend/internal/domain/health/model"
 	noteModel "life-tracker-backend/internal/domain/note/model"
 	routineModel "life-tracker-backend/internal/domain/routine/model"
 	timeModel "life-tracker-backend/internal/domain/time/model"
@@ -152,23 +151,6 @@ func seedFullUser1(t *testing.T, db *gorm.DB, mongoDB *mongo.Database) {
 		{ID: primitive.NewObjectID(), TransactionID: txID, UserID: 1, Amount: 19.99, Date: time.Date(2026, 1, 20, 0, 0, 0, 0, time.UTC), CreatedAt: time.Now().UTC()},
 	}
 	insertMongoDocs(t, mongoDB, "payments", toBsonDocs(payments))
-
-	meals := []healthModel.MealLog{
-		{ID: primitive.NewObjectID(), UserID: 1, MealType: "lunch", Name: "rice", Calories: 500.5, Protein: 20, Carbs: 80, Fat: 10, Date: time.Date(2026, 3, 1, 12, 0, 0, 0, time.UTC), CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
-	}
-	insertMongoDocs(t, mongoDB, "meal_logs", toBsonDocs(meals))
-
-	exID := primitive.NewObjectID()
-	exercises := []healthModel.Exercise{
-		{ID: exID, UserID: 1, Name: "Squat", MuscleGroups: []string{"legs", "core"}, CreatedAt: time.Now().UTC()},
-	}
-	insertMongoDocs(t, mongoDB, "exercises", toBsonDocs(exercises))
-
-	duration := 45
-	sessions := []healthModel.WorkoutSession{
-		{ID: primitive.NewObjectID(), UserID: 1, Date: time.Date(2026, 4, 2, 18, 0, 0, 0, time.UTC), DurationMinutes: &duration, Notes: "strong", Exercises: []healthModel.SessionExercise{{ExerciseID: exID, Sets: []healthModel.WorkoutSet{{Reps: 8, WeightKg: 60.5}, {Reps: 6, WeightKg: 65}}}}, CreatedAt: time.Now().UTC(), UpdatedAt: time.Now().UTC()},
-	}
-	insertMongoDocs(t, mongoDB, "workout_sessions", toBsonDocs(sessions))
 }
 
 // seedUser2 creates data for another user that must survive user 1's restore.
@@ -239,9 +221,6 @@ func TestExportRestoreRoundTrip(t *testing.T) {
 	assert.Equal(t, 2, counts.ActivityRecords)
 	assert.Equal(t, 2, counts.Transactions)
 	assert.Equal(t, 1, counts.Payments)
-	assert.Equal(t, 1, counts.MealLogs)
-	assert.Equal(t, 1, counts.Exercises)
-	assert.Equal(t, 1, counts.WorkoutSessions)
 
 	// Postgres contents, including the soft-deleted activity.
 	var acts []activityModel.Activity
@@ -276,23 +255,12 @@ func TestExportRestoreRoundTrip(t *testing.T) {
 	assert.Equal(t, int64(2), countMongo(t, mongoDB, "activity_records", 1))
 	assert.Equal(t, int64(2), countMongo(t, mongoDB, "transactions", 1))
 	assert.Equal(t, int64(1), countMongo(t, mongoDB, "payments", 1))
-	assert.Equal(t, int64(1), countMongo(t, mongoDB, "meal_logs", 1))
-	assert.Equal(t, int64(1), countMongo(t, mongoDB, "exercises", 1))
-	assert.Equal(t, int64(1), countMongo(t, mongoDB, "workout_sessions", 1))
 
 	var restoredTx financeModel.Transaction
 	require.NoError(t, mongoDB.Collection("transactions").FindOne(context.Background(), bson.M{"category": "subs"}).Decode(&restoredTx))
 	assert.Equal(t, 19.99, restoredTx.Amount)
 	assert.Equal(t, financeModel.TransactionTypeOutcome, restoredTx.Type)
 	assert.Equal(t, financeModel.PaymentFrequencyMonthly, restoredTx.PaymentFrequency)
-
-	var restoredSession healthModel.WorkoutSession
-	require.NoError(t, mongoDB.Collection("workout_sessions").FindOne(context.Background(), bson.M{"userId": 1}).Decode(&restoredSession))
-	require.NotNil(t, restoredSession.DurationMinutes)
-	assert.Equal(t, 45, *restoredSession.DurationMinutes)
-	require.Len(t, restoredSession.Exercises, 1)
-	require.Len(t, restoredSession.Exercises[0].Sets, 2)
-	assert.Equal(t, 60.5, restoredSession.Exercises[0].Sets[0].WeightKg)
 
 	// The other user's data is untouched.
 	assert.Equal(t, int64(1), countRows(t, db, "activities WHERE user_id = 2"))

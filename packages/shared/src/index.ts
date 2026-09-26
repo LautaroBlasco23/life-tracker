@@ -8,7 +8,6 @@ export * from "./services/time-service";
 export * from "./services/user-service";
 export * from "./services/data-service";
 export * from "./services/finance-service";
-export * from "./services/health-service";
 export * from "./services/social-service";
 export * from "./types";
 export * from "./lib/config";

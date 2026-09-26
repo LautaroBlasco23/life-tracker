@@ -18,9 +18,6 @@ const (
 	SheetActivityRecords   = "activity_records"
 	SheetTransactions      = "transactions"
 	SheetPayments          = "payments"
-	SheetMealLogs          = "meal_logs"
-	SheetExercises         = "exercises"
-	SheetWorkoutSessions   = "workout_sessions"
 )
 
 // SchemaVersion identifies the workbook layout. Bump it (and adapt the
@@ -62,17 +59,6 @@ var (
 	PaymentsHeader = []string{
 		"id", "user_id", "transaction_id", "amount", "date", "created_at",
 	}
-	MealLogsHeader = []string{
-		"id", "user_id", "meal_type", "name", "calories", "protein", "carbs",
-		"fat", "date", "created_at", "updated_at",
-	}
-	ExercisesHeader = []string{
-		"id", "user_id", "name", "muscle_groups", "created_at",
-	}
-	WorkoutSessionsHeader = []string{
-		"id", "user_id", "date", "duration_minutes", "notes", "exercises",
-		"created_at", "updated_at",
-	}
 )
 
 // entitySheets maps each entity sheet to its header, in restore order
@@ -89,7 +75,4 @@ var entitySheets = []struct {
 	{SheetActivityRecords, ActivityRecordsHeader},
 	{SheetTransactions, TransactionsHeader},
 	{SheetPayments, PaymentsHeader},
-	{SheetMealLogs, MealLogsHeader},
-	{SheetExercises, ExercisesHeader},
-	{SheetWorkoutSessions, WorkoutSessionsHeader},
 }

@@ -11,7 +11,6 @@ import {
   Menu,
   X,
   Users,
-  HeartPulse,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { useTranslations } from '@shared/contexts/language-context';
@@ -68,15 +67,6 @@ export function Navigation() {
         { href: '/finance/transactions', label: t('transactions') },
         { href: '/finance/dashboard', label: t('dashboard') },
         { href: '/finance/bills', label: t('bills') },
-      ],
-    },
-    {
-      href: '/health/nutrition',
-      icon: HeartPulse,
-      label: t('health'),
-      children: [
-        { href: '/health/nutrition', label: t('nutrition') },
-        { href: '/health/gym', label: t('gym') },
       ],
     },
     { href: '/social', icon: Users, label: t('social') },

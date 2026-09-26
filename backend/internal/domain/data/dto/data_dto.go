@@ -10,7 +10,4 @@ type RestoreCounts struct {
 	ActivityRecords   int `json:"activityRecords"`
 	Transactions      int `json:"transactions"`
 	Payments          int `json:"payments"`
-	MealLogs          int `json:"mealLogs"`
-	Exercises         int `json:"exercises"`
-	WorkoutSessions   int `json:"workoutSessions"`
 }

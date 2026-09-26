@@ -2,9 +2,9 @@
 //
 // One iteration = a complete CRUD lifecycle sweep across EVERY domain:
 // activities (+ records/stats/revert/streak), notes, time records, routines,
-// finances (transactions, fixed, payments, movements, monthly stats), gym
-// (exercises + workouts), nutrition, screen time, social (follows, pending,
-// accept, subscriptions), user profile/search, and auth password/email change.
+// finances (transactions, fixed, payments, movements, monthly stats), screen
+// time, social (follows, pending, accept, subscriptions), user
+// profile/search, and auth password/email change.
 //
 // Each entity is created, read, updated, and deleted inside the iteration, so
 // the test leaves no residue and exercises every handler the app exposes.
@@ -198,58 +198,6 @@ function financeLifecycle(headers) {
   get('/api/finances/monthly-stats', headers, 'finance monthly-stats 2xx');
 }
 
-function gymLifecycle(headers) {
-  const ex = http.post(`${BASE_URL}/api/health/gym/exercises`, JSON.stringify({
-    name: 'Bench Press',
-    muscleGroups: ['chest'],
-  }), { headers });
-  check(ex, { 'gym exercise create 2xx': (r) => r.status === 201 });
-  const exId = ex.json('data.id');
-  if (exId) {
-    get('/api/health/gym/exercises', headers, 'gym exercises list 2xx');
-    put(`/api/health/gym/exercises/${exId}`, { name: 'Incline Bench Press' }, headers, 'gym exercise update 2xx');
-  }
-
-  if (exId) {
-    const wk = http.post(`${BASE_URL}/api/health/gym/workouts`, JSON.stringify({
-      date: iso(),
-      durationMinutes: 45,
-      notes: 'features',
-      exercises: [{ exerciseId: exId, sets: [{ reps: 10, weightKg: 60 }] }],
-    }), { headers });
-    check(wk, { 'gym workout create 2xx': (r) => r.status === 201 });
-    const wkId = wk.json('data.id');
-    if (wkId) {
-      get('/api/health/gym/workouts', headers, 'gym workouts list 2xx');
-      get(`/api/health/gym/workouts/${wkId}`, headers, 'gym workout get 2xx');
-      put(`/api/health/gym/workouts/${wkId}`, { notes: 'updated' }, headers, 'gym workout update 2xx');
-      get(`/api/health/gym/stats?${SUMMARY_QS}`, headers, 'gym stats 2xx');
-      del(`/api/health/gym/workouts/${wkId}`, headers, 'gym workout delete 2xx');
-    }
-    del(`/api/health/gym/exercises/${exId}`, headers, 'gym exercise delete 2xx');
-  }
-}
-
-function nutritionLifecycle(headers) {
-  const res = http.post(`${BASE_URL}/api/health/nutrition/meals`, JSON.stringify({
-    mealType: 'lunch',
-    name: 'features meal',
-    calories: 600,
-    protein: 30,
-    carbs: 50,
-    fat: 20,
-    date: iso(),
-  }), { headers });
-  check(res, { 'nutrition meal create 2xx': (r) => r.status === 201 });
-  const id = res.json('data.id');
-  if (id) {
-    get(`/api/health/nutrition/meals/${id}`, headers, 'nutrition meal get 2xx');
-    put(`/api/health/nutrition/meals/${id}`, { calories: 700 }, headers, 'nutrition meal update 2xx');
-    del(`/api/health/nutrition/meals/${id}`, headers, 'nutrition meal delete 2xx');
-  }
-  get('/api/health/nutrition/meals?limit=10', headers, 'nutrition meals list 2xx');
-}
-
 function screenTimeLifecycle(headers) {
   const res = http.post(`${BASE_URL}/api/screen-time/visits`, JSON.stringify({
     domain: 'example.com',
@@ -386,8 +334,6 @@ export default function () {
   timeLifecycle(headers);
   routineLifecycle(headers, anchorId);
   financeLifecycle(headers);
-  gymLifecycle(headers);
-  nutritionLifecycle(headers);
   screenTimeLifecycle(headers);
   socialLifecycle(headers, otherHeaders, other.username, user.username, anchorId);
   userEndpoints(headers, user);

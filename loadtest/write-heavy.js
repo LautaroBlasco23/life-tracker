@@ -1,7 +1,7 @@
 // write-heavy.js — sustained write throughput.
 //
-// Creates activities (with a record), notes, transactions, and meals. Mongo is
-// the write path for records/transactions/meals; Postgres for activities/notes.
+// Creates activities (with a record), notes, and transactions. Mongo is
+// the write path for records/transactions; Postgres for activities/notes.
 // Exposes the Mongo MaxConnecting(2) throttle and Postgres 10-conn pool cap.
 //
 // Env:
@@ -20,7 +20,6 @@ import {
   recordPayload,
   notePayload,
   transactionPayload,
-  mealPayload,
 } from './common.js';
 
 const users = loadUserPool();
@@ -43,7 +42,7 @@ export const options = {
   },
 };
 
-// One iteration = activity + record (chained), note, transaction, meal.
+// One iteration = activity + record (chained), note, transaction.
 // Fails soft: a failed activity does not abort the remaining writes.
 export default function () {
   const user = userForVU(users);
@@ -69,9 +68,4 @@ export default function () {
     headers,
   });
   check(tx, { 'create transaction 201': (r) => r.status === 201 });
-
-  const meal = http.post(`${BASE_URL}/api/health/nutrition/meals`, JSON.stringify(mealPayload()), {
-    headers,
-  });
-  check(meal, { 'create meal 201': (r) => r.status === 201 });
 }

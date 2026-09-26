@@ -3,7 +3,6 @@ package service
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strconv"
@@ -14,7 +13,6 @@ import (
 
 	activityModel "life-tracker-backend/internal/domain/activity/model"
 	financeModel "life-tracker-backend/internal/domain/finance/model"
-	healthModel "life-tracker-backend/internal/domain/health/model"
 	noteModel "life-tracker-backend/internal/domain/note/model"
 	routineModel "life-tracker-backend/internal/domain/routine/model"
 	timeModel "life-tracker-backend/internal/domain/time/model"
@@ -28,7 +26,6 @@ import (
 // mongoCollections are the per-user collections touched by a restore.
 var mongoCollections = []string{
 	"activity_records", "transactions", "payments",
-	"meal_logs", "exercises", "workout_sessions",
 }
 
 // serialTables have bigserial IDs whose sequences must be repaired after an
@@ -79,9 +76,6 @@ func (s *BackupService) Restore(userID uint, data []byte) (*dto.RestoreCounts, e
 		ActivityRecords:   len(b.activityRecords),
 		Transactions:      len(b.transactions),
 		Payments:          len(b.payments),
-		MealLogs:          len(b.mealLogs),
-		Exercises:         len(b.exercises),
-		WorkoutSessions:   len(b.workoutSessions),
 	}, nil
 }
 
@@ -116,9 +110,6 @@ type parsedBackup struct {
 	activityRecords   []activityModel.ActivityRecord
 	transactions      []financeModel.Transaction
 	payments          []financeModel.Payment
-	mealLogs          []healthModel.MealLog
-	exercises         []healthModel.Exercise
-	workoutSessions   []healthModel.WorkoutSession
 }
 
 // sheet provides header-indexed access to a sheet's rows. GetRows trims
@@ -200,9 +191,6 @@ func parseBackup(f *excelize.File) (*parsedBackup, error) {
 		parseActivityRecords,
 		parseTransactions,
 		parsePayments,
-		parseMealLogs,
-		parseExercises,
-		parseWorkoutSessions,
 	} {
 		if err := parse(f, b, p); err != nil {
 			return nil, err
@@ -449,142 +437,6 @@ func parsePayments(f *excelize.File, b *parsedBackup, p *parseState) error {
 	return nil
 }
 
-func parseMealLogs(f *excelize.File, b *parsedBackup, p *parseState) error {
-	sh, err := openSheet(f, SheetMealLogs, MealLogsHeader)
-	if err != nil {
-		return err
-	}
-	for i, row := range sh.rows {
-		m := healthModel.MealLog{}
-		if m.ID, err = decObjectID(sh.get(row, "id")); err != nil {
-			p.addf(SheetMealLogs, i+2, "id: %v", err)
-			continue
-		}
-		m.MealType = sh.get(row, "meal_type")
-		m.Name = sh.get(row, "name")
-		if m.Calories, err = decFloat(sh.get(row, "calories")); err != nil {
-			p.addf(SheetMealLogs, i+2, "calories: %v", err)
-			continue
-		}
-		if m.Protein, err = decFloat(sh.get(row, "protein")); err != nil {
-			p.addf(SheetMealLogs, i+2, "protein: %v", err)
-			continue
-		}
-		if m.Carbs, err = decFloat(sh.get(row, "carbs")); err != nil {
-			p.addf(SheetMealLogs, i+2, "carbs: %v", err)
-			continue
-		}
-		if m.Fat, err = decFloat(sh.get(row, "fat")); err != nil {
-			p.addf(SheetMealLogs, i+2, "fat: %v", err)
-			continue
-		}
-		if m.Date, err = decTime(sh.get(row, "date")); err != nil {
-			p.addf(SheetMealLogs, i+2, "date: %v", err)
-			continue
-		}
-		if m.CreatedAt, err = decTime(sh.get(row, "created_at")); err != nil {
-			p.addf(SheetMealLogs, i+2, "created_at: %v", err)
-			continue
-		}
-		if m.UpdatedAt, err = decTime(sh.get(row, "updated_at")); err != nil {
-			p.addf(SheetMealLogs, i+2, "updated_at: %v", err)
-			continue
-		}
-		b.mealLogs = append(b.mealLogs, m)
-	}
-	return nil
-}
-
-func parseExercises(f *excelize.File, b *parsedBackup, p *parseState) error {
-	sh, err := openSheet(f, SheetExercises, ExercisesHeader)
-	if err != nil {
-		return err
-	}
-	for i, row := range sh.rows {
-		e := healthModel.Exercise{}
-		if e.ID, err = decObjectID(sh.get(row, "id")); err != nil {
-			p.addf(SheetExercises, i+2, "id: %v", err)
-			continue
-		}
-		e.Name = sh.get(row, "name")
-		if err = json.Unmarshal([]byte(sh.get(row, "muscle_groups")), &e.MuscleGroups); err != nil {
-			p.addf(SheetExercises, i+2, "muscle_groups: %v", err)
-			continue
-		}
-		if e.CreatedAt, err = decTime(sh.get(row, "created_at")); err != nil {
-			p.addf(SheetExercises, i+2, "created_at: %v", err)
-			continue
-		}
-		b.exercises = append(b.exercises, e)
-	}
-	return nil
-}
-
-func parseWorkoutSessions(f *excelize.File, b *parsedBackup, p *parseState) error {
-	sh, err := openSheet(f, SheetWorkoutSessions, WorkoutSessionsHeader)
-	if err != nil {
-		return err
-	}
-	for i, row := range sh.rows {
-		w, err := parseWorkoutSession(row, sh)
-		if err != nil {
-			p.addf(SheetWorkoutSessions, i+2, "%v", err)
-			continue
-		}
-		b.workoutSessions = append(b.workoutSessions, w)
-	}
-	return nil
-}
-
-type jsonSet struct {
-	Reps     int     `json:"reps"`
-	WeightKg float64 `json:"weightKg"`
-}
-
-type jsonExercise struct {
-	ExerciseID string    `json:"exerciseId"`
-	Sets       []jsonSet `json:"sets"`
-}
-
-func parseWorkoutSession(row []string, sh *sheet) (healthModel.WorkoutSession, error) {
-	w := healthModel.WorkoutSession{}
-	var err error
-	if w.ID, err = decObjectID(sh.get(row, "id")); err != nil {
-		return w, fmt.Errorf("id: %w", err)
-	}
-	if w.Date, err = decTime(sh.get(row, "date")); err != nil {
-		return w, fmt.Errorf("date: %w", err)
-	}
-	if w.DurationMinutes, err = decOptionalInt(sh.get(row, "duration_minutes")); err != nil {
-		return w, fmt.Errorf("duration_minutes: %w", err)
-	}
-	w.Notes = sh.get(row, "notes")
-
-	var parsed []jsonExercise
-	if err = json.Unmarshal([]byte(sh.get(row, "exercises")), &parsed); err != nil {
-		return w, fmt.Errorf("exercises: %w", err)
-	}
-	w.Exercises = make([]healthModel.SessionExercise, 0, len(parsed))
-	for _, ex := range parsed {
-		oid, oidErr := decObjectID(ex.ExerciseID)
-		if oidErr != nil {
-			return w, fmt.Errorf("exerciseId %q: %w", ex.ExerciseID, oidErr)
-		}
-		sets := make([]healthModel.WorkoutSet, 0, len(ex.Sets))
-		for _, s := range ex.Sets {
-			sets = append(sets, healthModel.WorkoutSet{Reps: s.Reps, WeightKg: s.WeightKg})
-		}
-		w.Exercises = append(w.Exercises, healthModel.SessionExercise{ExerciseID: oid, Sets: sets})
-	}
-	if w.CreatedAt, err = decTime(sh.get(row, "created_at")); err != nil {
-		return w, fmt.Errorf("created_at: %w", err)
-	}
-	if w.UpdatedAt, err = decTime(sh.get(row, "updated_at")); err != nil {
-		return w, fmt.Errorf("updated_at: %w", err)
-	}
-	return w, nil
-}
-
 func decTimestamps(
 	p *parseState, sheetName string, rowNo int, row []string, sh *sheet,
 ) (createdAt, updatedAt time.Time, deletedAt gorm.DeletedAt) {
@@ -622,10 +474,6 @@ func validateReferences(b *parsedBackup, p *parseState) {
 	for _, t := range b.transactions {
 		transactionIDs[t.ID] = struct{}{}
 	}
-	exerciseIDs := make(map[primitive.ObjectID]struct{}, len(b.exercises))
-	for _, e := range b.exercises {
-		exerciseIDs[e.ID] = struct{}{}
-	}
 
 	for i, ra := range b.routineActivities {
 		if _, ok := routineIDs[ra.RoutineID]; !ok {
@@ -643,13 +491,6 @@ func validateReferences(b *parsedBackup, p *parseState) {
 	for i, pay := range b.payments {
 		if _, ok := transactionIDs[pay.TransactionID]; !ok {
 			p.addf(SheetPayments, i+2, "transaction_id %s not found in %q sheet", pay.TransactionID.Hex(), SheetTransactions)
-		}
-	}
-	for i, w := range b.workoutSessions {
-		for _, se := range w.Exercises {
-			if _, ok := exerciseIDs[se.ExerciseID]; !ok {
-				p.addf(SheetWorkoutSessions, i+2, "exerciseId %s not found in %q sheet", se.ExerciseID.Hex(), SheetExercises)
-			}
 		}
 	}
 }
@@ -681,15 +522,6 @@ func applyUserID(userID uint, b *parsedBackup) {
 	}
 	for i := range b.payments {
 		b.payments[i].UserID = userID
-	}
-	for i := range b.mealLogs {
-		b.mealLogs[i].UserID = userID
-	}
-	for i := range b.exercises {
-		b.exercises[i].UserID = userID
-	}
-	for i := range b.workoutSessions {
-		b.workoutSessions[i].UserID = userID
 	}
 }
 
@@ -782,9 +614,6 @@ func (s *BackupService) restoreMongo(userID uint, b *parsedBackup) error {
 		{"activity_records", toDocs(b.activityRecords)},
 		{"transactions", toDocs(b.transactions)},
 		{"payments", toDocs(b.payments)},
-		{"meal_logs", toDocs(b.mealLogs)},
-		{"exercises", toDocs(b.exercises)},
-		{"workout_sessions", toDocs(b.workoutSessions)},
 	}
 	for _, ins := range inserts {
 		if len(ins.docs) == 0 {

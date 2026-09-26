@@ -10,9 +10,6 @@ export interface RestoreCounts {
   activityRecords: number;
   transactions: number;
   payments: number;
-  mealLogs: number;
-  exercises: number;
-  workoutSessions: number;
 }
 
 interface RestoreResponse {

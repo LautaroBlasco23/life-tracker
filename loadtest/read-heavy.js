@@ -18,7 +18,7 @@ const users = loadUserPool();
 const RATE = Number(__ENV.LOADTEST_RATE || 300);
 const DURATION = __ENV.LOADTEST_DURATION || '1m';
 
-// finance/nutrition summaries require start_date & end_date
+// finance summary requires start_date & end_date
 const SUMMARY_QS = `start_date=${todayISO()}&end_date=${todayISO()}`;
 
 export const options = {
@@ -43,7 +43,7 @@ const ENDPOINTS = [
   ['/api/users/me', 2],
   ['/api/notes', 1],
   [`/api/finances/summary?${SUMMARY_QS}`, 1],
-  [`/api/health/nutrition/summary?${SUMMARY_QS}`, 1],
+  ['/api/finances/monthly-stats', 1],
 ];
 
 export default function () {

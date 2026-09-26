@@ -14,10 +14,6 @@ Entities and relationships from [`packages/shared/src/types/`](../packages/share
 
 ![finance schema](diagrams/schema-finance.png)
 
-## Health
-
-![health schema](diagrams/schema-health.png)
-
 ## User & social
 
 ![user & social schema](diagrams/schema-user-social.png)
