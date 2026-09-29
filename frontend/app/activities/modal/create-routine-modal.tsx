@@ -23,7 +23,8 @@ import {
 } from '@/components/ui/dialog';
 import { routineService } from '@shared/services/routine-service';
 import type { Routine, PrivacyStatus, RoutineStatus } from '@shared/types';
-import { RoutineActivityPicker } from './routine-activity-picker';
+import { RoutineActivitiesSection } from './routine-activities-section';
+import { type SelectedActivityRef } from './select-existing-activities-modal';
 import { showToast } from '@/lib/toast';
 import { useTranslations } from '@shared/contexts/language-context';
 
@@ -42,7 +43,9 @@ export function CreateRoutineModal({
   const [description, setDescription] = useState('');
   const [privacyStatus, setPrivacyStatus] = useState<PrivacyStatus>('private');
   const [status, setStatus] = useState<RoutineStatus>('active');
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [selectedActivities, setSelectedActivities] = useState<
+    SelectedActivityRef[]
+  >([]);
   const [isLoading, setIsLoading] = useState(false);
   const t = useTranslations('routines');
   const tCommon = useTranslations('common');
@@ -53,13 +56,13 @@ export function CreateRoutineModal({
     setDescription('');
     setPrivacyStatus('private');
     setStatus('active');
-    setSelectedIds([]);
+    setSelectedActivities([]);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (selectedIds.length === 0) {
+    if (selectedActivities.length === 0) {
       showToast({
         title: t('validationError'),
         description: t('selectAtLeastOne'),
@@ -76,8 +79,8 @@ export function CreateRoutineModal({
         description,
         privacyStatus,
         status,
-        activityIds: selectedIds.map((activityId, position) => ({
-          activityId,
+        activityIds: selectedActivities.map((activity, position) => ({
+          activityId: activity.id,
           position,
         })),
       });
@@ -157,9 +160,9 @@ export function CreateRoutineModal({
             </Select>
           </div>
 
-          <RoutineActivityPicker
-            selectedIds={selectedIds}
-            onSelectedChange={setSelectedIds}
+          <RoutineActivitiesSection
+            selectedActivities={selectedActivities}
+            onSelectedChange={setSelectedActivities}
           />
 
           <div className="space-y-2">

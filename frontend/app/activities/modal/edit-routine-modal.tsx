@@ -23,7 +23,8 @@ import {
 } from '@/components/ui/dialog';
 import { routineService } from '@shared/services/routine-service';
 import type { Routine, PrivacyStatus, RoutineStatus } from '@shared/types';
-import { RoutineActivityPicker } from './routine-activity-picker';
+import { RoutineActivitiesSection } from './routine-activities-section';
+import { type SelectedActivityRef } from './select-existing-activities-modal';
 import { showToast } from '@/lib/toast';
 import { useTranslations } from '@shared/contexts/language-context';
 
@@ -44,7 +45,9 @@ export function EditRoutineModal({
   const [description, setDescription] = useState('');
   const [privacyStatus, setPrivacyStatus] = useState<PrivacyStatus>('private');
   const [status, setStatus] = useState<RoutineStatus>('active');
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [selectedActivities, setSelectedActivities] = useState<
+    SelectedActivityRef[]
+  >([]);
   const [isLoading, setIsLoading] = useState(false);
   const t = useTranslations('routines');
   const tCommon = useTranslations('common');
@@ -56,10 +59,13 @@ export function EditRoutineModal({
       setDescription(routine.description);
       setPrivacyStatus(routine.privacyStatus || 'private');
       setStatus(routine.status ?? 'active');
-      setSelectedIds(
+      setSelectedActivities(
         [...routine.activities]
           .sort((a, b) => a.position - b.position)
-          .map((activity) => activity.activityId)
+          .map((activity) => ({
+            id: activity.activityId,
+            title: activity.activityTitle,
+          }))
       );
     }
   }, [routine, open]);
@@ -68,7 +74,7 @@ export function EditRoutineModal({
     e.preventDefault();
     if (!routine) return;
 
-    if (selectedIds.length === 0) {
+    if (selectedActivities.length === 0) {
       showToast({
         title: t('validationError'),
         description: t('selectAtLeastOne'),
@@ -85,8 +91,8 @@ export function EditRoutineModal({
         description,
         privacyStatus,
         status,
-        activityIds: selectedIds.map((activityId, position) => ({
-          activityId,
+        activityIds: selectedActivities.map((activity, position) => ({
+          activityId: activity.id,
           position,
         })),
       });
@@ -163,9 +169,9 @@ export function EditRoutineModal({
             </Select>
           </div>
 
-          <RoutineActivityPicker
-            selectedIds={selectedIds}
-            onSelectedChange={setSelectedIds}
+          <RoutineActivitiesSection
+            selectedActivities={selectedActivities}
+            onSelectedChange={setSelectedActivities}
           />
 
           <div className="space-y-2">

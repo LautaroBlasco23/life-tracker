@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
 import { DeleteModal } from '@/components/ui/card/delete-modal';
 import {
   Dialog,
@@ -23,6 +24,7 @@ import {
   Pencil,
   Trash2,
   ListChecks,
+  Check,
 } from 'lucide-react';
 import { routineService } from '@shared/services/routine-service';
 import type {
@@ -57,13 +59,14 @@ function formatDayFrequency(dayFrequency?: string): string | null {
   }
 }
 
-function RoutineActivityCard({
-  item,
-}: {
-  item: RoutineActivityItem;
-}) {
+function RoutineActivityCard({ item }: { item: RoutineActivityItem }) {
   const tActivities = useTranslations('activities');
   const tPrivacy = useTranslations('privacy');
+  const t = useTranslations('routines');
+
+  const isCompletedToday =
+    item.scheduledToday && item.todayCompletions >= item.completionAmount;
+  const showProgress = item.scheduledToday && item.completionAmount > 1;
 
   const badges: Array<{
     label: string;
@@ -82,20 +85,53 @@ function RoutineActivityCard({
   });
 
   return (
-    <Card className="bg-muted/30">
+    <Card
+      className={cn(
+        'bg-muted/30',
+        isCompletedToday && 'border-green-500/50 bg-green-500/10'
+      )}
+    >
       <CardContent className="pt-5">
         <div className="flex items-start gap-3">
           <span className="flex items-center justify-center h-6 w-6 rounded-full bg-primary/10 text-primary text-xs font-medium shrink-0 mt-0.5">
             {item.position + 1}
           </span>
           <div className="flex-1 min-w-0 space-y-1.5">
-            <div className="font-medium text-foreground break-words">
-              {item.activityTitle}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span
+                className={cn(
+                  'font-medium break-words',
+                  isCompletedToday
+                    ? 'text-green-600 dark:text-green-400'
+                    : 'text-foreground'
+                )}
+              >
+                {item.activityTitle}
+              </span>
+              {isCompletedToday && (
+                <Badge className="bg-green-500/20 text-green-700 dark:text-green-300 border-green-500/50 text-xs shrink-0">
+                  {t('activityCompletedToday')}
+                </Badge>
+              )}
+              <span className="text-xs text-muted-foreground shrink-0">
+                {item.todayCompletions}/{item.completionAmount}
+              </span>
             </div>
             {item.description && (
               <p className="text-sm text-muted-foreground break-words">
                 {item.description}
               </p>
+            )}
+            {!item.scheduledToday && !isCompletedToday && (
+              <p className="text-xs text-muted-foreground">
+                {t('notScheduledToday')}
+              </p>
+            )}
+            {showProgress && (
+              <Progress
+                value={(item.todayCompletions / item.completionAmount) * 100}
+                className="h-1.5"
+              />
             )}
             <div className="flex items-center gap-2 flex-wrap">
               {badges.map((badge, index) => (
@@ -169,10 +205,14 @@ export function RoutinesModal({
   const filteredRoutines = useMemo(() => {
     const query = search.trim().toLowerCase();
     return routines.filter((routine) => {
-      if (statusFilter !== 'all' && (routine.status ?? 'active') !== statusFilter)
+      if (
+        statusFilter !== 'all' &&
+        (routine.status ?? 'active') !== statusFilter
+      )
         return false;
       if (query) {
-        const haystack = `${routine.title} ${routine.description}`.toLowerCase();
+        const haystack =
+          `${routine.title} ${routine.description}`.toLowerCase();
         if (!haystack.includes(query)) return false;
       }
       return true;
@@ -202,10 +242,10 @@ export function RoutinesModal({
       routines.map((r) => (r.id === routine.id ? { ...r, status } : r))
     );
     try {
-      const updated = await routineService.updateRoutine(routine.id, { status });
-      setRoutines(
-        previous.map((r) => (r.id === updated.id ? updated : r))
-      );
+      const updated = await routineService.updateRoutine(routine.id, {
+        status,
+      });
+      setRoutines(previous.map((r) => (r.id === updated.id ? updated : r)));
     } catch (error) {
       setRoutines(previous);
       showToast({
@@ -222,9 +262,7 @@ export function RoutinesModal({
   const handleDeleteRoutine = async (routineId: number) => {
     try {
       await routineService.deleteRoutine(routineId);
-      const remaining = routines.filter(
-        (routine) => routine.id !== routineId
-      );
+      const remaining = routines.filter((routine) => routine.id !== routineId);
       setRoutines(remaining);
       if (selectedRoutineId === routineId) setSelectedRoutineId(null);
       showToast({
@@ -264,7 +302,10 @@ export function RoutinesModal({
   const renderStatusBadge = (status?: RoutineStatus) => {
     const value: RoutineStatus = status ?? 'active';
     return (
-      <Badge variant="outline" className={cn('text-xs', statusBadgeClass[value])}>
+      <Badge
+        variant="outline"
+        className={cn('text-xs', statusBadgeClass[value])}
+      >
         {t(`status_${value}`)}
       </Badge>
     );
@@ -355,7 +396,15 @@ export function RoutinesModal({
                           <span className="text-sm font-medium text-foreground truncate">
                             {routine.title}
                           </span>
-                          {renderStatusBadge(routine.status)}
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {routine.isCompletedToday && (
+                              <Check
+                                className="h-4 w-4 text-green-600 dark:text-green-400"
+                                aria-label={t('completedToday')}
+                              />
+                            )}
+                            {renderStatusBadge(routine.status)}
+                          </div>
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5 truncate">
                           {t('activityCount', {
@@ -408,6 +457,11 @@ export function RoutinesModal({
                         <h2 className="text-lg font-semibold text-foreground truncate">
                           {selectedRoutine.title}
                         </h2>
+                        {selectedRoutine.isCompletedToday && (
+                          <Badge className="bg-green-500/20 text-green-700 dark:text-green-300 border-green-500/50 text-xs">
+                            {t('completedToday')}
+                          </Badge>
+                        )}
                         {renderStatusBadge(selectedRoutine.status)}
                         <Badge variant="secondary" className="text-xs">
                           {tPrivacy(selectedRoutine.privacyStatus)}
