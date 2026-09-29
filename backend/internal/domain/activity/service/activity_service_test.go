@@ -426,7 +426,6 @@ func TestValidateDayFrequency(t *testing.T) {
 }
 
 func TestShouldShowToday(t *testing.T) {
-	tc := getTestService(t)
 
 	now := time.Now().In(testLoc)
 	metadata := &repository.CompletionMetadata{
@@ -522,7 +521,7 @@ func TestShouldShowToday(t *testing.T) {
 			metadata.OneTimeCompletions = make(map[uint]time.Time)
 			tt.setup()
 
-			got := tc.service.shouldShowToday(&tt.activity, metadata, now)
+			got := ShouldShowToday(&tt.activity, metadata, now)
 			assert.Equal(t, tt.want, got)
 		})
 	}

@@ -1,6 +1,6 @@
-import type { DayTime, Frequency, PrivacyStatus } from './activity';
+import type { DayTime, Frequency, PrivacyStatus } from "./activity";
 
-export type RoutineStatus = 'draft' | 'active' | 'stopped';
+export type RoutineStatus = "draft" | "active" | "stopped";
 
 export interface RoutineRef {
   id: number;
@@ -17,6 +17,10 @@ export interface RoutineActivityItem {
   privacyStatus: PrivacyStatus;
   completionAmount: number;
   position: number;
+  /** Completions recorded today (server-computed). */
+  todayCompletions: number;
+  /** Whether the activity is due today (server-computed from its schedule). */
+  scheduledToday: boolean;
 }
 
 export interface Routine {
@@ -27,6 +31,8 @@ export interface Routine {
   privacyStatus: PrivacyStatus;
   status?: RoutineStatus;
   activities: RoutineActivityItem[];
+  /** All activities scheduled today are completed. */
+  isCompletedToday: boolean;
   createdAt: string;
   updatedAt: string;
 }

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"life-tracker-backend/internal/config"
 	activityModel "life-tracker-backend/internal/domain/activity/model"
@@ -64,7 +65,7 @@ func getTestService(t *testing.T) *testContext {
 	setupTestDatabases(t)
 	cleanDatabase(t)
 	return &testContext{
-		service: NewRoutineService(testDB),
+		service: NewRoutineService(testDB, nil),
 		db:      testDB,
 	}
 }
@@ -101,7 +102,7 @@ func TestCreateRoutine(t *testing.T) {
 			},
 		}
 
-		routine, err := tc.service.CreateRoutine(1, req)
+		routine, err := tc.service.CreateRoutine(1, req, time.UTC)
 		require.NoError(t, err)
 		assert.Equal(t, "Health routine", routine.Title)
 		require.Len(t, routine.Activities, 2)
@@ -128,7 +129,7 @@ func TestCreateRoutine(t *testing.T) {
 			PrivacyStatus: "private",
 			ActivityIDs:   []dto.ActivityIDPosition{{ActivityID: foreign.ID, Position: 0}},
 		}
-		_, err := tc.service.CreateRoutine(1, req)
+		_, err := tc.service.CreateRoutine(1, req, time.UTC)
 		require.Error(t, err)
 	})
 
@@ -138,7 +139,7 @@ func TestCreateRoutine(t *testing.T) {
 			PrivacyStatus: "private",
 			ActivityIDs:   []dto.ActivityIDPosition{{ActivityID: 999999, Position: 0}},
 		}
-		_, err := tc.service.CreateRoutine(1, req)
+		_, err := tc.service.CreateRoutine(1, req, time.UTC)
 		require.Error(t, err)
 	})
 }
@@ -156,16 +157,16 @@ func TestGetMyRoutinesAndDetails(t *testing.T) {
 			{ActivityID: act2.ID, Position: 1},
 		},
 	}
-	_, err := tc.service.CreateRoutine(1, req)
+	_, err := tc.service.CreateRoutine(1, req, time.UTC)
 	require.NoError(t, err)
 
-	routines, err := tc.service.GetMyRoutines(1)
+	routines, err := tc.service.GetMyRoutines(1, time.UTC)
 	require.NoError(t, err)
 	require.Len(t, routines, 1)
 	require.Len(t, routines[0].Activities, 2)
 	assert.Equal(t, "Walk 10 minutes", routines[0].Activities[1].ActivityTitle)
 
-	foreignRoutines, err := tc.service.GetMyRoutines(2)
+	foreignRoutines, err := tc.service.GetMyRoutines(2, time.UTC)
 	require.NoError(t, err)
 	assert.Empty(t, foreignRoutines)
 }
@@ -179,7 +180,7 @@ func TestGetRoutineVisibility(t *testing.T) {
 		PrivacyStatus: "public",
 		ActivityIDs:   []dto.ActivityIDPosition{{ActivityID: act1.ID, Position: 0}},
 	}
-	publicRoutine, err := tc.service.CreateRoutine(1, publicReq)
+	publicRoutine, err := tc.service.CreateRoutine(1, publicReq, time.UTC)
 	require.NoError(t, err)
 
 	privateReq := &dto.CreateRoutineRequest{
@@ -187,24 +188,24 @@ func TestGetRoutineVisibility(t *testing.T) {
 		PrivacyStatus: "private",
 		ActivityIDs:   []dto.ActivityIDPosition{{ActivityID: act1.ID, Position: 0}},
 	}
-	privateRoutine, err := tc.service.CreateRoutine(1, privateReq)
+	privateRoutine, err := tc.service.CreateRoutine(1, privateReq, time.UTC)
 	require.NoError(t, err)
 
 	t.Run("owner can fetch own routine", func(t *testing.T) {
-		fetched, err := tc.service.GetRoutine(1, publicRoutine.ID)
+		fetched, err := tc.service.GetRoutine(1, publicRoutine.ID, time.UTC)
 		require.NoError(t, err)
 		require.Len(t, fetched.Activities, 1)
 		assert.Equal(t, "Training session", fetched.Activities[0].ActivityTitle)
 	})
 
 	t.Run("other user can fetch public routine", func(t *testing.T) {
-		fetched, err := tc.service.GetRoutine(2, publicRoutine.ID)
+		fetched, err := tc.service.GetRoutine(2, publicRoutine.ID, time.UTC)
 		require.NoError(t, err)
 		assert.Equal(t, publicRoutine.ID, fetched.ID)
 	})
 
 	t.Run("other user cannot fetch private routine", func(t *testing.T) {
-		_, err := tc.service.GetRoutine(2, privateRoutine.ID)
+		_, err := tc.service.GetRoutine(2, privateRoutine.ID, time.UTC)
 		require.Error(t, err)
 	})
 }
@@ -220,13 +221,13 @@ func TestUpdateRoutine(t *testing.T) {
 		PrivacyStatus: "private",
 		ActivityIDs:   []dto.ActivityIDPosition{{ActivityID: act1.ID, Position: 0}},
 	}
-	routine, err := tc.service.CreateRoutine(1, req)
+	routine, err := tc.service.CreateRoutine(1, req, time.UTC)
 	require.NoError(t, err)
 
 	t.Run("updates status", func(t *testing.T) {
 		status := "stopped"
 		updateReq := &dto.UpdateRoutineRequest{Status: &status}
-		updated, err := tc.service.UpdateRoutine(1, routine.ID, updateReq)
+		updated, err := tc.service.UpdateRoutine(1, routine.ID, updateReq, time.UTC)
 		require.NoError(t, err)
 		assert.Equal(t, "stopped", updated.Status)
 	})
@@ -243,7 +244,7 @@ func TestUpdateRoutine(t *testing.T) {
 			},
 		}
 
-		updated, err := tc.service.UpdateRoutine(1, routine.ID, updateReq)
+		updated, err := tc.service.UpdateRoutine(1, routine.ID, updateReq, time.UTC)
 		require.NoError(t, err)
 		assert.Equal(t, "Updated routine", updated.Title)
 		assert.Equal(t, "public", updated.PrivacyStatus)
@@ -255,7 +256,7 @@ func TestUpdateRoutine(t *testing.T) {
 	t.Run("rejects non-owner update", func(t *testing.T) {
 		title := "Hacked"
 		updateReq := &dto.UpdateRoutineRequest{Title: &title}
-		_, err := tc.service.UpdateRoutine(99, routine.ID, updateReq)
+		_, err := tc.service.UpdateRoutine(99, routine.ID, updateReq, time.UTC)
 		require.Error(t, err)
 	})
 
@@ -264,7 +265,7 @@ func TestUpdateRoutine(t *testing.T) {
 		updateReq := &dto.UpdateRoutineRequest{
 			ActivityIDs: []dto.ActivityIDPosition{{ActivityID: foreign.ID, Position: 0}},
 		}
-		_, err := tc.service.UpdateRoutine(1, routine.ID, updateReq)
+		_, err := tc.service.UpdateRoutine(1, routine.ID, updateReq, time.UTC)
 		require.Error(t, err)
 	})
 }
@@ -278,7 +279,7 @@ func TestDeleteRoutine(t *testing.T) {
 		PrivacyStatus: "private",
 		ActivityIDs:   []dto.ActivityIDPosition{{ActivityID: act1.ID, Position: 0}},
 	}
-	routine, err := tc.service.CreateRoutine(1, req)
+	routine, err := tc.service.CreateRoutine(1, req, time.UTC)
 	require.NoError(t, err)
 
 	t.Run("owner deletes routine but activity survives", func(t *testing.T) {
@@ -295,7 +296,7 @@ func TestDeleteRoutine(t *testing.T) {
 			PrivacyStatus: "private",
 			ActivityIDs:   []dto.ActivityIDPosition{{ActivityID: act1.ID, Position: 0}},
 		}
-		r2, err := tc.service.CreateRoutine(1, r2req)
+		r2, err := tc.service.CreateRoutine(1, r2req, time.UTC)
 		require.NoError(t, err)
 		require.Error(t, tc.service.DeleteRoutine(2, r2.ID))
 	})

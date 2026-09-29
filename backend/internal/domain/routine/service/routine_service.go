@@ -1,27 +1,98 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	activityModel "life-tracker-backend/internal/domain/activity/model"
+	activityRepository "life-tracker-backend/internal/domain/activity/repository"
+	activityService "life-tracker-backend/internal/domain/activity/service"
 	"life-tracker-backend/internal/domain/routine/dto"
 	"life-tracker-backend/internal/domain/routine/model"
 	"life-tracker-backend/internal/domain/routine/repository"
 
+	"go.mongodb.org/mongo-driver/mongo"
 	"gorm.io/gorm"
 )
 
 type RoutineService struct {
-	repo repository.RoutineRepository
-	db   *gorm.DB
+	repo       repository.RoutineRepository
+	db         *gorm.DB
+	recordRepo activityRepository.ActivityRecordRepository
 }
 
-func NewRoutineService(db *gorm.DB) *RoutineService {
+func NewRoutineService(db *gorm.DB, mongoDB *mongo.Database) *RoutineService {
+	var recordRepo activityRepository.ActivityRecordRepository
+	if mongoDB != nil {
+		recordRepo = activityRepository.NewActivityRecordRepository(mongoDB)
+	}
 	return &RoutineService{
-		repo: repository.NewRoutineRepository(db),
-		db:   db,
+		repo:       repository.NewRoutineRepository(db),
+		db:         db,
+		recordRepo: recordRepo,
+	}
+}
+
+// decorateWithCompletions fills TodayCompletions/ScheduledToday for each
+// activity item and computes the routine-level IsCompletedToday flag.
+// Completion is measured over activities scheduled today only: an activity
+// not due today can't be completed today and must not block completion.
+func (s *RoutineService) decorateWithCompletions(userID uint, loc *time.Location, responses []*dto.RoutineResponse) {
+	if loc == nil {
+		loc = time.UTC
+	}
+	scheduled := activityRepository.CompletionMetadata{
+		MonthlyCompletions: make(map[uint]time.Time),
+		OneTimeCompletions: make(map[uint]time.Time),
+		TodayCompletions:   make(map[uint]int),
+	}
+	if s.recordRepo != nil && loc != nil {
+		ids := make([]uint, 0)
+		seen := make(map[uint]bool)
+		for _, r := range responses {
+			for _, item := range r.Activities {
+				if !seen[item.ActivityID] {
+					seen[item.ActivityID] = true
+					ids = append(ids, item.ActivityID)
+				}
+			}
+		}
+		if len(ids) > 0 {
+			metadata, err := s.recordRepo.GetCompletionMetadata(context.Background(), userID, ids, loc)
+			if err != nil {
+				fmt.Printf("Warning: failed to fetch routine completion metadata: %v\n", err)
+			} else {
+				scheduled = *metadata
+			}
+		}
+	}
+
+	now := time.Now().In(loc)
+
+	for _, r := range responses {
+		total, completed := 0, 0
+		for i := range r.Activities {
+			item := &r.Activities[i]
+			metadata := &scheduled
+			activity := &activityModel.Activity{
+				ID:               item.ActivityID,
+				Frequency:        activityModel.Frequency(item.Frequency),
+				DayFrequency:     item.DayFrequency,
+				CompletionAmount: item.CompletionAmount,
+			}
+			item.ScheduledToday = activityService.ShouldShowToday(activity, metadata, now)
+			item.TodayCompletions = scheduled.TodayCompletions[item.ActivityID]
+			if item.ScheduledToday && item.TodayCompletions >= item.CompletionAmount {
+				completed++
+			}
+			if item.ScheduledToday {
+				total++
+			}
+		}
+		r.IsCompletedToday = total > 0 && completed == total
 	}
 }
 
@@ -117,7 +188,7 @@ func normalizeStatus(status string) model.RoutineStatus {
 	return model.RoutineStatus(status)
 }
 
-func (s *RoutineService) CreateRoutine(userID uint, req *dto.CreateRoutineRequest) (*dto.RoutineResponse, error) {
+func (s *RoutineService) CreateRoutine(userID uint, req *dto.CreateRoutineRequest, loc *time.Location) (*dto.RoutineResponse, error) {
 	if err := s.validateActivitiesOwnership(userID, req.ActivityIDs); err != nil {
 		return nil, err
 	}
@@ -146,10 +217,12 @@ func (s *RoutineService) CreateRoutine(userID uint, req *dto.CreateRoutineReques
 		return nil, errors.New("failed to set routine activities")
 	}
 
-	return routine.ToResponse(s.fetchActivitiesForResponse(routine.ID)), nil
+	response := routine.ToResponse(s.fetchActivitiesForResponse(routine.ID))
+	s.decorateWithCompletions(userID, loc, []*dto.RoutineResponse{response})
+	return response, nil
 }
 
-func (s *RoutineService) GetMyRoutines(userID uint) ([]*dto.RoutineResponse, error) {
+func (s *RoutineService) GetMyRoutines(userID uint, loc *time.Location) ([]*dto.RoutineResponse, error) {
 	routines, err := s.repo.FindByUserID(userID)
 	if err != nil {
 		return nil, errors.New("failed to fetch routines")
@@ -158,10 +231,11 @@ func (s *RoutineService) GetMyRoutines(userID uint) ([]*dto.RoutineResponse, err
 	for i := range routines {
 		responses[i] = routines[i].ToResponse(s.fetchActivitiesForResponse(routines[i].ID))
 	}
+	s.decorateWithCompletions(userID, loc, responses)
 	return responses, nil
 }
 
-func (s *RoutineService) GetRoutine(userID, routineID uint) (*dto.RoutineResponse, error) {
+func (s *RoutineService) GetRoutine(userID, routineID uint, loc *time.Location) (*dto.RoutineResponse, error) {
 	routine, err := s.repo.FindByIDPublic(routineID)
 	if err != nil {
 		if errors.Is(err, repository.ErrRoutineNotFound) {
@@ -172,10 +246,12 @@ func (s *RoutineService) GetRoutine(userID, routineID uint) (*dto.RoutineRespons
 	if routine.UserID != userID && routine.PrivacyStatus != model.PrivacyPublic {
 		return nil, errors.New("routine not found")
 	}
-	return routine.ToResponse(s.fetchActivitiesForResponse(routine.ID)), nil
+	response := routine.ToResponse(s.fetchActivitiesForResponse(routine.ID))
+	s.decorateWithCompletions(routine.UserID, loc, []*dto.RoutineResponse{response})
+	return response, nil
 }
 
-func (s *RoutineService) UpdateRoutine(userID, routineID uint, req *dto.UpdateRoutineRequest) (*dto.RoutineResponse, error) {
+func (s *RoutineService) UpdateRoutine(userID, routineID uint, req *dto.UpdateRoutineRequest, loc *time.Location) (*dto.RoutineResponse, error) {
 	routine, err := s.repo.FindByID(routineID, userID)
 	if err != nil {
 		if errors.Is(err, repository.ErrRoutineNotFound) {
@@ -229,7 +305,9 @@ func (s *RoutineService) UpdateRoutine(userID, routineID uint, req *dto.UpdateRo
 	if err != nil {
 		return nil, errors.New("failed to fetch updated routine")
 	}
-	return updated.ToResponse(s.fetchActivitiesForResponse(routineID)), nil
+	response := updated.ToResponse(s.fetchActivitiesForResponse(routineID))
+	s.decorateWithCompletions(userID, loc, []*dto.RoutineResponse{response})
+	return response, nil
 }
 
 func (s *RoutineService) DeleteRoutine(userID, routineID uint) error {
@@ -240,7 +318,7 @@ func (s *RoutineService) DeleteRoutine(userID, routineID uint) error {
 	return err
 }
 
-func (s *RoutineService) GetPublicByUser(userID uint) ([]*dto.RoutineResponse, error) {
+func (s *RoutineService) GetPublicByUser(userID uint, loc *time.Location) ([]*dto.RoutineResponse, error) {
 	routines, err := s.repo.FindPublicByUserID(userID)
 	if err != nil {
 		return nil, errors.New("failed to fetch routines")
@@ -249,5 +327,6 @@ func (s *RoutineService) GetPublicByUser(userID uint) ([]*dto.RoutineResponse, e
 	for i := range routines {
 		responses[i] = routines[i].ToResponse(s.fetchActivitiesForResponse(routines[i].ID))
 	}
+	s.decorateWithCompletions(userID, loc, responses)
 	return responses, nil
 }

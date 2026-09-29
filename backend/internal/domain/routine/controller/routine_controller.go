@@ -7,6 +7,7 @@ import (
 
 	"life-tracker-backend/internal/domain/routine/dto"
 	"life-tracker-backend/internal/domain/routine/service"
+	"life-tracker-backend/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -44,7 +45,7 @@ func (c *RoutineController) CreateRoutine(ctx *gin.Context) {
 		return
 	}
 
-	routine, err := c.routineService.CreateRoutine(userID, &req)
+	routine, err := c.routineService.CreateRoutine(userID, &req, middleware.GetTimezoneFromContext(ctx))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
@@ -60,7 +61,7 @@ func (c *RoutineController) GetMyRoutines(ctx *gin.Context) {
 		return
 	}
 
-	routines, err := c.routineService.GetMyRoutines(userID)
+	routines, err := c.routineService.GetMyRoutines(userID, middleware.GetTimezoneFromContext(ctx))
 	if err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
@@ -82,7 +83,7 @@ func (c *RoutineController) GetRoutine(ctx *gin.Context) {
 		return
 	}
 
-	routine, err := c.routineService.GetRoutine(userID, uint(id))
+	routine, err := c.routineService.GetRoutine(userID, uint(id), middleware.GetTimezoneFromContext(ctx))
 	if err != nil {
 		ctx.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
 		return
@@ -110,7 +111,7 @@ func (c *RoutineController) UpdateRoutine(ctx *gin.Context) {
 		return
 	}
 
-	routine, err := c.routineService.UpdateRoutine(userID, uint(id), &req)
+	routine, err := c.routineService.UpdateRoutine(userID, uint(id), &req, middleware.GetTimezoneFromContext(ctx))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

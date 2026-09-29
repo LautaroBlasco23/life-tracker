@@ -37,6 +37,8 @@ type RoutineActivityItem struct {
 	CompletionAmount int    `json:"completionAmount"`
 	ActivityID       uint   `json:"activityId"`
 	Position         int    `json:"position"`
+	TodayCompletions int    `json:"todayCompletions"`
+	ScheduledToday   bool   `json:"scheduledToday"`
 }
 
 type RoutineRef struct {
@@ -45,15 +47,16 @@ type RoutineRef struct {
 }
 
 type RoutineResponse struct {
-	CreatedAt     time.Time             `json:"createdAt"`
-	UpdatedAt     time.Time             `json:"updatedAt"`
-	Title         string                `json:"title"`
-	Description   string                `json:"description"`
-	PrivacyStatus string                `json:"privacyStatus"`
-	Status        string                `json:"status"`
-	DayTime       string                `json:"dayTime"`
-	DayFrequency  string                `json:"dayFrequency,omitempty"`
-	Activities    []RoutineActivityItem `json:"activities"`
-	ID            uint                  `json:"id"`
-	UserID        uint                  `json:"userId"`
+	CreatedAt        time.Time             `json:"createdAt"`
+	UpdatedAt        time.Time             `json:"updatedAt"`
+	Title            string                `json:"title"`
+	Description      string                `json:"description"`
+	PrivacyStatus    string                `json:"privacyStatus"`
+	Status           string                `json:"status"`
+	DayTime          string                `json:"dayTime"`
+	DayFrequency     string                `json:"dayFrequency,omitempty"`
+	Activities       []RoutineActivityItem `json:"activities"`
+	IsCompletedToday bool                  `json:"isCompletedToday"`
+	ID               uint                  `json:"id"`
+	UserID           uint                  `json:"userId"`
 }

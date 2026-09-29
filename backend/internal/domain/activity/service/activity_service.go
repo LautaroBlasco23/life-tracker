@@ -147,7 +147,7 @@ func (s *ActivityService) GetTodayActivities(userID uint, loc *time.Location) ([
 	var responses []*dto.ActivityResponse
 
 	for i := range activities {
-		if s.shouldShowToday(&activities[i], metadata, now) {
+		if ShouldShowToday(&activities[i], metadata, now) {
 			streak, err := s.CalculateStreak(userID, activities[i].ID, &activities[i], loc)
 			if err != nil {
 				streak = &dto.StreakInfo{Current: 0, Longest: 0}
@@ -435,7 +435,7 @@ func (s *ActivityService) validateDayFrequency(dayFrequency string) error {
 	return nil
 }
 
-func (s *ActivityService) shouldShowToday(activity *model.Activity, metadata *repository.CompletionMetadata, now time.Time) bool {
+func ShouldShowToday(activity *model.Activity, metadata *repository.CompletionMetadata, now time.Time) bool {
 	switch activity.Frequency {
 	case model.FrequencyDaily:
 		return true

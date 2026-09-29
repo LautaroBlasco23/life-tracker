@@ -5,11 +5,12 @@ import (
 	"life-tracker-backend/internal/domain/routine/service"
 
 	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/mongo"
 	"gorm.io/gorm"
 )
 
-func RegisterRoutineRoutes(router *gin.RouterGroup, db *gorm.DB) {
-	routineService := service.NewRoutineService(db)
+func RegisterRoutineRoutes(router *gin.RouterGroup, db *gorm.DB, mongoDB *mongo.Database) {
+	routineService := service.NewRoutineService(db, mongoDB)
 	routineController := controller.NewRoutineController(routineService)
 
 	routineGroup := router.Group("/routines")

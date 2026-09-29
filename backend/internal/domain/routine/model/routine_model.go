@@ -41,13 +41,13 @@ func (p PrivacyStatus) Value() (driver.Value, error) {
 }
 
 type Routine struct {
-	CreatedAt     time.Time      `json:"createdAt"`
-	UpdatedAt     time.Time      `json:"updatedAt"`
-	DeletedAt     gorm.DeletedAt `json:"-" gorm:"index"`
-	Title         string         `json:"title" gorm:"not null;size:255"`
-	Description   string         `json:"description" gorm:"type:text"`
-	PrivacyStatus PrivacyStatus  `json:"privacyStatus" gorm:"not null;default:'private';size:20"`
-	Status        RoutineStatus  `json:"status" gorm:"not null;default:'active';size:20"`
+	CreatedAt     time.Time             `json:"createdAt"`
+	UpdatedAt     time.Time             `json:"updatedAt"`
+	DeletedAt     gorm.DeletedAt        `json:"-" gorm:"index"`
+	Title         string                `json:"title" gorm:"not null;size:255"`
+	Description   string                `json:"description" gorm:"type:text"`
+	PrivacyStatus PrivacyStatus         `json:"privacyStatus" gorm:"not null;default:'private';size:20"`
+	Status        RoutineStatus         `json:"status" gorm:"not null;default:'active';size:20"`
 	DayTime       activityModel.DayTime `json:"dayTime" gorm:"not null;default:'notSpecified';size:20"`
 	DayFrequency  string                `json:"dayFrequency,omitempty" gorm:"type:text"`
 	ID            uint                  `json:"id" gorm:"primaryKey"`
