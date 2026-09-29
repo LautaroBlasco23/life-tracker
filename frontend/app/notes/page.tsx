@@ -363,7 +363,7 @@ export default function NotesPage() {
 
             <main
               className={cn(
-                'flex-1 flex flex-col',
+                'flex-1 flex flex-col min-h-0',
                 selectedNote ? 'flex' : 'hidden md:flex'
               )}
             >
@@ -395,7 +395,7 @@ export default function NotesPage() {
                       isSaving={isSaving}
                     />
                   </div>
-                  <div className="flex-1 p-4">
+                  <div className="flex-1 min-h-0 p-4">
                     {isEditing ? (
                       <Textarea
                         value={editContent}
@@ -404,7 +404,7 @@ export default function NotesPage() {
                         className="w-full h-full resize-none border-none shadow-none focus-visible:ring-0 text-base leading-relaxed"
                       />
                     ) : (
-                      <MarkdownView content={editContent} className="h-full" />
+                      <MarkdownView content={editContent} className="h-full overflow-y-auto" />
                     )}
                   </div>
                   <div className="px-4 py-2 border-t border-border text-xs text-muted-foreground">
