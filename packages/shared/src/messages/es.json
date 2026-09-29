@@ -566,7 +566,16 @@
     "noActivitiesToPick": "Todavía no tenés actividades. Creá una para agregarla a la rutina.",
     "orderHint": "Orden de la rutina (usá las flechas para reordenar)",
     "noDescription": "Sin descripción",
-    "noActivitiesInRoutine": "Esta rutina todavía no tiene actividades."
+    "noActivitiesInRoutine": "Esta rutina todavía no tiene actividades.",
+    "completedToday": "Completada hoy",
+    "notScheduledToday": "No programada para hoy",
+    "activityCompletedToday": "Completada",
+    "noActivitiesSelectedYet": "Todavía no hay actividades en esta rutina. Creá una nueva o usá una existente.",
+    "useExistingActivities": "Usar actividades existentes",
+    "selectExistingTitle": "Seleccionar actividades",
+    "selectExistingDescription": "Elegí entre las actividades que ya creaste para agregarlas a la rutina.",
+    "selectExistingConfirm": "Agregar seleccionadas",
+    "noExistingToSelect": "Todavía no tenés actividades creadas."
   },
   "social": {
     "title": "Social",
