@@ -1,0 +1,2 @@
+ALTER TABLE routines
+    DROP COLUMN IF EXISTS status;

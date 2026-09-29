@@ -1,11 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { AuthGuard } from '@/components/auth-guard';
-import { Navigation } from '@/components/navigation';
+import { AuthGuard } from '@/components/auth-guard';import { Navigation } from '@/components/navigation';
 import { activityService } from '@shared/services/activity-service';
 import type { Activity, DayTime } from '@shared/types/activity';
 import type { StreakInfo } from '@shared/types/activity';
@@ -29,7 +27,8 @@ import { CategoryHeader } from '@/components/ui/category/categoryHeader';
 import { EntityCard } from '@/components/ui/card/entityCard';
 import { CreateActivityModal } from './modal/create-activity-modal';
 import { EditActivityModal } from './modal/edit-activity-modal';
-import { RoutineDetailModal } from '@/app/routines/modal/routine-detail-modal';
+import { RoutinesModal } from './modal/routines-modal';
+
 import { FilterSidebar } from '@/components/ui/filterModal/filterSidebar';
 import { useTranslations } from '@shared/contexts/language-context';
 
@@ -132,7 +131,8 @@ export default function ActivitiesPage() {
   const [showEditModal, setShowEditModal] = useState(false);
   const [showFilterSidebar, setShowFilterSidebar] = useState(false);
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
-  const [detailRoutineId, setDetailRoutineId] = useState<number | null>(null);
+  const [showRoutinesModal, setShowRoutinesModal] = useState(false);
+  const [initialRoutineId, setInitialRoutineId] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('today');
   const [activeFilter, setActiveFilter] = useState<ActivityFilter>({});
   const [processingIds, setProcessingIds] = useState<Set<number>>(new Set());
@@ -406,7 +406,10 @@ export default function ActivitiesPage() {
       badges.push({
         label: routine.title,
         variant: 'secondary',
-        onClick: () => setDetailRoutineId(routine.id),
+        onClick: () => {
+          setInitialRoutineId(routine.id);
+          setShowRoutinesModal(true);
+        },
       });
     }
     return badges;
@@ -443,15 +446,16 @@ export default function ActivitiesPage() {
             </div>
             <div className="flex items-center gap-2">
               <Button
-                asChild
                 variant="outline"
                 size="sm"
+                onClick={() => {
+                  setInitialRoutineId(null);
+                  setShowRoutinesModal(true);
+                }}
                 className="flex items-center gap-2"
               >
-                <Link href="/routines">
-                  <Repeat className="h-4 w-4" />
-                  {tRoutines('title')}
-                </Link>
+                <Repeat className="h-4 w-4" />
+                {tRoutines('title')}
               </Button>
               <Button
                 variant="outline"
@@ -490,14 +494,15 @@ export default function ActivitiesPage() {
             </div>
             <div className="flex items-center gap-2">
               <Button
-                asChild
                 variant="outline"
+                onClick={() => {
+                  setInitialRoutineId(null);
+                  setShowRoutinesModal(true);
+                }}
                 className="flex items-center gap-2"
               >
-                <Link href="/routines">
-                  <Repeat className="h-4 w-4" />
-                  {tRoutines('title')}
-                </Link>
+                <Repeat className="h-4 w-4" />
+                {tRoutines('title')}
               </Button>
               <Button
                 variant="outline"
@@ -745,12 +750,10 @@ export default function ActivitiesPage() {
               },
             ]}
           />
-          <RoutineDetailModal
-            open={detailRoutineId !== null}
-            onOpenChange={(open) => {
-              if (!open) setDetailRoutineId(null);
-            }}
-            routineId={detailRoutineId}
+          <RoutinesModal
+            open={showRoutinesModal}
+            onOpenChange={setShowRoutinesModal}
+            initialRoutineId={initialRoutineId}
           />
         </div>
       </div>

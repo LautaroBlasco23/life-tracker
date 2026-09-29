@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	activityModel "life-tracker-backend/internal/domain/activity/model"
+
 	"life-tracker-backend/internal/domain/routine/dto"
 
 	"gorm.io/gorm"
@@ -15,6 +17,14 @@ type PrivacyStatus string
 const (
 	PrivacyPublic  PrivacyStatus = "public"
 	PrivacyPrivate PrivacyStatus = "private"
+)
+
+type RoutineStatus string
+
+const (
+	StatusDraft   RoutineStatus = "draft"
+	StatusActive  RoutineStatus = "active"
+	StatusStopped RoutineStatus = "stopped"
 )
 
 func (p *PrivacyStatus) Scan(value interface{}) error {
@@ -37,8 +47,11 @@ type Routine struct {
 	Title         string         `json:"title" gorm:"not null;size:255"`
 	Description   string         `json:"description" gorm:"type:text"`
 	PrivacyStatus PrivacyStatus  `json:"privacyStatus" gorm:"not null;default:'private';size:20"`
-	ID            uint           `json:"id" gorm:"primaryKey"`
-	UserID        uint           `json:"userId" gorm:"not null;index"`
+	Status        RoutineStatus  `json:"status" gorm:"not null;default:'active';size:20"`
+	DayTime       activityModel.DayTime `json:"dayTime" gorm:"not null;default:'notSpecified';size:20"`
+	DayFrequency  string                `json:"dayFrequency,omitempty" gorm:"type:text"`
+	ID            uint                  `json:"id" gorm:"primaryKey"`
+	UserID        uint                  `json:"userId" gorm:"not null;index"`
 }
 
 type RoutineActivity struct {
@@ -56,6 +69,9 @@ func (r *Routine) ToResponse(activities []dto.RoutineActivityItem) *dto.RoutineR
 		Title:         r.Title,
 		Description:   r.Description,
 		PrivacyStatus: string(r.PrivacyStatus),
+		Status:        string(r.Status),
+		DayTime:       string(r.DayTime),
+		DayFrequency:  r.DayFrequency,
 		Activities:    activities,
 		CreatedAt:     r.CreatedAt,
 		UpdatedAt:     r.UpdatedAt,

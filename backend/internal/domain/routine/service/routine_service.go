@@ -1,7 +1,9 @@
 package service
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 
 	activityModel "life-tracker-backend/internal/domain/activity/model"
 	"life-tracker-backend/internal/domain/routine/dto"
@@ -78,8 +80,48 @@ func (s *RoutineService) fetchActivitiesForResponse(routineID uint) []dto.Routin
 	return result
 }
 
+func (s *RoutineService) validateDayFrequency(dayFrequency string) error {
+	if dayFrequency == "" {
+		return nil
+	}
+	var days []string
+	if err := json.Unmarshal([]byte(dayFrequency), &days); err != nil {
+		return errors.New("invalid day frequency format")
+	}
+
+	validDays := map[string]bool{
+		"monday": true, "tuesday": true, "wednesday": true, "thursday": true,
+		"friday": true, "saturday": true, "sunday": true,
+	}
+
+	for _, day := range days {
+		if !validDays[day] {
+			return fmt.Errorf("invalid day: %s", day)
+		}
+	}
+
+	return nil
+}
+
+func normalizeDayTime(dayTime string) activityModel.DayTime {
+	if dayTime == "" {
+		return activityModel.DayTimeNotSpecified
+	}
+	return activityModel.DayTime(dayTime)
+}
+
+func normalizeStatus(status string) model.RoutineStatus {
+	if status == "" {
+		return model.StatusActive
+	}
+	return model.RoutineStatus(status)
+}
+
 func (s *RoutineService) CreateRoutine(userID uint, req *dto.CreateRoutineRequest) (*dto.RoutineResponse, error) {
 	if err := s.validateActivitiesOwnership(userID, req.ActivityIDs); err != nil {
+		return nil, err
+	}
+	if err := s.validateDayFrequency(req.DayFrequency); err != nil {
 		return nil, err
 	}
 
@@ -88,6 +130,9 @@ func (s *RoutineService) CreateRoutine(userID uint, req *dto.CreateRoutineReques
 		Title:         req.Title,
 		Description:   req.Description,
 		PrivacyStatus: model.PrivacyStatus(req.PrivacyStatus),
+		DayTime:       normalizeDayTime(req.DayTime),
+		DayFrequency:  req.DayFrequency,
+		Status:        normalizeStatus(req.Status),
 	}
 	if err := s.repo.Create(&routine); err != nil {
 		return nil, errors.New("failed to create routine")
@@ -148,6 +193,18 @@ func (s *RoutineService) UpdateRoutine(userID, routineID uint, req *dto.UpdateRo
 	}
 	if req.PrivacyStatus != nil {
 		updates["privacy_status"] = *req.PrivacyStatus
+	}
+	if req.Status != nil {
+		updates["status"] = normalizeStatus(*req.Status)
+	}
+	if req.DayTime != nil {
+		updates["day_time"] = normalizeDayTime(*req.DayTime)
+	}
+	if req.DayFrequency != nil {
+		if err := s.validateDayFrequency(*req.DayFrequency); err != nil {
+			return nil, err
+		}
+		updates["day_frequency"] = *req.DayFrequency
 	}
 	if len(updates) > 0 {
 		if updateErr := s.repo.Update(routine, updates); updateErr != nil {

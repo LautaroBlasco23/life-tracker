@@ -22,7 +22,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { routineService } from '@shared/services/routine-service';
-import type { Routine, PrivacyStatus } from '@shared/types';
+import type { Routine, PrivacyStatus, RoutineStatus } from '@shared/types';
 import { RoutineActivityPicker } from './routine-activity-picker';
 import { showToast } from '@/lib/toast';
 import { useTranslations } from '@shared/contexts/language-context';
@@ -41,6 +41,7 @@ export function CreateRoutineModal({
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [privacyStatus, setPrivacyStatus] = useState<PrivacyStatus>('private');
+  const [status, setStatus] = useState<RoutineStatus>('active');
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const t = useTranslations('routines');
@@ -51,6 +52,7 @@ export function CreateRoutineModal({
     setTitle('');
     setDescription('');
     setPrivacyStatus('private');
+    setStatus('active');
     setSelectedIds([]);
   };
 
@@ -73,6 +75,7 @@ export function CreateRoutineModal({
         title,
         description,
         privacyStatus,
+        status,
         activityIds: selectedIds.map((activityId, position) => ({
           activityId,
           position,
@@ -135,6 +138,23 @@ export function CreateRoutineModal({
               className="bg-input border-border resize-none"
               rows={2}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="routine-status">{t('statusLabel')}</Label>
+            <Select
+              value={status}
+              onValueChange={(value: RoutineStatus) => setStatus(value)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="draft">{t('status_draft')}</SelectItem>
+                <SelectItem value="active">{t('status_active')}</SelectItem>
+                <SelectItem value="stopped">{t('status_stopped')}</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           <RoutineActivityPicker

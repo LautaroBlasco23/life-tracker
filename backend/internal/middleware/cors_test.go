@@ -115,6 +115,7 @@ func TestCORSMiddleware_SetsAllHeaders(t *testing.T) {
 	assert.Contains(t, methods, "GET")
 	assert.Contains(t, methods, "POST")
 	assert.Contains(t, methods, "PUT")
+	assert.Contains(t, methods, "PATCH")
 	assert.Contains(t, methods, "DELETE")
 	assert.Contains(t, methods, "OPTIONS")
 }
