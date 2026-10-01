@@ -19,6 +19,7 @@ import {
   Clock,
   Flame,
   Repeat,
+  LayoutTemplate,
 } from 'lucide-react';
 import { showToast } from '@/lib/toast';
 import { Badge } from '@/components/ui/badge';
@@ -26,8 +27,11 @@ import { ActivityFilter } from '@shared/types';
 import { CategoryHeader } from '@/components/ui/category/categoryHeader';
 import { EntityCard } from '@/components/ui/card/entityCard';
 import { CreateActivityModal } from './modal/create-activity-modal';
+import type { CreateActivityInitialValues } from './modal/create-activity-modal';
 import { EditActivityModal } from './modal/edit-activity-modal';
 import { RoutinesModal } from './modal/routines-modal';
+import { TemplatesModal } from './modal/templates-modal';
+import type { ActivityTemplate } from '@shared/lib/activity-templates';
 
 import { FilterSidebar } from '@/components/ui/filterModal/filterSidebar';
 import { useTranslations } from '@shared/contexts/language-context';
@@ -79,6 +83,7 @@ export default function ActivitiesPage() {
   const t = useTranslations('activities');
   const tRoutines = useTranslations('routines');
   const tCommon = useTranslations('common');
+  const tTemplates = useTranslations('activityTemplates');
 
   const CATEGORY_CONFIG = {
     notSpecified: {
@@ -133,6 +138,9 @@ export default function ActivitiesPage() {
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null);
   const [showRoutinesModal, setShowRoutinesModal] = useState(false);
   const [initialRoutineId, setInitialRoutineId] = useState<number | null>(null);
+  const [showTemplatesModal, setShowTemplatesModal] = useState(false);
+  const [createInitialValues, setCreateInitialValues] =
+    useState<CreateActivityInitialValues | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('today');
   const [activeFilter, setActiveFilter] = useState<ActivityFilter>({});
   const [processingIds, setProcessingIds] = useState<Set<number>>(new Set());
@@ -232,6 +240,23 @@ export default function ActivitiesPage() {
   const handleEditActivity = (activity: Activity) => {
     setEditingActivity(activity);
     setShowEditModal(true);
+  };
+
+  const handleCustomizeTemplate = (template: ActivityTemplate) => {
+    setShowTemplatesModal(false);
+    setCreateInitialValues({
+      title: tTemplates(`template_${template.key}`),
+      description: '',
+      completionAmount: template.completionAmount,
+      frequency: template.frequency,
+      dayFrequency:
+        template.frequency === 'weekly'
+          ? (template.dayFrequency ?? [])
+          : undefined,
+      dayTime: template.dayTime,
+      privacyStatus: 'private',
+    });
+    setShowCreateModal(true);
   };
 
   const updateActivity = (updatedActivity: Activity) => {
@@ -475,6 +500,15 @@ export default function ActivitiesPage() {
                 )}
               </Button>
               <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowTemplatesModal(true)}
+                className="flex items-center gap-2"
+              >
+                <LayoutTemplate className="h-4 w-4" />
+                {tTemplates('button')}
+              </Button>
+              <Button
                 size="sm"
                 onClick={() => setShowCreateModal(true)}
                 className="flex items-center gap-2"
@@ -519,6 +553,14 @@ export default function ActivitiesPage() {
                     {filterCount}
                   </Badge>
                 )}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowTemplatesModal(true)}
+                className="flex items-center gap-2"
+              >
+                <LayoutTemplate className="h-4 w-4" />
+                {tTemplates('button')}
               </Button>
               <Button
                 onClick={() => setShowCreateModal(true)}
@@ -712,8 +754,12 @@ export default function ActivitiesPage() {
 
           <CreateActivityModal
             open={showCreateModal}
-            onOpenChange={setShowCreateModal}
+            onOpenChange={(open) => {
+              setShowCreateModal(open);
+              if (!open) setCreateInitialValues(null);
+            }}
             onActivityCreated={handleActivityCreated}
+            initialValues={createInitialValues}
           />
           <EditActivityModal
             open={showEditModal}
@@ -754,6 +800,12 @@ export default function ActivitiesPage() {
             open={showRoutinesModal}
             onOpenChange={setShowRoutinesModal}
             initialRoutineId={initialRoutineId}
+          />
+          <TemplatesModal
+            open={showTemplatesModal}
+            onOpenChange={setShowTemplatesModal}
+            onCreated={loadActivities}
+            onCustomize={handleCustomizeTemplate}
           />
         </div>
       </div>

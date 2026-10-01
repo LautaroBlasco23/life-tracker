@@ -11,6 +11,7 @@ export * from "./services/finance-service";
 export * from "./services/social-service";
 export * from "./types";
 export * from "./lib/config";
+export * from "./lib/activity-templates";
 export * from "./lib/storage";
 export * from "./lib/theme-colors";
 export * from "./utils/translateEnums";

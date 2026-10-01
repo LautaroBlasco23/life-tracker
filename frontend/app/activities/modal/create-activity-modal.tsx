@@ -2,7 +2,7 @@
 
 import type React from 'react';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -33,16 +33,29 @@ import type {
 import { showToast } from '@/lib/toast';
 import { useTranslations } from '@shared/contexts/language-context';
 
+export interface CreateActivityInitialValues {
+  title?: string;
+  description?: string;
+  completionAmount?: number;
+  frequency?: Frequency;
+  dayFrequency?: DayOfWeek[];
+  dayTime?: DayTime;
+  privacyStatus?: PrivacyStatus;
+}
+
 interface CreateActivityModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onActivityCreated: (activity: Activity) => void;
+  /** Prefill the form (e.g. from an activity template). */
+  initialValues?: CreateActivityInitialValues | null;
 }
 
 export function CreateActivityModal({
   open,
   onOpenChange,
   onActivityCreated,
+  initialValues = null,
 }: CreateActivityModalProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -89,6 +102,24 @@ export function CreateActivityModal({
     setSelectedDays([]);
     setPrivacyStatus('private');
   };
+
+  // Seed the form each time the modal opens: from initialValues when provided
+  // (e.g. cloned from a template), otherwise from defaults.
+  useEffect(() => {
+    if (!open) return;
+    if (initialValues) {
+      setTitle(initialValues.title ?? '');
+      setDescription(initialValues.description ?? '');
+      setCompletionAmount(initialValues.completionAmount ?? 1);
+      setFrequency(initialValues.frequency ?? 'daily');
+      setDayTime(initialValues.dayTime ?? 'notSpecified');
+      setSelectedDays(initialValues.dayFrequency ?? []);
+      setPrivacyStatus(initialValues.privacyStatus ?? 'private');
+    } else {
+      resetForm();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initialValues]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
