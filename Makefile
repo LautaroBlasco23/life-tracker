@@ -65,7 +65,7 @@ FEO := cd infra && docker compose -p infra -f docker-compose.frontend.yml -f doc
 	db-up db-down db-remove db-test-up db-test-down db-test-remove \
 	floci-up floci-provision floci-status floci-down floci-deploy \
 	frontend-up frontend-down frontend-build \
-	android-emu android-reverse android-dev \
+	android-emu android-reverse android-dev mobile mobile-logs mobile-stop \
 	monitoring-up monitoring-down dev-migrate up down build deploy-frontend
 
 .DEFAULT_GOAL := help
@@ -142,6 +142,9 @@ components:
 	@printf "    make %-18s %s\n" "android-emu"      "start the Pixel_9 AVD + wait for boot"
 	@printf "    make %-18s %s\n" "android-reverse"  "wire device :8081 -> WSL Metro (after emulator restart)"
 	@printf "    make %-18s %s\n" "android-dev"      "reverse + assembleDebug + install + launch"
+	@printf "    make %-18s %s\n" "mobile"           "one command dev loop: API + Metro + launch (detached)"
+	@printf "    make %-18s %s\n" "mobile-logs"      "tail API + Metro logs"
+	@printf "    make %-18s %s\n" "mobile-stop"      "stop what make mobile started (pidfiles)"
 
 # --- Run modes ---
 
@@ -488,7 +491,7 @@ android-reverse:
 # Full dev loop. Requires the API (:8080, `make dev`) and Metro (:8081,
 # `npx expo start` in apps/mobile) to be running in WSL.
 android-dev: android-reverse
-	@curl -sf http://localhost:8081/status >/dev/null || { echo "✗ Metro not running on :8081 — 'cd apps/mobile && npx expo start' first"; exit 1; }
+	@curl -sf --connect-timeout 1 -m 2 http://localhost:8081/status >/dev/null || { echo "✗ Metro not running on :8081 — 'cd apps/mobile && npx expo start' first"; exit 1; }
 	@echo "==> assembleDebug ($(ANDROID_ABI) only)"
 	cd apps/mobile/android && ./gradlew :app:assembleDebug -PreactNativeArchitectures=$(ANDROID_ABI)
 	@echo "==> installing app-debug.apk"
@@ -496,3 +499,63 @@ android-dev: android-reverse
 	@echo "==> launching $(ANDROID_PKG)"
 	@$(WIN_ADB) shell monkey -p $(ANDROID_PKG) 1 >/dev/null 2>&1
 	@echo "✓ app launched — JS edits hot-reload via Metro; rerun after native/plugin/app.json changes"
+
+# One-command mobile dev loop for an already-running Windows AVD with the
+# debug APK installed (build/install it once with `make android-dev`):
+# wires device :8081 -> Metro, starts the API (:8080) and Metro (:8081)
+# DETACHED (nohup + pidfiles) if not already up, launches the app, exits.
+# Everything runs in its own session, so `make` returns in seconds and
+# Ctrl-C during startup can't wedge the terminal (learned the hard way:
+# interactive background children + make's signal handling deadlock).
+# - `make mobile-logs`  tail API + Metro logs
+# - `make mobile-stop`  stop exactly what `make mobile` started (pidfiles;
+#   an API running from `make dev` is NOT touched)
+mobile: android-reverse
+	@if ! $(WIN_ADB) shell pm list packages $(ANDROID_PKG) 2>/dev/null | grep -q "$(ANDROID_PKG)"; then \
+		echo "✗ $(ANDROID_PKG) not installed — run 'make android-dev' once to build + install the debug APK"; exit 1; \
+	fi
+	@echo "==> mobile dev mode (detached): API :8080 + Metro :8081 + $(ANDROID_PKG)"
+	@if curl -sf --connect-timeout 1 -m 2 http://localhost:8080/health >/dev/null 2>&1; then \
+		echo "✓ API already on :8080"; \
+	else \
+		$(MAKE) --no-print-directory db-up; \
+		until docker exec golang_api_postgres pg_isready -U postgres >/dev/null 2>&1; do sleep 1; done; \
+		nohup setsid sh -c 'cd backend && exec air -c .air.toml' >/tmp/lifetracker-api.log 2>&1 & \
+		echo $$! > /tmp/lifetracker-api.pid; \
+		ok=0; for i in $$(seq 1 60); do curl -sf --connect-timeout 1 -m 2 http://localhost:8080/health >/dev/null 2>&1 && ok=1 && break; sleep 1; done; \
+		[ "$$ok" = 1 ] || { echo "✗ API did not come up — tail /tmp/lifetracker-api.log"; exit 1; }; \
+		echo "✓ API on :8080 (log: /tmp/lifetracker-api.log)"; \
+	fi; \
+	if curl -sf --connect-timeout 1 -m 2 http://localhost:8081/status >/dev/null 2>&1; then \
+		echo "✓ Metro already on :8081"; \
+	else \
+		nohup setsid sh -c 'cd apps/mobile && exec npx expo start' >/tmp/lifetracker-metro.log 2>&1 & \
+		echo $$! > /tmp/lifetracker-metro.pid; \
+		ok=0; for i in $$(seq 1 90); do curl -sf --connect-timeout 1 -m 2 http://localhost:8081/status >/dev/null 2>&1 && ok=1 && break; sleep 1; done; \
+		[ "$$ok" = 1 ] || { echo "✗ Metro did not start — tail /tmp/lifetracker-metro.log"; exit 1; }; \
+		echo "✓ Metro on :8081 (log: /tmp/lifetracker-metro.log)"; \
+	fi; \
+	$(WIN_ADB) shell monkey -p $(ANDROID_PKG) 1 >/dev/null 2>&1; \
+	echo "✓ $(ANDROID_PKG) launched — JS edits hot-reload via Fast Refresh"; \
+	echo "  follow logs: make mobile-logs · stop: make mobile-stop"
+
+# Tail the detached mobile processes' logs (Ctrl-C here is safe — it only
+# ends the tail).
+mobile-logs:
+	@tail -n 30 -f /tmp/lifetracker-api.log /tmp/lifetracker-metro.log
+
+# Stop exactly what `make mobile` started, via its pidfiles. Processes
+# started elsewhere (make dev's air, a manual expo start) have no pidfile
+# and are left alone; kill them by hand if you need the ports.
+mobile-stop:
+	@stopped=0; \
+	for f in /tmp/lifetracker-metro.pid /tmp/lifetracker-api.pid; do \
+		if [ -f "$$f" ]; then \
+			pid=$$(cat "$$f"); \
+			if kill -- -$$pid 2>/dev/null || kill $$pid 2>/dev/null; then \
+				echo "✓ stopped $$(basename $$f .pid) (pid $$pid)"; stopped=1; \
+			fi; \
+			rm -f "$$f"; \
+		fi; \
+	done; \
+	[ "$$stopped" = 1 ] || echo "nothing to stop (no pidfiles found)"
