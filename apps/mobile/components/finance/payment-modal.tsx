@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Alert, KeyboardAvoidingView, Modal, Platform, ScrollView, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Modal, Platform, ScrollView, Text, View } from 'react-native';
 import type { FixedTransaction, PaymentSummary } from '@shared/types/finance';
 import { financeService, useTranslations } from '@shared';
 import { dateInputToISO, formatCurrency, formatInputValue, formatShortDate, parseInputValue, todayInput } from '@shared/utils/format';
 import { Button } from '../ui/button';
+import { DeleteModal } from '../ui/delete-modal';
 import { FormField } from '../ui/form-field';
+import { showToast } from '../ui/toast';
 
 interface PaymentModalProps {
   visible: boolean;
@@ -23,6 +25,7 @@ export function PaymentModal({ visible, onClose, onSaved, transaction }: Payment
   const [payments, setPayments] = useState<PaymentSummary[]>([]);
   const [totalPaid, setTotalPaid] = useState(0);
   const [isLoadingDetails, setIsLoadingDetails] = useState(false);
+  const [deletingPayment, setDeletingPayment] = useState<PaymentSummary | null>(null);
 
   useEffect(() => {
     if (!visible || !transaction) return;
@@ -35,7 +38,7 @@ export function PaymentModal({ visible, onClose, onSaved, transaction }: Payment
         setPayments(details.payments ?? []);
         setTotalPaid(details.totalPaid);
       })
-      .catch(() => Alert.alert(tCommon('error')))
+      .catch(() => showToast({ title: tCommon('error'), variant: 'destructive' }))
       .finally(() => setIsLoadingDetails(false));
   }, [visible, transaction]);
 
@@ -43,7 +46,7 @@ export function PaymentModal({ visible, onClose, onSaved, transaction }: Payment
     if (!transaction) return;
     const amountValue = parseFloat(parseInputValue(amount));
     if (isNaN(amountValue) || amountValue <= 0) {
-      Alert.alert(t('invalidAmount'));
+      showToast({ title: t('invalidAmount'), variant: 'destructive' });
       return;
     }
     setIsSaving(true);
@@ -53,31 +56,51 @@ export function PaymentModal({ visible, onClose, onSaved, transaction }: Payment
         amount: amountValue,
         date: dateInputToISO(date),
       });
+      showToast({
+        title: t('paymentRecorded'),
+        description: t('paymentRecordedDescription', {
+          amount: formatCurrency(amountValue),
+        }),
+      });
       onSaved();
       onClose();
-    } catch {
-      Alert.alert(tCommon('error'));
+    } catch (error) {
+      showToast({
+        title: t('paymentFailed'),
+        description:
+          error instanceof Error ? error.message : 'An error occurred',
+        variant: 'destructive',
+      });
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleDeletePayment = (paymentId: string) => {
-    Alert.alert(tCommon('delete'), undefined, [
-      { text: tCommon('cancel'), style: 'cancel' },
-      {
-        text: tCommon('delete'),
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await financeService.deletePayment(paymentId);
-            setPayments((prev) => prev.filter((p) => p.id !== paymentId));
-          } catch {
-            Alert.alert(t('deleteFailed'));
-          }
-        },
-      },
-    ]);
+  const handleDeletePayment = async () => {
+    if (!deletingPayment) return;
+    const payment = deletingPayment;
+    const paymentsSnapshot = payments;
+    const totalPaidSnapshot = totalPaid;
+    // Optimistic local filter, reverted on failure (kept from mobile).
+    setPayments((prev) => prev.filter((p) => p.id !== payment.id));
+    setTotalPaid((prev) => prev - payment.amount);
+    try {
+      await financeService.deletePayment(payment.id);
+      showToast({
+        title: t('paymentDeleted'),
+        description: t('paymentDeletedDescription'),
+      });
+    } catch (error) {
+      setPayments(paymentsSnapshot);
+      setTotalPaid(totalPaidSnapshot);
+      showToast({
+        title: t('deleteFailed'),
+        description:
+          error instanceof Error ? error.message : 'An error occurred',
+        variant: 'destructive',
+      });
+      throw error instanceof Error ? error : new Error('delete failed');
+    }
   };
 
   return (
@@ -134,7 +157,7 @@ export function PaymentModal({ visible, onClose, onSaved, transaction }: Payment
                         variant="ghost"
                         className="h-8 px-2"
                         textClassName="text-danger dark:text-dark-danger text-xs"
-                        onPress={() => handleDeletePayment(payment.id)}
+                        onPress={() => setDeletingPayment(payment)}
                       >
                         {tCommon('delete')}
                       </Button>
@@ -150,6 +173,26 @@ export function PaymentModal({ visible, onClose, onSaved, transaction }: Payment
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
+
+      <DeleteModal
+        visible={deletingPayment !== null}
+        onClose={() => setDeletingPayment(null)}
+        title={tCommon('delete')}
+        itemName={deletingPayment ? formatCurrency(deletingPayment.amount) : ''}
+        itemDetails={
+          deletingPayment ? (
+            <View>
+              <Text className="text-sm font-medium text-foreground dark:text-dark-foreground">
+                ${formatCurrency(deletingPayment.amount)}
+              </Text>
+              <Text className="text-xs text-muted dark:text-dark-muted">
+                {formatShortDate(new Date(deletingPayment.date))}
+              </Text>
+            </View>
+          ) : null
+        }
+        onConfirm={handleDeletePayment}
+      />
     </Modal>
   );
 }

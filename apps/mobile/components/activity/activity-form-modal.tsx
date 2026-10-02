@@ -13,11 +13,19 @@ const DAYS: DayOfWeek[] = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday
 interface Props {
   visible: boolean;
   activity?: Activity | null; // null/undefined = create
+  /** Values to prefill a create form (e.g. a customized template). */
+  prefill?: {
+    title: string;
+    completionAmount: number;
+    frequency: Frequency;
+    dayTime: DayTime;
+    dayFrequency?: DayOfWeek[];
+  } | null;
   onClose: () => void;
   onSaved: (activity: Activity) => void;
 }
 
-export function ActivityFormModal({ visible, activity, onClose, onSaved }: Props) {
+export function ActivityFormModal({ visible, activity, prefill, onClose, onSaved }: Props) {
   const t = useTranslations('createActivity');
   const tAct = useTranslations('activities');
   const tCommon = useTranslations('common');
@@ -32,13 +40,21 @@ export function ActivityFormModal({ visible, activity, onClose, onSaved }: Props
 
   useEffect(() => {
     if (visible) {
-      setTitle(activity?.title ?? '');
+      setTitle(prefill?.title ?? activity?.title ?? '');
       setDescription(activity?.description ?? '');
-      setCompletionAmount(String(activity?.completionAmount ?? 1));
-      setFrequency(activity?.frequency ?? 'daily');
-      setDayTime(activity?.dayTime ?? 'notSpecified');
-      setSelectedDays(activity?.dayFrequency ? (JSON.parse(activity.dayFrequency) as DayOfWeek[]) : []);
+      setCompletionAmount(String(prefill?.completionAmount ?? activity?.completionAmount ?? 1));
+      setFrequency(prefill?.frequency ?? activity?.frequency ?? 'daily');
+      setDayTime(prefill?.dayTime ?? activity?.dayTime ?? 'notSpecified');
+      const prefilledDays = prefill?.dayFrequency;
+      setSelectedDays(
+        prefilledDays
+          ? prefilledDays
+          : activity?.dayFrequency
+            ? (JSON.parse(activity.dayFrequency) as DayOfWeek[])
+            : []
+      );
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [visible, activity]);
 
   const toggleDay = (day: DayOfWeek) => {

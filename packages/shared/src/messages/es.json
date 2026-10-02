@@ -20,7 +20,9 @@
     "new": "Nuevo",
     "total": "Total",
     "na": "N/A",
-    "unavailable": "No disponible"
+    "unavailable": "No disponible",
+    "show": "Mostrar",
+    "hide": "Ocultar"
   },
   "nav": {
     "activities": "Actividades",
@@ -403,7 +405,32 @@
     "enterValidDuration": "Por favor ingresá una duración válida.",
     "editEntry": "Editar entrada",
     "timeUpdated": "Tiempo actualizado",
-    "timeUpdatedDescription": "Tu entrada de tiempo fue actualizada."
+    "timeUpdatedDescription": "Tu entrada de tiempo fue actualizada.",
+    "discard": "Descartar",
+    "entry": "entrada",
+    "deleteTimeEntry": "Eliminar entrada de tiempo",
+    "deleteEntry": "Eliminar entrada",
+    "deleteFailed": "Error al eliminar",
+    "filterTimeRecords": "Filtrar registros de tiempo",
+    "month": "Mes",
+    "allMonths": "Todos los meses",
+    "year": "Año",
+    "allYears": "Todos los años",
+    "allCategories": "Todas las categorías"
+  },
+  "months": {
+    "january": "Enero",
+    "february": "Febrero",
+    "march": "Marzo",
+    "april": "Abril",
+    "may": "Mayo",
+    "june": "Junio",
+    "july": "Julio",
+    "august": "Agosto",
+    "september": "Septiembre",
+    "october": "Octubre",
+    "november": "Noviembre",
+    "december": "Diciembre"
   },
   "timeCategories": {
     "reading": "Lectura",
@@ -506,7 +533,14 @@
     "language": "Idioma",
     "selectLanguage": "Seleccionar idioma",
     "english": "Inglés",
-    "spanish": "Español"
+    "spanish": "Español",
+    "theme": "Tema",
+    "dark": "Oscuro",
+    "light": "Claro",
+    "apiUrl": "URL de la API",
+    "apiUrlUpdated": "URL de la API actualizada",
+    "apiUrlUpdatedDescription": "Cerrá sesión y volvé a iniciar sesión para usar el nuevo servidor.",
+    "privacy": "Privacidad"
   },
   "dataBackup": {
     "title": "Copia de seguridad",

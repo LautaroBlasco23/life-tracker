@@ -119,7 +119,7 @@ export default function RegisterScreen() {
         email,
         password,
       });
-      router.replace('/(tabs)');
+      router.replace('/activities');
     } catch (err) {
       setError(err instanceof Error ? err.message : t('registrationFailed'));
     } finally {
@@ -135,7 +135,7 @@ export default function RegisterScreen() {
       <ScrollView contentContainerClassName="flex-grow justify-center p-6" keyboardShouldPersistTaps="handled">
         <View className="flex-row justify-end mb-4">
           <Button variant="ghost" onPress={() => setLocale(locale === 'en' ? 'es' : 'en')}>
-            {locale === 'en' ? 'Español' : 'English'}
+            {locale === 'en' ? t('spanish') : t('english')}
           </Button>
         </View>
         <Text className="text-3xl font-semibold text-center text-foreground dark:text-dark-foreground">

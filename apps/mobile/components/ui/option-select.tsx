@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { Check, ChevronDown } from 'lucide-react-native';
+import { useTranslations } from '@shared';
 import { cn } from '../../lib/cn';
 
 export interface Option<T extends string = string> {
@@ -25,6 +26,7 @@ export function OptionSelect<T extends string>({
   placeholder = '—',
 }: OptionSelectProps<T>) {
   const [open, setOpen] = useState(false);
+  const tCommon = useTranslations('common');
   const selected = options.find((o) => o.value === value);
 
   return (
@@ -70,7 +72,7 @@ export function OptionSelect<T extends string>({
               ))}
             </ScrollView>
             <Pressable onPress={() => setOpen(false)} className="h-11 items-center justify-center">
-              <Text className="text-base text-primary dark:text-dark-primary">Cancel</Text>
+              <Text className="text-base text-primary dark:text-dark-primary">{tCommon('cancel')}</Text>
             </Pressable>
           </View>
         </View>

@@ -5,6 +5,7 @@ import { ChevronLeft, Lock } from 'lucide-react-native';
 import type { PublicActivityCard, PublicProfileResponse, PublicRoutineCard } from '@shared/types/user';
 import { authService, socialService, useTranslations } from '@shared';
 import { Button } from '../../components/ui/button';
+import { StreakBadge } from '../../components/ui/streak-badge';
 import { useTheme } from '../../lib/theme-provider';
 
 export default function UserProfileScreen() {
@@ -115,8 +116,8 @@ export default function UserProfileScreen() {
       <View className="flex-row items-center justify-between mt-2">
         <Text className="text-xs text-muted dark:text-dark-muted">
           {activity.frequency} · {activity.dayTime}
-          {activity.streak ? ` · ${activity.streak.current} ${t('streakDays')}` : ''}
         </Text>
+        {activity.streak ? <StreakBadge current={activity.streak.current} size="sm" /> : null}
         {!isSelf ? (
           <Button
             variant={activity.subscribed ? 'outline' : 'default'}
@@ -144,9 +145,9 @@ export default function UserProfileScreen() {
       ) : null}
       <View className="flex-row items-center justify-between mt-2">
         <Text className="text-xs text-muted dark:text-dark-muted">
-          {routine.activities.length} ·{' '}
-          {routine.streak ? `${routine.streak.current} ${t('streakDays')}` : ''}
+          {routine.activities.length}
         </Text>
+        {routine.streak ? <StreakBadge current={routine.streak.current} size="sm" /> : null}
         {!isSelf ? (
           <Button
             variant={routine.subscribed ? 'outline' : 'default'}

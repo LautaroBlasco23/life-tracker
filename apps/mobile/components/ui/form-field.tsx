@@ -1,19 +1,23 @@
 import { useState } from 'react';
 import { Pressable, Text, TextInput, View, type TextInputProps } from 'react-native';
+import { useTranslations } from '@shared';
 import { cn } from '../../lib/cn';
 
 interface FormFieldProps extends TextInputProps {
-  label: string;
+  label?: string;
   error?: string;
 }
 
 export function FormField({ label, error, secureTextEntry, className, ...props }: FormFieldProps) {
   const [showPassword, setShowPassword] = useState(false);
   const isPassword = secureTextEntry;
+  const tCommon = useTranslations('common');
 
   return (
     <View className="space-y-1.5">
-      <Text className="text-sm text-foreground dark:text-dark-foreground">{label}</Text>
+      {label ? (
+        <Text className="text-sm text-foreground dark:text-dark-foreground">{label}</Text>
+      ) : null}
       <View className="flex-row items-center">
         <TextInput
           className={cn(
@@ -28,7 +32,7 @@ export function FormField({ label, error, secureTextEntry, className, ...props }
         {isPassword ? (
           <Pressable onPress={() => setShowPassword((s) => !s)} className="ml-2 p-2">
             <Text className="text-primary dark:text-dark-primary text-sm">
-              {showPassword ? 'Hide' : 'Show'}
+              {showPassword ? tCommon('hide') : tCommon('show')}
             </Text>
           </Pressable>
         ) : null}

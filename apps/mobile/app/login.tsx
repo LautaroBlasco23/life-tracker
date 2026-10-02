@@ -18,7 +18,7 @@ export default function LoginScreen() {
     setIsLoading(true);
     try {
       await authService.login({ identifier, password });
-      router.replace('/(tabs)');
+      router.replace('/activities');
     } catch (err) {
       setError(err instanceof Error ? err.message : t('loginFailed'));
     } finally {
@@ -34,7 +34,7 @@ export default function LoginScreen() {
       <ScrollView contentContainerClassName="flex-grow justify-center p-6">
         <View className="flex-row justify-end mb-4">
           <Button variant="ghost" onPress={() => setLocale(locale === 'en' ? 'es' : 'en')}>
-            {locale === 'en' ? 'Español' : 'English'}
+            {locale === 'en' ? t('spanish') : t('english')}
           </Button>
         </View>
         <Text className="text-3xl font-semibold text-center text-foreground dark:text-dark-foreground">

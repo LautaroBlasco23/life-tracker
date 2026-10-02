@@ -20,7 +20,9 @@
     "new": "New",
     "total": "Total",
     "na": "N/A",
-    "unavailable": "Unavailable"
+    "unavailable": "Unavailable",
+    "show": "Show",
+    "hide": "Hide"
   },
   "nav": {
     "activities": "Activities",
@@ -403,7 +405,32 @@
     "enterValidDuration": "Please enter a valid duration.",
     "editEntry": "Edit Time Entry",
     "timeUpdated": "Time updated",
-    "timeUpdatedDescription": "Your time entry has been updated."
+    "timeUpdatedDescription": "Your time entry has been updated.",
+    "discard": "Discard",
+    "entry": "entry",
+    "deleteTimeEntry": "Delete Time Entry",
+    "deleteEntry": "Delete entry",
+    "deleteFailed": "Delete failed",
+    "filterTimeRecords": "Filter Time Records",
+    "month": "Month",
+    "allMonths": "All months",
+    "year": "Year",
+    "allYears": "All years",
+    "allCategories": "All categories"
+  },
+  "months": {
+    "january": "January",
+    "february": "February",
+    "march": "March",
+    "april": "April",
+    "may": "May",
+    "june": "June",
+    "july": "July",
+    "august": "August",
+    "september": "September",
+    "october": "October",
+    "november": "November",
+    "december": "December"
   },
   "timeCategories": {
     "reading": "Reading",
@@ -506,7 +533,14 @@
     "language": "Language",
     "selectLanguage": "Select language",
     "english": "English",
-    "spanish": "Spanish"
+    "spanish": "Spanish",
+    "theme": "Theme",
+    "dark": "Dark",
+    "light": "Light",
+    "apiUrl": "API URL",
+    "apiUrlUpdated": "API URL updated",
+    "apiUrlUpdatedDescription": "Sign out and sign back in to use the new server.",
+    "privacy": "Privacy"
   },
   "dataBackup": {
     "title": "Data Backup",

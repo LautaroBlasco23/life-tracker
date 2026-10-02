@@ -1,5 +1,5 @@
-import { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Pressable, Text, View } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
 import { Search, UserPlus, UserCheck } from 'lucide-react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import type { FollowerItem, PublicUserCard } from '@shared/types/user';
@@ -7,14 +7,14 @@ import { socialService, useTranslations } from '@shared';
 import { SegmentedTabs } from '../../components/ui/segmented-tabs';
 import { FormField } from '../../components/ui/form-field';
 import { Button } from '../../components/ui/button';
+import { showToast } from '../../components/ui/toast';
 import { useTheme } from '../../lib/theme-provider';
-import { cn } from '../../lib/cn';
+import { Navigation } from '../../components/navigation';
 
 type SocialView = 'search' | 'requests';
 
 export default function SocialScreen() {
   const t = useTranslations('social');
-  const tCommon = useTranslations('common');
   const router = useRouter();
   const { theme } = useTheme();
 
@@ -33,7 +33,7 @@ export default function SocialScreen() {
     try {
       setPendingRequests(await socialService.getPendingFollowRequests());
     } catch {
-      Alert.alert(t('searchFailed'));
+      showToast({ title: t('searchFailed'), variant: 'destructive' });
     } finally {
       setIsLoadingRequests(false);
     }
@@ -45,23 +45,39 @@ export default function SocialScreen() {
     }, [loadPendingRequests])
   );
 
-  const handleSearch = async (query: string) => {
-    setSearchQuery(query);
-    if (query.trim().length < 2) {
-      setResults([]);
-      setHasSearched(false);
-      return;
-    }
-    setIsSearching(true);
-    setHasSearched(true);
-    try {
-      setResults(await socialService.searchUsers(query.trim(), 20));
-    } catch {
-      Alert.alert(t('searchFailed'));
-    } finally {
-      setIsSearching(false);
-    }
-  };
+  const handleSearch = useCallback(
+    async (query: string) => {
+      if (!query.trim()) {
+        setResults([]);
+        setHasSearched(false);
+        return;
+      }
+
+      setIsSearching(true);
+      setHasSearched(true);
+      try {
+        setResults(await socialService.searchUsers(query.trim(), 20));
+      } catch (error) {
+        showToast({
+          title: t('searchFailed'),
+          description:
+            error instanceof Error ? error.message : 'An error occurred',
+          variant: 'destructive',
+        });
+      } finally {
+        setIsSearching(false);
+      }
+    },
+    [t]
+  );
+
+  // Same 300 ms debounce as web's social page.
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      handleSearch(searchQuery);
+    }, 300);
+    return () => clearTimeout(timeoutId);
+  }, [searchQuery, handleSearch]);
 
   const setProcessing = (id: number, processing: boolean) => {
     setProcessingIds((prev) =>
@@ -78,9 +94,20 @@ export default function SocialScreen() {
           u.id === user.id ? { ...u, isFollowing: status === 'accepted', followStatus: status } : u
         )
       );
-      Alert.alert(status === 'pending' ? t('requestSent') : t('nowFollowing', { name: user.firstName }));
-    } catch {
-      Alert.alert(t('followFailed'));
+      showToast({
+        title: status === 'accepted' ? t('followed') : t('requestSent'),
+        description:
+          status === 'accepted'
+            ? t('nowFollowing', { name: user.firstName })
+            : t('followRequestPending', { name: user.firstName }),
+      });
+    } catch (error) {
+      showToast({
+        title: t('followFailed'),
+        description:
+          error instanceof Error ? error.message : 'An error occurred',
+        variant: 'destructive',
+      });
     } finally {
       setProcessing(user.id, false);
     }
@@ -95,9 +122,17 @@ export default function SocialScreen() {
           u.id === user.id ? { ...u, isFollowing: false, followStatus: 'none' } : u
         )
       );
-      Alert.alert(t('noLongerFollowing'));
-    } catch {
-      Alert.alert(t('unfollowFailed'));
+      showToast({
+        title: t('unfollowed'),
+        description: t('noLongerFollowing', { name: user.firstName }),
+      });
+    } catch (error) {
+      showToast({
+        title: t('unfollowFailed'),
+        description:
+          error instanceof Error ? error.message : 'An error occurred',
+        variant: 'destructive',
+      });
     } finally {
       setProcessing(user.id, false);
     }
@@ -108,8 +143,17 @@ export default function SocialScreen() {
     try {
       await socialService.acceptFollowRequest(follower.userId);
       setPendingRequests((prev) => prev.filter((r) => r.userId !== follower.userId));
-    } catch {
-      Alert.alert(t('acceptFailed'));
+      showToast({
+        title: t('requestAccepted'),
+        description: t('followRequestAccepted'),
+      });
+    } catch (error) {
+      showToast({
+        title: t('acceptFailed'),
+        description:
+          error instanceof Error ? error.message : 'An error occurred',
+        variant: 'destructive',
+      });
     } finally {
       setProcessing(follower.userId, false);
     }
@@ -120,8 +164,17 @@ export default function SocialScreen() {
     try {
       await socialService.rejectFollowRequest(follower.userId);
       setPendingRequests((prev) => prev.filter((r) => r.userId !== follower.userId));
-    } catch {
-      Alert.alert(t('rejectFailed'));
+      showToast({
+        title: t('requestRejected'),
+        description: t('followRequestRejected'),
+      });
+    } catch (error) {
+      showToast({
+        title: t('rejectFailed'),
+        description:
+          error instanceof Error ? error.message : 'An error occurred',
+        variant: 'destructive',
+      });
     } finally {
       setProcessing(follower.userId, false);
     }
@@ -155,7 +208,8 @@ export default function SocialScreen() {
   };
 
   return (
-    <View className="flex-1 bg-background dark:bg-dark-background">
+    <View className="flex-1 relative bg-background dark:bg-dark-background">
+      <Navigation />
       <FlatList<PublicUserCard | FollowerItem>
         data={view === 'search' ? results : pendingRequests}
         keyExtractor={(item) => String('userId' in item ? item.userId : item.id)}
@@ -176,10 +230,9 @@ export default function SocialScreen() {
             {view === 'search' ? (
               <View className="mb-4">
                 <FormField
-                  label={t('search')}
                   placeholder={t('searchPlaceholder')}
                   value={searchQuery}
-                  onChangeText={handleSearch}
+                  onChangeText={setSearchQuery}
                   autoCorrect={false}
                 />
               </View>
@@ -194,9 +247,16 @@ export default function SocialScreen() {
                   className="flex-1 mr-3"
                   onPress={() => router.push(`/user/${item.username}`)}
                 >
-                  <Text className="text-base font-medium text-foreground dark:text-dark-foreground">
-                    {item.firstName} {item.lastName}
-                  </Text>
+                  <View className="flex-row items-center gap-2">
+                    <Text className="text-base font-medium text-foreground dark:text-dark-foreground" numberOfLines={1}>
+                      {item.firstName} {item.lastName}
+                    </Text>
+                    {item.profilePrivacyStatus === 'private' ? (
+                      <View className="rounded-md bg-primary/10 dark:bg-dark-primary/10 px-2 py-0.5">
+                        <Text className="text-xs text-muted dark:text-dark-muted">{t('private')}</Text>
+                      </View>
+                    ) : null}
+                  </View>
                   {item.username ? (
                     <Text className="text-sm text-muted dark:text-dark-muted mt-0.5">@{item.username}</Text>
                   ) : null}
@@ -210,6 +270,7 @@ export default function SocialScreen() {
                 {item.firstName} {item.lastName}
               </Text>
               <Text className="text-sm text-muted dark:text-dark-muted mt-0.5 mb-3">
+                {item.username ? `@${item.username} · ` : ''}
                 {t('wantsToFollow')}
               </Text>
               <View className="flex-row gap-3">

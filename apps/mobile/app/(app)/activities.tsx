@@ -1,27 +1,30 @@
-import { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Modal, Pressable, Text, View, type AlertButton } from 'react-native';
-import { Plus, Flame, SlidersHorizontal, X } from 'lucide-react-native';
+import { useCallback, useState } from 'react';
+import { ActivityIndicator, Alert, FlatList, Pressable, Text, View } from 'react-native';
+import { Plus, Repeat, SlidersHorizontal, X, LayoutTemplate } from 'lucide-react-native';
 import { useFocusEffect } from 'expo-router';
 import { activityService, useTranslations } from '@shared';
-import type { Activity, DayTime, StreakInfo } from '@shared/types/activity';
+import type { Activity, DayTime, Frequency, DayOfWeek, StreakInfo } from '@shared/types/activity';
+import { Navigation } from '../../components/navigation';
 import { Button } from '../../components/ui/button';
 import { ActivityCard } from '../../components/ui/activity-card';
 import { ActivityFormModal } from '../../components/activity/activity-form-modal';
-import { OptionSelect } from '../../components/ui/option-select';
-import { FormField } from '../../components/ui/form-field';
+import { RoutinesModal } from '../../components/activity/routines-modal';
+import { TemplatesModal } from '../../components/activity/templates-modal';
+import type { ActivityTemplate } from '@shared/lib/activity-templates';
+import { StreakBadge } from '../../components/ui/streak-badge';
+import { DeleteModal } from '../../components/ui/delete-modal';
+import { FilterModal, getActiveFilterCount } from '../../components/ui/filter-modal';
+import type { FilterField, FilterState } from '../../components/ui/filter-modal';
+import { showToast } from '../../components/ui/toast';
 import { useTheme } from '../../lib/theme-provider';
 
 const CATEGORY_ORDER: DayTime[] = ['notSpecified', 'morning', 'afternoon', 'evening'];
 
-interface ActivityFilterState extends Record<string, string | undefined> {
-  frequency?: string;
-  dayTime?: string;
-  scheduledFor?: string;
-}
-
 export default function ActivitiesScreen() {
   const t = useTranslations('activities');
   const tCommon = useTranslations('common');
+  const tRoutines = useTranslations('routines');
+  const tTemplates = useTranslations('activityTemplates');
   const [activities, setActivities] = useState<Activity[]>([]);
   const [globalStreak, setGlobalStreak] = useState<StreakInfo | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -29,9 +32,52 @@ export default function ActivitiesScreen() {
   const [processingIds, setProcessingIds] = useState<Set<number>>(new Set());
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Activity | null>(null);
-  const [filter, setFilter] = useState<ActivityFilterState>({});
+  const [deleting, setDeleting] = useState<Activity | null>(null);
+  const [showRoutines, setShowRoutines] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [prefill, setPrefill] = useState<{
+    title: string;
+    completionAmount: number;
+    frequency: Frequency;
+    dayTime: DayTime;
+    dayFrequency?: DayOfWeek[];
+  } | null>(null);
+  const [filter, setFilter] = useState<FilterState>({});
   const [showFilterModal, setShowFilterModal] = useState(false);
   const { theme } = useTheme();
+  const spinnerColor = theme === 'dark' ? '#61dafb' : '#0583f2';
+
+  const filterFields: FilterField[] = [
+    {
+      id: 'frequency',
+      label: t('frequency'),
+      type: 'select',
+      options: [
+        { value: 'daily', label: t('daily') },
+        { value: 'weekly', label: t('weekly') },
+        { value: 'monthly', label: t('monthly') },
+        { value: 'oneTime', label: t('oneTime') },
+      ],
+      placeholder: t('allFrequencies'),
+    },
+    {
+      id: 'dayTime',
+      label: t('timeOfDay'),
+      type: 'select',
+      options: [
+        { value: 'notSpecified', label: t('anyMoment') },
+        { value: 'morning', label: t('morning') },
+        { value: 'afternoon', label: t('afternoon') },
+        { value: 'evening', label: t('evening') },
+      ],
+      placeholder: t('allTimes'),
+    },
+    {
+      id: 'scheduledFor',
+      label: t('scheduledFor'),
+      type: 'date',
+    },
+  ];
 
   const loadActivities = useCallback(async () => {
     try {
@@ -62,7 +108,7 @@ export default function ActivitiesScreen() {
 
   const handleRecordCompletion = async (activity: Activity) => {
     if (activity.isCompletedToday) {
-      Alert.alert(t('activityComplete'), t('activityAlreadyCompleted'));
+      showToast({ title: t('activityComplete'), description: t('activityAlreadyCompleted') });
       return;
     }
 
@@ -88,7 +134,11 @@ export default function ActivitiesScreen() {
       await activityService.recordActivity(activity.id, {});
     } catch {
       updateActivity(activity);
-      Alert.alert('Error', t('activityAlreadyCompleted'));
+      showToast({
+        title: tCommon('error'),
+        description: t('activityAlreadyCompleted'),
+        variant: 'destructive',
+      });
     } finally {
       setProcessingIds((prev) => {
         const next = new Set(prev);
@@ -128,26 +178,20 @@ export default function ActivitiesScreen() {
     }
   };
 
-  const handleDeleteActivity = (activity: Activity) => {
-    Alert.alert(t('deleteActivity'), activity.title, [
-      { text: tCommon('cancel'), style: 'cancel' },
-      {
-        text: tCommon('delete'),
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await activityService.deleteActivity(activity.id);
-            setActivities((prev) => prev.filter((a) => a.id !== activity.id));
-          } catch {
-            Alert.alert('Error', t('deleteFailed'));
-          }
-        },
-      },
-    ]);
+  const handleDeleteActivity = async () => {
+    if (!deleting) return;
+    try {
+      await activityService.deleteActivity(deleting.id);
+      setActivities((prev) => prev.filter((a) => a.id !== deleting.id));
+      setDeleting(null);
+    } catch {
+      showToast({ title: t('deleteFailed'), variant: 'destructive' });
+      throw new Error('delete failed');
+    }
   };
 
   const handleLongPress = (activity: Activity) => {
-    const options: AlertButton[] = [
+    const options: Array<{ text: string; onPress?: () => void; style?: 'destructive' | 'cancel' }> = [
       {
         text: t('editActivity'),
         onPress: () => {
@@ -159,7 +203,11 @@ export default function ActivitiesScreen() {
     if (activity.todayCompletions > 0) {
       options.push({ text: t('revertLast'), onPress: () => handleRevertCompletion(activity) });
     }
-    options.push({ text: t('deleteActivity'), style: 'destructive', onPress: () => handleDeleteActivity(activity) });
+    options.push({
+      text: t('deleteActivity'),
+      style: 'destructive',
+      onPress: () => setDeleting(activity),
+    });
     options.push({ text: tCommon('cancel'), style: 'cancel' });
 
     Alert.alert(activity.title, undefined, options);
@@ -173,21 +221,38 @@ export default function ActivitiesScreen() {
     setEditing(null);
   };
 
+  // Web parity: customize a template = prefill the create form.
+  const handleCustomizeTemplate = (template: ActivityTemplate) => {
+    setShowTemplates(false);
+    setPrefill({
+      title: tTemplates(`template_${template.key}`),
+      completionAmount: template.completionAmount,
+      frequency: template.frequency,
+      dayTime: template.dayTime,
+      dayFrequency: template.frequency === 'weekly' ? (template.dayFrequency ?? []) : undefined,
+    });
+    setEditing(null);
+    setShowForm(true);
+  };
+
   const grouped = CATEGORY_ORDER.map((cat) => ({
     dayTime: cat,
     items: activities.filter((a) => a.dayTime === cat),
   })).filter((g) => g.items.length > 0);
 
+  const filterCount = getActiveFilterCount(filter);
+
   if (isLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-background dark:bg-dark-background">
-        <ActivityIndicator color={theme === 'dark' ? '#61dafb' : '#0583f2'} />
+        <ActivityIndicator color={spinnerColor} />
       </View>
     );
   }
 
   return (
-    <View className="flex-1 bg-background dark:bg-dark-background">
+    <View className="flex-1 relative bg-background dark:bg-dark-background">
+      <Navigation />
       <FlatList
         data={grouped}
         keyExtractor={(item) => item.dayTime}
@@ -198,19 +263,36 @@ export default function ActivitiesScreen() {
             </Text>
             <Text className="text-sm text-muted dark:text-dark-muted mt-1">{t('description')}</Text>
 
-            <View className="flex-row items-center gap-2 mt-3">
-              <Button variant="outline" className="h-9" onPress={() => setShowFilterModal(true)}>
+            <View className="flex-row items-center gap-2 mt-3 flex-wrap">
+              <Button variant="outline" className="h-9" onPress={() => setShowRoutines(true)}>
                 <View className="flex-row items-center gap-1.5">
-                  <SlidersHorizontal size={14} color={theme === 'dark' ? '#61dafb' : '#0583f2'} />
+                  <Repeat size={14} color={spinnerColor} />
                   <Text className="text-sm text-foreground dark:text-dark-foreground">
-                    {t('filterActivities')}
+                    {tRoutines('title')}
                   </Text>
                 </View>
               </Button>
-              {Object.values(filter).some((v) => v !== undefined) ? (
+              <Button variant="outline" className="h-9" onPress={() => { setPrefill(null); setShowTemplates(true); }}>
+                <View className="flex-row items-center gap-1.5">
+                  <LayoutTemplate size={14} color={spinnerColor} />
+                  <Text className="text-sm text-foreground dark:text-dark-foreground">
+                    {tTemplates('button')}
+                  </Text>
+                </View>
+              </Button>
+              <Button variant="outline" className="h-9" onPress={() => setShowFilterModal(true)}>
+                <View className="flex-row items-center gap-1.5">
+                  <SlidersHorizontal size={14} color={spinnerColor} />
+                  <Text className="text-sm text-foreground dark:text-dark-foreground">
+                    {tCommon('filters')}
+                    {filterCount > 0 ? ` (${filterCount})` : ''}
+                  </Text>
+                </View>
+              </Button>
+              {filterCount > 0 ? (
                 <Button variant="ghost" className="h-9" onPress={() => setFilter({})}>
                   <View className="flex-row items-center gap-1">
-                    <X size={14} color={theme === 'dark' ? '#61dafb' : '#0583f2'} />
+                    <X size={14} color={spinnerColor} />
                     <Text className="text-sm text-primary dark:text-dark-primary">
                       {tCommon('clearFilters')}
                     </Text>
@@ -225,10 +307,10 @@ export default function ActivitiesScreen() {
 
             {globalStreak && globalStreak.current > 0 ? (
               <View className="mt-4 flex-row items-center gap-3 rounded-xl border border-warning/40 dark:border-dark-warning/40 p-4">
-                <Flame size={24} color="#e3b341" fill="#e3b341" />
+                <StreakBadge current={globalStreak.current} />
                 <View>
                   <Text className="text-sm font-medium text-foreground dark:text-dark-foreground">
-                    {t('globalStreakTitle')} — {globalStreak.current}
+                    {t('globalStreakTitle')}
                   </Text>
                   <Text className="text-xs text-muted dark:text-dark-muted mt-0.5">
                     {t('globalStreak', { count: globalStreak.current })}
@@ -286,97 +368,35 @@ export default function ActivitiesScreen() {
       <ActivityFormModal
         visible={showForm}
         activity={editing}
-        onClose={() => { setShowForm(false); setEditing(null); }}
+        prefill={prefill}
+        onClose={() => { setShowForm(false); setEditing(null); setPrefill(null); }}
         onSaved={onSaved}
       />
 
-      <Modal visible={showFilterModal} animationType="fade" transparent onRequestClose={() => setShowFilterModal(false)}>
-        <View className="flex-1 justify-center bg-black/50 p-6">
-          <View className="rounded-2xl bg-background dark:bg-dark-background p-5">
-            <Text className="text-lg font-semibold text-foreground dark:text-dark-foreground mb-4">
-              {t('filterActivities')}
-            </Text>
-            <ActivityFilterForm
-              initial={filter}
-              onApply={(f) => {
-                setFilter(f);
-                setShowFilterModal(false);
-              }}
-              onCancel={() => setShowFilterModal(false)}
-            />
-          </View>
-        </View>
-      </Modal>
-    </View>
-  );
-}
+      <RoutinesModal visible={showRoutines} onClose={() => setShowRoutines(false)} />
 
-function ActivityFilterForm({
-  initial,
-  onApply,
-  onCancel,
-}: {
-  initial: ActivityFilterState;
-  onApply: (filter: ActivityFilterState) => void;
-  onCancel: () => void;
-}) {
-  const t = useTranslations('activities');
-  const tCommon = useTranslations('common');
-  const [frequency, setFrequency] = useState<string | null>(initial.frequency ?? null);
-  const [dayTime, setDayTime] = useState<string | null>(initial.dayTime ?? null);
-  const [scheduledFor, setScheduledFor] = useState(initial.scheduledFor ?? '');
+      <TemplatesModal
+        visible={showTemplates}
+        onClose={() => setShowTemplates(false)}
+        onCreated={loadActivities}
+        onCustomize={handleCustomizeTemplate}
+      />
 
-  return (
-    <View>
-      <OptionSelect
-        label={t('frequency')}
-        value={frequency}
-        options={[
-          { value: 'daily', label: t('daily') },
-          { value: 'weekly', label: t('weekly') },
-          { value: 'monthly', label: t('monthly') },
-          { value: 'oneTime', label: t('oneTime') },
-        ]}
-        onSelect={setFrequency}
-        placeholder={t('allFrequencies')}
+      <FilterModal
+        visible={showFilterModal}
+        fields={filterFields}
+        currentFilter={filter}
+        onApplyFilter={setFilter}
+        onClose={() => setShowFilterModal(false)}
       />
-      <View className="h-4" />
-      <OptionSelect
-        label={t('timeOfDay')}
-        value={dayTime}
-        options={[
-          { value: 'notSpecified', label: t('anyMoment') },
-          { value: 'morning', label: t('morning') },
-          { value: 'afternoon', label: t('afternoon') },
-          { value: 'evening', label: t('evening') },
-        ]}
-        onSelect={setDayTime}
-        placeholder={t('allTimes')}
+
+      <DeleteModal
+        visible={deleting !== null}
+        onClose={() => setDeleting(null)}
+        title={t('deleteActivity')}
+        itemName={deleting?.title ?? ''}
+        onConfirm={handleDeleteActivity}
       />
-      <View className="h-4" />
-      <FormField
-        label={t('scheduledFor')}
-        placeholder="YYYY-MM-DD"
-        value={scheduledFor}
-        onChangeText={setScheduledFor}
-      />
-      <View className="flex-row gap-3 mt-5">
-        <Button variant="outline" className="flex-1" onPress={onCancel}>
-          {tCommon('cancel')}
-        </Button>
-        <Button
-          className="flex-1"
-          onPress={() =>
-            onApply({
-              frequency: frequency ?? undefined,
-              dayTime: dayTime ?? undefined,
-              scheduledFor: scheduledFor.trim() || undefined,
-            })
-          }
-        >
-          {tCommon('save')}
-        </Button>
-      </View>
     </View>
   );
 }
