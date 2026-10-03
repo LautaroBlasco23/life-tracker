@@ -499,7 +499,7 @@ mobile:
 			cd apps/mobile/android && ./gradlew :app:assembleDebug -PreactNativeArchitectures=$(ANDROID_ABI); \
 		fi; \
 		echo "==> installing app-debug.apk"; \
-		$(WIN_ADB) install -r apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk; \
+		$(WIN_ADB) install -r "$$(wslpath -w $$(realpath apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk))"; \
 	else \
 		echo "✓ $(ANDROID_PKG) already installed"; \
 	fi
