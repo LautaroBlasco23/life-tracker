@@ -234,6 +234,13 @@ dev-full:
 stop:
 	$(DC) --profile emulator --profile observability down
 	$(FE) down
+	@# `make dev`'s frontend runs on the host, not in compose — compose down
+	@# can't stop it. Kill any next dev / next-server belonging to this repo
+	@# (next-server retitles its cmdline, so match it via /proc cwd instead).
+	@pkill -f "$(CURDIR)/frontend/node_modules/.bin/[n]ext" 2>/dev/null; \
+	for pid in $$(pgrep -f '[n]ext-server' 2>/dev/null); do \
+		[ "$$(readlink /proc/$$pid/cwd 2>/dev/null)" = "$(CURDIR)/frontend" ] && kill "$$pid" 2>/dev/null; \
+	done; true
 
 # Migrations for the container-mode lanes: same in-network pattern as the floci
 # path (migrate.sh defaults), but against the compose network and the root .env.
