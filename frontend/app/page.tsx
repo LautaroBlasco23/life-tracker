@@ -1,24 +1,24 @@
-"use client"
+'use client';
 
-import { useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { authService } from "@shared/services/auth-service"
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { authService } from '@shared/services/auth-service';
 
 export default function HomePage() {
-  const router = useRouter()
+  const router = useRouter();
 
   useEffect(() => {
     // Redirect to activities if authenticated, otherwise to login
     if (authService.isAuthenticated()) {
-      router.push("/activities")
+      router.push('/activities');
     } else {
-      router.push("/login")
+      router.push('/login');
     }
-  }, [router])
+  }, [router]);
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="text-muted-foreground">Redirecting...</div>
     </div>
-  )
+  );
 }

@@ -5,7 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import type { FinanceSummary, FixedTransaction, MonthlyStats } from '@shared/types';
+import type {
+  FinanceSummary,
+  FixedTransaction,
+  MonthlyStats,
+} from '@shared/types';
 import { financeService } from '@shared/services/finance-service';
 import { formatCurrency } from '@shared/utils/format';
 import { translatePaymentFrequency } from '@shared/utils/translateEnums';

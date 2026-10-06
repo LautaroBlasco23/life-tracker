@@ -115,7 +115,8 @@ export function FixedTransactionCard({
                 <div className="flex items-center gap-1 text-muted-foreground">
                   <Calendar className="h-4 w-4 shrink-0" />
                   <span>
-                    {t('created')} {formatShortDate(new Date(transaction.createdAt))}
+                    {t('created')}{' '}
+                    {formatShortDate(new Date(transaction.createdAt))}
                   </span>
                 </div>
 

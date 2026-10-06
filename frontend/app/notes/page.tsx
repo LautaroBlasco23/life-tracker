@@ -404,7 +404,10 @@ export default function NotesPage() {
                         className="w-full h-full resize-none border-none shadow-none focus-visible:ring-0 text-base leading-relaxed"
                       />
                     ) : (
-                      <MarkdownView content={editContent} className="h-full overflow-y-auto" />
+                      <MarkdownView
+                        content={editContent}
+                        className="h-full overflow-y-auto"
+                      />
                     )}
                   </div>
                   <div className="px-4 py-2 border-t border-border text-xs text-muted-foreground">

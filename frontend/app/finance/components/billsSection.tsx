@@ -45,7 +45,8 @@ export function BillsSection({ categories }: { categories: Category[] }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [editingTransaction, setEditingTransaction] =
+    useState<Transaction | null>(null);
   const [selectedFixedTransaction, setSelectedFixedTransaction] =
     useState<FixedTransaction | null>(null);
 
@@ -121,7 +122,9 @@ export function BillsSection({ categories }: { categories: Category[] }) {
     <section className="mt-10">
       <div className="mb-4 flex items-center justify-between gap-4">
         <div>
-          <h2 className="text-lg font-semibold text-foreground">{t('bills')}</h2>
+          <h2 className="text-lg font-semibold text-foreground">
+            {t('bills')}
+          </h2>
           <p className="text-sm text-muted-foreground">{t('billsSubtitle')}</p>
         </div>
       </div>

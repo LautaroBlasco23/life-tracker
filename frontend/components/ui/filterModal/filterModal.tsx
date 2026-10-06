@@ -116,10 +116,7 @@ export function FilterForm<T extends Record<string, FilterValue>>({
                 <SelectContent>
                   <SelectItem value="all">{field.placeholder}</SelectItem>
                   {field.options?.map((option) => (
-                    <SelectItem
-                      key={option.value}
-                      value={String(option.value)}
-                    >
+                    <SelectItem key={option.value} value={String(option.value)}>
                       {option.label}
                     </SelectItem>
                   ))}
@@ -131,9 +128,7 @@ export function FilterForm<T extends Record<string, FilterValue>>({
                   id={field.id}
                   type="date"
                   value={getInputValue(field.id)}
-                  onChange={(e) =>
-                    handleInputChange(field.id, e.target.value)
-                  }
+                  onChange={(e) => handleInputChange(field.id, e.target.value)}
                 />
                 {field.helperText && (
                   <p className="text-xs text-muted-foreground">

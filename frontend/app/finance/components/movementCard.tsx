@@ -90,8 +90,7 @@ export function MovementCard({
                     : 'text-red-600 dark:text-red-400'
                 }`}
               >
-                {isIncome ? '+' : '-'}$
-                {formatCurrency(movement.amount)}
+                {isIncome ? '+' : '-'}${formatCurrency(movement.amount)}
               </p>
             </div>
             {isEditable && (onEdit || onDelete) && (

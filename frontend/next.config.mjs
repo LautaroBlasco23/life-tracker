@@ -1,9 +1,12 @@
-import { readFileSync } from 'node:fs'
-import { fileURLToPath } from 'node:url'
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 const pkg = JSON.parse(
-  readFileSync(fileURLToPath(new URL('./package.json', import.meta.url)), 'utf8'),
-)
+  readFileSync(
+    fileURLToPath(new URL('./package.json', import.meta.url)),
+    'utf8'
+  )
+);
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
@@ -22,6 +25,6 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
-}
+};
 
-export default nextConfig
+export default nextConfig;
