@@ -5,8 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { AuthGuard } from '@/components/auth-guard';import { Navigation } from '@/components/navigation';
 import { activityService } from '@shared/services/activity-service';
+import { reminderService } from '@shared/services/reminder-service';
 import type { Activity, DayTime } from '@shared/types/activity';
 import type { StreakInfo } from '@shared/types/activity';
+import type { Reminder } from '@shared/types/reminder';
 import { StreakBadge } from '@/components/ui/streak-badge';
 import {
   Plus,
@@ -26,9 +28,9 @@ import { Badge } from '@/components/ui/badge';
 import { ActivityFilter } from '@shared/types';
 import { CategoryHeader } from '@/components/ui/category/categoryHeader';
 import { EntityCard } from '@/components/ui/card/entityCard';
-import { CreateActivityModal } from './modal/create-activity-modal';
-import type { CreateActivityInitialValues } from './modal/create-activity-modal';
-import { EditActivityModal } from './modal/edit-activity-modal';
+import { ActivityFormModal } from './modal/activity-form-modal';
+import type { ActivityFormInitialValues } from './modal/activity-form-modal';
+import { ReminderSection } from './components/reminder-section';
 import { RoutinesModal } from './modal/routines-modal';
 import { TemplatesModal } from './modal/templates-modal';
 import type { ActivityTemplate } from '@shared/lib/activity-templates';
@@ -82,6 +84,7 @@ function formatDayFrequency(dayFrequency?: string): string | null {
 export default function ActivitiesPage() {
   const t = useTranslations('activities');
   const tRoutines = useTranslations('routines');
+  const tReminders = useTranslations('reminders');
   const tCommon = useTranslations('common');
   const tTemplates = useTranslations('activityTemplates');
 
@@ -120,7 +123,6 @@ export default function ActivitiesPage() {
     { value: 'daily', label: t('daily') },
     { value: 'weekly', label: t('weekly') },
     { value: 'monthly', label: t('monthly') },
-    { value: 'oneTime', label: t('oneTime') },
   ];
 
   const DAY_TIME_OPTIONS = [
@@ -140,11 +142,17 @@ export default function ActivitiesPage() {
   const [initialRoutineId, setInitialRoutineId] = useState<number | null>(null);
   const [showTemplatesModal, setShowTemplatesModal] = useState(false);
   const [createInitialValues, setCreateInitialValues] =
-    useState<CreateActivityInitialValues | null>(null);
+    useState<ActivityFormInitialValues | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('today');
   const [activeFilter, setActiveFilter] = useState<ActivityFilter>({});
   const [processingIds, setProcessingIds] = useState<Set<number>>(new Set());
   const [globalStreak, setGlobalStreak] = useState<StreakInfo | null>(null);
+  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
+  const [reminderProcessingIds, setReminderProcessingIds] = useState<Set<number>>(
+    new Set()
+  );
+  const [now, setNow] = useState(() => new Date());
 
   const targetDate =
     viewMode === 'filtered' ? activeFilter.scheduledFor : undefined;
@@ -181,6 +189,132 @@ export default function ActivitiesPage() {
   useEffect(() => {
     loadActivities();
   }, [loadActivities]);
+
+  // Reminders: loaded once on mount; kept in sync via local handlers below.
+  const loadReminders = useCallback(async () => {
+    try {
+      setReminders(await reminderService.getReminders());
+    } catch (error) {
+      console.error('Failed to load reminders:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadReminders();
+  }, [loadReminders]);
+
+  // 30s tick: re-derives reminder statuses (locked → active, etc.) without
+  // reloading. Minute precision is enough for reminders.
+  useEffect(() => {
+    if (reminders.length === 0) return;
+    const id = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(id);
+  }, [reminders.length]);
+
+  const updateReminderState = (updated: Reminder) => {
+    setReminders((prev) =>
+      prev.map((reminder) => (reminder.id === updated.id ? updated : reminder))
+    );
+  };
+
+  const setReminderProcessing = (id: number, processing: boolean) => {
+    setReminderProcessingIds((prev) => {
+      const next = new Set(prev);
+      if (processing) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+
+  const handleReminderCreated = (newReminder: Reminder) => {
+    setReminders((prev) => [newReminder, ...prev]);
+  };
+
+  const handleReminderUpdated = (updated: Reminder) => {
+    updateReminderState(updated);
+    setEditingReminder(null);
+  };
+
+  const handleEditReminder = (reminder: Reminder) => {
+    setEditingActivity(null);
+    setEditingReminder(reminder);
+    setShowEditModal(true);
+  };
+
+  const handleCompleteReminder = async (reminder: Reminder) => {
+    if (reminder.completedAt) return;
+    setReminderProcessing(reminder.id, true);
+    const optimistic = { ...reminder, completedAt: new Date().toISOString() };
+    updateReminderState(optimistic);
+
+    try {
+      const completed = await reminderService.completeReminder(reminder.id);
+      updateReminderState(completed);
+      showToast({
+        title: tReminders('reminderComplete'),
+        description: tReminders('reminderCompletedDescription', {
+          title: reminder.title,
+        }),
+      });
+    } catch (error) {
+      updateReminderState(reminder);
+      showToast({
+        title: tCommon('error'),
+        description:
+          error instanceof Error
+            ? error.message
+            : 'Failed to complete reminder',
+        variant: 'destructive',
+      });
+    } finally {
+      setReminderProcessing(reminder.id, false);
+    }
+  };
+
+  const handleRevertReminder = async (reminder: Reminder) => {
+    setReminderProcessing(reminder.id, true);
+    const optimistic = { ...reminder, completedAt: null };
+    updateReminderState(optimistic);
+
+    try {
+      await reminderService.revertCompletion(reminder.id);
+      showToast({
+        title: tReminders('completionReverted'),
+        description: tReminders('revertDescription', { title: reminder.title }),
+      });
+    } catch (error) {
+      updateReminderState(reminder);
+      showToast({
+        title: tCommon('error'),
+        description:
+          error instanceof Error
+            ? error.message
+            : 'Failed to revert completion',
+        variant: 'destructive',
+      });
+    } finally {
+      setReminderProcessing(reminder.id, false);
+    }
+  };
+
+  const handleDeleteReminder = async (reminderId: number) => {
+    try {
+      await reminderService.deleteReminder(reminderId);
+      setReminders((prev) => prev.filter((r) => r.id !== reminderId));
+      showToast({
+        title: tReminders('reminderDeleted'),
+        description: tReminders('reminderDeletedDescription'),
+      });
+    } catch (error) {
+      showToast({
+        title: tReminders('deleteFailed'),
+        description:
+          error instanceof Error ? error.message : 'An error occurred',
+        variant: 'destructive',
+      });
+      throw error;
+    }
+  };
 
   const handleApplyFilter = (filter: ActivityFilter) => {
     const hasFilters = Object.keys(filter).length > 0;
@@ -752,20 +886,34 @@ export default function ActivitiesPage() {
             </div>
           )}
 
-          <CreateActivityModal
-            open={showCreateModal}
+          <ReminderSection
+            reminders={reminders}
+            now={now}
+            processingIds={reminderProcessingIds}
+            onComplete={handleCompleteReminder}
+            onRevert={handleRevertReminder}
+            onDelete={handleDeleteReminder}
+            onEdit={handleEditReminder}
+          />
+
+          <ActivityFormModal
+            open={showCreateModal || showEditModal}
             onOpenChange={(open) => {
               setShowCreateModal(open);
-              if (!open) setCreateInitialValues(null);
+              setShowEditModal(open);
+              if (!open) {
+                setCreateInitialValues(null);
+                setEditingActivity(null);
+                setEditingReminder(null);
+              }
             }}
-            onActivityCreated={handleActivityCreated}
-            initialValues={createInitialValues}
-          />
-          <EditActivityModal
-            open={showEditModal}
-            onOpenChange={setShowEditModal}
             activity={editingActivity}
+            reminder={editingReminder}
+            initialValues={createInitialValues}
+            onActivityCreated={handleActivityCreated}
             onActivityUpdated={handleActivityUpdated}
+            onReminderCreated={handleReminderCreated}
+            onReminderUpdated={handleReminderUpdated}
           />
           <FilterSidebar
             open={showFilterSidebar}

@@ -38,7 +38,6 @@
     "profile": "Profile",
     "openMenu": "Open menu",
     "closeMenu": "Close menu",
-    "reminders": "Reminders",
     "timeTracker": "Time tracker",
     "financeTransactions": "Finance Transactions",
     "financeDashboard": "Finance Dashboard"
@@ -110,7 +109,9 @@
     "daily": "Daily",
     "weekly": "Weekly",
     "monthly": "Monthly",
-    "oneTime": "One-time",
+    "modeActivity": "Recurring activity",
+    "modeReminder": "Reminder",
+    "modeHint": "Check to schedule a one-time reminder with a deadline instead of a recurring activity.",
     "noActivitiesForToday": "No activities for today",
     "noActivitiesForDayTime": "No {dayTime} activities",
     "noActivitiesMatch": "No activities match your filters",

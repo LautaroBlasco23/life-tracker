@@ -38,7 +38,6 @@
     "profile": "Perfil",
     "openMenu": "Abrir menú",
     "closeMenu": "Cerrar menú",
-    "reminders": "Recordatorios",
     "timeTracker": "Control de tiempo",
     "financeTransactions": "Transacciones",
     "financeDashboard": "Panel financiero"
@@ -110,7 +109,9 @@
     "daily": "Diaria",
     "weekly": "Semanal",
     "monthly": "Mensual",
-    "oneTime": "Una vez",
+    "modeActivity": "Actividad recurrente",
+    "modeReminder": "Recordatorio",
+    "modeHint": "Marca la casilla para programar un recordatorio de un solo uso con fecha límite en lugar de una actividad recurrente.",
     "noActivitiesForToday": "No hay actividades para hoy",
     "noActivitiesForDayTime": "No hay actividades de {dayTime}",
     "noActivitiesMatch": "Ninguna actividad coincide con los filtros",

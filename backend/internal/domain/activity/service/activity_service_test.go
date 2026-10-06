@@ -430,7 +430,6 @@ func TestShouldShowToday(t *testing.T) {
 	now := time.Now().In(testLoc)
 	metadata := &repository.CompletionMetadata{
 		MonthlyCompletions: make(map[uint]time.Time),
-		OneTimeCompletions: make(map[uint]time.Time),
 		TodayCompletions:   make(map[uint]int),
 	}
 
@@ -494,31 +493,19 @@ func TestShouldShowToday(t *testing.T) {
 			want: false,
 		},
 		{
-			name: "one-time never completed",
+			name: "unknown frequency not shown",
 			activity: model.Activity{
 				ID:        6,
-				Frequency: model.FrequencyOneTime,
+				Frequency: model.Frequency("bogus"),
 			},
 			setup: func() {},
-			want:  true,
-		},
-		{
-			name: "one-time completed today",
-			activity: model.Activity{
-				ID:        7,
-				Frequency: model.FrequencyOneTime,
-			},
-			setup: func() {
-				metadata.OneTimeCompletions[7] = time.Now()
-			},
-			want: true,
+			want:  false,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			metadata.MonthlyCompletions = make(map[uint]time.Time)
-			metadata.OneTimeCompletions = make(map[uint]time.Time)
 			tt.setup()
 
 			got := ShouldShowToday(&tt.activity, metadata, now)

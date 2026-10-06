@@ -24,6 +24,13 @@ Developed initially with Vercel V0. Built with Next.js and TypeScript.
   - Flexible frequency settings (Daily, Weekly with specific days)
   - Visual progress indicators
 
+- **Reminders**
+  - One-time events living inside the Activities page (modal, not a route)
+  - Deadline with date picker and optional active window
+  - Status badges and countdowns (Overdue / Open now / Upcoming / Completed)
+  - Unified create/edit form with a "Recurring activity" toggle that switches
+    between activity and reminder field sets
+
 - **Finance Management**
   - Personal finance tracking interface
   - Backend integration in progress

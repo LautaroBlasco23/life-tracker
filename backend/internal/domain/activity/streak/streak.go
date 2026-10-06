@@ -5,7 +5,6 @@
 //   - daily:  always due
 //   - weekly: due only on scheduled weekdays
 //   - monthly: due until the first completion of the calendar month
-//   - oneTime: due until the first completion ever
 //
 // Days where no activity is due are skipped (they neither extend nor break
 // the streak).
@@ -66,10 +65,7 @@ func computeAt(daily map[uint]map[string]int, inputs []Input, loc *time.Location
 
 	// earliestPerMonth: per activity, monthKey "2006-01" -> earliest
 	// day-of-month with count >= CompletionAmount.
-	// earliestEver: per activity, earliest calendar day (UTC-based int) with
-	// count >= CompletionAmount.
 	earliestPerMonth := make(map[uint]map[string]int, len(inputs))
-	earliestEver := make(map[uint]int, len(inputs))
 	weeklyDays := make(map[uint]map[time.Weekday]bool, len(inputs))
 
 	for _, in := range inputs {
@@ -89,10 +85,6 @@ func computeAt(daily map[uint]map[string]int, inputs []Input, loc *time.Location
 			}
 			if cur, ok := earliestPerMonth[in.ActivityID][monthKey]; !ok || dayOfMonth < cur {
 				earliestPerMonth[in.ActivityID][monthKey] = dayOfMonth
-			}
-			days := calendarDays(t)
-			if cur, ok := earliestEver[in.ActivityID]; !ok || days < cur {
-				earliestEver[in.ActivityID] = days
 			}
 		}
 		if in.Frequency == model.FrequencyWeekly {
@@ -115,7 +107,6 @@ func computeAt(daily map[uint]map[string]int, inputs []Input, loc *time.Location
 		dayKey := d.Format("2006-01-02")
 		monthKey := d.Format("2006-01")
 		dayOfMonth := d.Day()
-		dDays := calendarDays(d)
 
 		anyDue := false
 		allDone := true
@@ -129,9 +120,6 @@ func computeAt(daily map[uint]map[string]int, inputs []Input, loc *time.Location
 			case model.FrequencyMonthly:
 				earliest, ok := earliestPerMonth[in.ActivityID][monthKey]
 				due = !ok || earliest > dayOfMonth
-			case model.FrequencyOneTime:
-				earliest, ok := earliestEver[in.ActivityID]
-				due = !ok || earliest > dDays
 			}
 			if !due {
 				continue
@@ -165,10 +153,6 @@ func computeAt(daily map[uint]map[string]int, inputs []Input, loc *time.Location
 		current = run
 	}
 	return dto.StreakInfo{Current: current, Longest: longest}
-}
-
-func calendarDays(t time.Time) int {
-	return int(time.Date(t.Year(), t.Month(), t.Day(), 0, 0, 0, 0, time.UTC).Unix() / 86400)
 }
 
 func weekdayFromName(name string) (time.Weekday, bool) {

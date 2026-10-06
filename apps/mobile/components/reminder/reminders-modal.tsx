@@ -1,26 +1,34 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Alert, FlatList, Pressable, Text, View } from 'react-native';
+import {
+  Alert,
+  FlatList,
+  Modal,
+  Pressable,
+  ScrollView,
+  Text,
+  View,
+} from 'react-native';
 import {
   AlarmClockOff,
   Bell,
-  Check,
   CheckCircle2,
+  Check,
   Clock,
   Plus,
   Undo2,
+  X,
 } from 'lucide-react-native';
-import { useFocusEffect } from 'expo-router';
 import { themeColors } from '@shared/lib/theme-colors';
 import { reminderService } from '@shared/services/reminder-service';
 import { useTranslations } from '@shared';
 import type { Reminder, ReminderStatus } from '@shared/types/reminder';
 import { getReminderStatus } from '@shared/types/reminder';
-import { Navigation } from '../../components/navigation';
-import { CategoryHeader } from '../../components/ui/category-header';
-import { DeleteModal } from '../../components/ui/delete-modal';
-import { ReminderFormModal } from '../../components/reminder/reminder-form-modal';
-import { showToast } from '../../components/ui/toast';
+import { CategoryHeader } from '../ui/category-header';
+import { DeleteModal } from '../ui/delete-modal';
+import { ActivityFormModal } from '../activity/activity-form-modal';
+import { showToast } from '../ui/toast';
 import { useTheme } from '../../lib/theme-provider';
+import { useColors } from '../../lib/use-colors';
 import { cn } from '../../lib/cn';
 
 type Bucket = 'overdue' | 'active' | 'upcoming' | 'completed';
@@ -54,11 +62,18 @@ function formatDateTime(date: Date): string {
   });
 }
 
-export default function RemindersScreen() {
+interface RemindersModalProps {
+  visible: boolean;
+  onClose: () => void;
+}
+
+/** Reminders list, hosted inside the Activities screen (web reminders-modal). */
+export function RemindersModal({ visible, onClose }: RemindersModalProps) {
   const t = useTranslations('reminders');
   const tCommon = useTranslations('common');
   const { theme } = useTheme();
-  const colors = themeColors[theme];
+  const colors = useColors();
+  const palette = themeColors[theme];
 
   const BUCKET_CONFIG: Record<
     Bucket,
@@ -68,25 +83,25 @@ export default function RemindersScreen() {
       label: t('sectionOverdue'),
       description: t('sectionOverdueDescription'),
       icon: AlarmClockOff,
-      color: colors.danger,
+      color: palette.danger,
     },
     active: {
       label: t('sectionActive'),
       description: t('sectionActiveDescription'),
       icon: Bell,
-      color: colors.success,
+      color: palette.success,
     },
     upcoming: {
       label: t('sectionUpcoming'),
       description: t('sectionUpcomingDescription'),
       icon: Clock,
-      color: colors.primary,
+      color: palette.primary,
     },
     completed: {
       label: t('sectionCompleted'),
       description: t('sectionCompletedDescription'),
       icon: CheckCircle2,
-      color: colors.textMuted,
+      color: palette.textMuted,
     },
   };
 
@@ -101,9 +116,10 @@ export default function RemindersScreen() {
   // Shared 30s tick: re-derives every card's status (locked → active, etc.)
   // without reloading. Minute precision is enough for reminders.
   useEffect(() => {
+    if (!visible) return;
     const id = setInterval(() => setNow(new Date()), 30_000);
     return () => clearInterval(id);
-  }, []);
+  }, [visible]);
 
   const loadReminders = useCallback(async () => {
     try {
@@ -115,11 +131,14 @@ export default function RemindersScreen() {
     }
   }, [t]);
 
-  useFocusEffect(
-    useCallback(() => {
+  useEffect(() => {
+    if (visible) {
+      setIsLoading(true);
       loadReminders();
-    }, [loadReminders])
-  );
+      setEditing(null);
+      setDeleting(null);
+    }
+  }, [visible, loadReminders]);
 
   const updateReminderState = (updated: Reminder) => {
     setReminders((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
@@ -172,34 +191,33 @@ export default function RemindersScreen() {
   };
 
   const handleLongPress = (reminder: Reminder, status: ReminderStatus) => {
-    const options: Array<{ text: string; onPress?: () => void; style?: 'destructive' }> = [];
+    const options: Array<{ text: string; onPress?: () => void; style?: 'destructive' | 'cancel' }> = [];
     if (status === 'completed') {
       options.push({ text: t('revertCompletion'), onPress: () => handleRevert(reminder) });
     } else if (status === 'active' || status === 'missed') {
       options.push({ text: t('completeNow'), onPress: () => handleComplete(reminder) });
     }
     options.push({
+      text: tCommon('edit'),
+      onPress: () => {
+        setEditing(reminder);
+        setShowForm(true);
+      },
+    });
+    options.push({
       text: t('deleteReminder'),
       style: 'destructive',
       onPress: () => setDeleting(reminder),
     });
-    options.push({ text: tCommon('cancel') });
+    options.push({ text: tCommon('cancel'), style: 'cancel' });
     Alert.alert(reminder.title, undefined, options);
   };
 
-  const openEdit = (reminder: Reminder) => {
-    setEditing(reminder);
-    setShowForm(true);
-  };
-
-  const handleReminderCreated = (created: Reminder) => {
-    setReminders((prev) => [created, ...prev]);
-    setShowForm(false);
-    setEditing(null);
-  };
-
-  const handleReminderUpdated = (updated: Reminder) => {
-    updateReminderState(updated);
+  const handleReminderSaved = (saved: Reminder) => {
+    setReminders((prev) => {
+      const exists = prev.some((r) => r.id === saved.id);
+      return exists ? prev.map((r) => (r.id === saved.id ? saved : r)) : [saved, ...prev];
+    });
     setShowForm(false);
     setEditing(null);
   };
@@ -228,7 +246,7 @@ export default function RemindersScreen() {
     if (remaining <= 0) return null;
     return (
       <View className="flex-row items-center gap-1.5 mt-1 flex-wrap">
-        <Clock size={14} color={colors.textMuted} />
+        <Clock size={14} color={palette.textMuted} />
         <Text className="text-sm text-muted dark:text-dark-muted">
           {status === 'locked'
             ? t('opensAt', { date: formatDateTime(new Date(target)) })
@@ -325,10 +343,10 @@ export default function RemindersScreen() {
               disabled={processingIds.has(reminder.id)}
               className="p-1"
             >
-              <Undo2 size={18} color={colors.textMuted} />
+              <Undo2 size={18} color={palette.textMuted} />
             </Pressable>
           ) : completable ? (
-            <Check size={20} color={colors.success} />
+            <Check size={20} color={palette.success} />
           ) : null}
         </View>
       </Pressable>
@@ -336,77 +354,89 @@ export default function RemindersScreen() {
   };
 
   return (
-    <View className="flex-1 relative bg-background dark:bg-dark-background">
-      <Navigation />
-      {isLoading ? (
-        <View className="flex-1 items-center justify-center">
-          <Text className="text-muted dark:text-dark-muted">{t('loadingReminders')}</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={sections}
-          keyExtractor={(s) => s.bucket}
-          renderItem={({ item }) => {
-            const config = BUCKET_CONFIG[item.bucket];
-            return (
-              <View className="mt-2">
-                <CategoryHeader
-                  icon={config.icon}
-                  label={config.label}
-                  description={config.description}
-                  accentColor={config.color}
-                  iconColor={config.color}
-                  summaryValue={item.items.length}
-                  itemCount={item.items.length}
-                  itemName={t('remindersTotal')}
-                />
-                {item.items.map(renderCard)}
-              </View>
-            );
-          }}
-          ListHeaderComponent={
-            <View className="p-4 pb-2">
-              <Text className="text-2xl font-semibold text-foreground dark:text-dark-foreground">
+    <>
+      <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+        <View className="flex-1 bg-background dark:bg-dark-background">
+          <View className="flex-row items-center justify-between px-4 pt-3 pb-2 border-b border-border dark:border-dark-border">
+            <View className="flex-row items-center gap-2">
+              <Pressable
+                onPress={onClose}
+                className="h-9 w-9 rounded-lg items-center justify-center"
+              >
+                <X size={20} color={colors.primary} />
+              </Pressable>
+              <Text className="text-lg font-semibold text-foreground dark:text-dark-foreground">
                 {t('title')}
               </Text>
-              <Text className="text-sm text-muted dark:text-dark-muted mt-1">{t('description')}</Text>
             </View>
-          }
-          ListEmptyComponent={
-            <View className="mt-8 items-center px-6">
-              <View className="h-16 w-16 rounded-full bg-surface dark:bg-dark-surface items-center justify-center">
-                <Plus size={32} color={colors.textMuted} />
-              </View>
-              <Text className="text-lg font-medium text-foreground dark:text-dark-foreground mt-4">
-                {t('noRemindersYet')}
+            <Pressable
+              onPress={() => {
+                setEditing(null);
+                setShowForm(true);
+              }}
+              className="flex-row items-center gap-1.5 rounded-lg bg-primary dark:bg-dark-primary px-3 py-2"
+            >
+              <Plus size={16} color={colors.primaryForeground} />
+              <Text className="text-sm text-primary-foreground dark:text-dark-primary-foreground">
+                {t('newReminder')}
               </Text>
-              <Text className="text-sm text-muted dark:text-dark-muted mt-2 text-center">
-                {t('noRemindersDescription')}
-              </Text>
+            </Pressable>
+          </View>
+
+          {isLoading ? (
+            <View className="flex-1 items-center justify-center">
+              <Text className="text-muted dark:text-dark-muted">{t('loadingReminders')}</Text>
             </View>
-          }
-          contentContainerClassName="pb-24"
-        />
-      )}
+          ) : (
+            <FlatList
+              data={sections}
+              keyExtractor={(s) => s.bucket}
+              renderItem={({ item }) => {
+                const config = BUCKET_CONFIG[item.bucket];
+                return (
+                  <View className="mt-2">
+                    <CategoryHeader
+                      icon={config.icon}
+                      label={config.label}
+                      description={config.description}
+                      accentColor={config.color}
+                      iconColor={config.color}
+                      summaryValue={item.items.length}
+                      itemCount={item.items.length}
+                      itemName={t('remindersTotal')}
+                    />
+                    {item.items.map(renderCard)}
+                  </View>
+                );
+              }}
+              ListEmptyComponent={
+                <View className="mt-8 items-center px-6">
+                  <View className="h-16 w-16 rounded-full bg-surface dark:bg-dark-surface items-center justify-center">
+                    <Plus size={32} color={palette.textMuted} />
+                  </View>
+                  <Text className="text-lg font-medium text-foreground dark:text-dark-foreground mt-4">
+                    {t('noRemindersYet')}
+                  </Text>
+                  <Text className="text-sm text-muted dark:text-dark-muted mt-2 text-center">
+                    {t('noRemindersDescription')}
+                  </Text>
+                </View>
+              }
+              contentContainerClassName="pb-8"
+            />
+          )}
+        </View>
+      </Modal>
 
-      <Pressable
-        onPress={() => {
-          setEditing(null);
-          setShowForm(true);
-        }}
-        className="absolute bottom-6 right-5 h-14 w-14 rounded-full bg-primary dark:bg-dark-primary items-center justify-center shadow-lg"
-      >
-        <Plus size={26} color="#0d1117" />
-      </Pressable>
-
-      <ReminderFormModal
+      <ActivityFormModal
         visible={showForm}
         reminder={editing}
         onClose={() => {
           setShowForm(false);
           setEditing(null);
         }}
-        onSaved={editing ? handleReminderUpdated : handleReminderCreated}
+        onSaved={() => {}}
+        onReminderSaved={handleReminderSaved}
       />
 
       <DeleteModal
@@ -444,6 +474,6 @@ export default function RemindersScreen() {
           }
         }}
       />
-    </View>
+    </>
   );
 }

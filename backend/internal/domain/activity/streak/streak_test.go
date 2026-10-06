@@ -260,29 +260,6 @@ func TestComputeMixedDailyAndMonthly(t *testing.T) {
 	}
 }
 
-func TestComputeOneTimeCompletedDoesNotBreak(t *testing.T) {
-	loc := locUTC(t)
-	today := time.Date(2026, 8, 13, 12, 0, 0, 0, loc)
-
-	// Daily activity running + oneTime activity completed in the past.
-	daily := map[uint]map[string]int{
-		1: {"2026-08-13": 1, "2026-08-12": 1, "2026-08-11": 1},
-		2: {"2026-07-01": 1},
-	}
-
-	inputs := []Input{
-		{ActivityID: 1, Frequency: model.FrequencyDaily, CompletionAmount: 1},
-		{ActivityID: 2, Frequency: model.FrequencyOneTime, CompletionAmount: 1},
-	}
-
-	got := computeAt(daily, inputs, loc, DefaultWindowDays, today)
-	// OneTime completed Jul 1 -> not due for any day >= Jul 1, so it never
-	// constrains. Daily gives a run of 3.
-	if got.Current != 3 {
-		t.Errorf("current = %d, want 3", got.Current)
-	}
-}
-
 func TestComputeNoDueDays(t *testing.T) {
 	loc := locUTC(t)
 	today := time.Date(2026, 8, 13, 12, 0, 0, 0, loc)

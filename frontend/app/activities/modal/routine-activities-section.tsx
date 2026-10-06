@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Plus, ChevronUp, ChevronDown, X, ClipboardList } from 'lucide-react';
 import type { Activity } from '@shared/types/activity';
 import type { SelectedActivityRef } from './select-existing-activities-modal';
-import { CreateActivityModal } from '@/app/activities/modal/create-activity-modal';
+import { ActivityFormModal } from '@/app/activities/modal/activity-form-modal';
 import { SelectExistingActivitiesModal } from './select-existing-activities-modal';
 import { useTranslations } from '@shared/contexts/language-context';
 
@@ -148,10 +148,12 @@ export function RoutineActivitiesSection({
         </Button>
       </div>
 
-      <CreateActivityModal
+      {/* Routines can only contain recurring activities — lock the mode. */}
+      <ActivityFormModal
         open={showCreateModal}
         onOpenChange={setShowCreateModal}
         onActivityCreated={handleActivityCreated}
+        mode="activity"
       />
       <SelectExistingActivitiesModal
         open={showSelectModal}

@@ -23,7 +23,6 @@ var (
 
 type CompletionMetadata struct {
 	MonthlyCompletions map[uint]time.Time
-	OneTimeCompletions map[uint]time.Time
 	TodayCompletions   map[uint]int
 }
 
@@ -226,8 +225,7 @@ func (r *MongoActivityRecordRepository) GetCompletionMetadata(ctx context.Contex
 		{"$sort": bson.M{"completionDate": -1}},
 		{
 			"$group": bson.M{
-				"_id":              "$activityId",
-				"latestCompletion": bson.M{"$first": "$completionDate"},
+				"_id": "$activityId",
 				"monthlyCompletions": bson.M{
 					"$push": bson.M{
 						"$cond": bson.A{
@@ -266,13 +264,11 @@ func (r *MongoActivityRecordRepository) GetCompletionMetadata(ctx context.Contex
 
 	metadata := &CompletionMetadata{
 		MonthlyCompletions: make(map[uint]time.Time),
-		OneTimeCompletions: make(map[uint]time.Time),
 		TodayCompletions:   make(map[uint]int),
 	}
 
 	for cursor.Next(ctx) {
 		var result struct {
-			LatestCompletion   time.Time   `bson:"latestCompletion"`
 			MonthlyCompletions []time.Time `bson:"monthlyCompletions"`
 			ID                 uint        `bson:"_id"`
 			TodayCount         int         `bson:"todayCount"`
@@ -281,7 +277,6 @@ func (r *MongoActivityRecordRepository) GetCompletionMetadata(ctx context.Contex
 			continue
 		}
 
-		metadata.OneTimeCompletions[result.ID] = result.LatestCompletion
 		// Check if any monthly completion is valid (non-zero time)
 		for _, mc := range result.MonthlyCompletions {
 			if !mc.IsZero() {

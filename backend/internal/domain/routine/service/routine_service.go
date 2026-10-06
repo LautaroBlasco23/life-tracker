@@ -46,7 +46,6 @@ func (s *RoutineService) decorateWithCompletions(userID uint, loc *time.Location
 	}
 	scheduled := activityRepository.CompletionMetadata{
 		MonthlyCompletions: make(map[uint]time.Time),
-		OneTimeCompletions: make(map[uint]time.Time),
 		TodayCompletions:   make(map[uint]int),
 	}
 	if s.recordRepo != nil && loc != nil {

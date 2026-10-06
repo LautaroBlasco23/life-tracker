@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Activity,
-  Bell,
   Timer,
   User,
   Wallet,
@@ -41,7 +40,6 @@ export function Navigation() {
   const navItems: NavItem[] = [
     { href: '/activities', icon: Activity, label: t('activities') },
     { href: '/time', icon: Timer, label: t('timeTracker') },
-    { href: '/reminders', icon: Bell, label: t('reminders') },
     { href: '/notes', icon: StickyNote, label: t('notes') },
     { href: '/finance', icon: Wallet, label: t('finance') },
     { href: '/social', icon: Users, label: t('social') },

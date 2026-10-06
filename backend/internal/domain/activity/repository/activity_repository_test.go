@@ -801,10 +801,6 @@ func TestActivityRecordRepository_GetCompletionMetadata(t *testing.T) {
 		// Activity 2 has no completions today
 		assert.Equal(t, 0, metadata.TodayCompletions[activity2.ID])
 
-		// Both have one-time completions
-		assert.NotZero(t, metadata.OneTimeCompletions[activity1.ID])
-		assert.NotZero(t, metadata.OneTimeCompletions[activity2.ID])
-
 		// Both activities have monthly completions (activity1 has 3 today, activity2 has yesterday)
 		_, hasMonthly1 := metadata.MonthlyCompletions[activity1.ID]
 		_, hasMonthly2 := metadata.MonthlyCompletions[activity2.ID]
@@ -817,7 +813,6 @@ func TestActivityRecordRepository_GetCompletionMetadata(t *testing.T) {
 		require.NoError(t, err)
 		assert.Empty(t, metadata.TodayCompletions)
 		assert.Empty(t, metadata.MonthlyCompletions)
-		assert.Empty(t, metadata.OneTimeCompletions)
 	})
 }
 

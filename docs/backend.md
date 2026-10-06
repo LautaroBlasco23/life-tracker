@@ -97,7 +97,7 @@ Activity definitions live in PostgreSQL; **completion records in MongoDB**.
 |---|---|---|
 | id / user_id | uint | PK / FK |
 | title, description | string | title max 255 |
-| frequency | enum | `daily` \| `weekly` \| `monthly` \| `oneTime` |
+| frequency | enum | `daily` \| `weekly` \| `monthly` |
 | day_frequency | string | optional text (e.g. specific weekdays) |
 | day_time | enum | `notSpecified` \| `morning` \| `afternoon` \| `evening` |
 | privacy_status | enum | `public` \| `private` (default) |
@@ -114,6 +114,25 @@ Activity definitions live in PostgreSQL; **completion records in MongoDB**.
 - **Stats** — total completions, current/longest streak, completion rate, recent records.
 - **Revert** — removes the last completion (optionally for a target date).
 - Public activities can be listed for other users (used by social subscriptions).
+
+### Reminder — `domain/reminder`
+
+One-time events with a deadline. In Postgres (`reminders` table).
+
+**Schema**
+
+| Field | Type | Notes |
+|---|---|---|
+| title, description | string | title max 255 |
+| due_at | timestamptz | deadline, required |
+| active_from | timestamptz | optional; defaults to now (completion window) |
+| completed_at | timestamptz | set on completion |
+| privacy_status | enum | `public` \| `private` (default) |
+
+**Logic**
+- Status is derived client-side (`getReminderStatus`): `locked` (before `activeFrom`) → `active` → `missed` (past `dueAt`) / `completed`.
+- Creating/updating enforces `active_from` before `due_at`.
+- Complete/revert only set/clear `completed_at`.
 
 ### Finance — `domain/finance`
 
@@ -244,6 +263,18 @@ All routes are mounted under the `/api` prefix. "Public" routes need no token; "
 | GET | /activities/:id/records | Protected | Completion history |
 | GET | /activities/:id/stats | Protected | Completions + streak stats |
 | DELETE | /activities/:id/revert | Protected | Revert last completion |
+
+### Reminder — `/api/reminders`
+
+| Method | Path | Access | Description |
+|---|---|---|---|
+| POST | /reminders | Protected | Create reminder |
+| GET | /reminders | Protected | List reminders |
+| GET | /reminders/:id | Protected | Get reminder |
+| PUT | /reminders/:id | Protected | Update reminder |
+| DELETE | /reminders/:id | Protected | Delete reminder |
+| POST | /reminders/:id/complete | Protected | Mark completed |
+| DELETE | /reminders/:id/complete | Protected | Revert completion |
 
 ### Finance — `/api/finances`
 

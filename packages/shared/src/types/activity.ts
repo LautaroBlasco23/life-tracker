@@ -1,7 +1,7 @@
 import { ActivityRecord } from './activityRecords';
 import type { RoutineRef } from './routine';
 
-export type Frequency = 'daily' | 'weekly' | 'monthly' | 'oneTime';
+export type Frequency = 'daily' | 'weekly' | 'monthly';
 export type DayOfWeek =
   | 'monday'
   | 'tuesday'

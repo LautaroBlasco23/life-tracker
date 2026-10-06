@@ -138,7 +138,6 @@ func (s *ActivityService) GetTodayActivities(userID uint, loc *time.Location) ([
 		fmt.Printf("Warning: failed to fetch completion metadata: %v\n", err)
 		metadata = &repository.CompletionMetadata{
 			MonthlyCompletions: make(map[uint]time.Time),
-			OneTimeCompletions: make(map[uint]time.Time),
 			TodayCompletions:   make(map[uint]int),
 		}
 	}
@@ -462,17 +461,6 @@ func ShouldShowToday(activity *model.Activity, metadata *repository.CompletionMe
 		_, completedThisMonth := metadata.MonthlyCompletions[activity.ID]
 		return !completedThisMonth
 
-	case model.FrequencyOneTime:
-		lastCompletion, hasCompletion := metadata.OneTimeCompletions[activity.ID]
-		if !hasCompletion {
-			return true
-		}
-
-		startOfToday := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
-		endOfToday := startOfToday.Add(24 * time.Hour)
-
-		return lastCompletion.After(startOfToday) && lastCompletion.Before(endOfToday)
-
 	default:
 		return false
 	}
@@ -503,7 +491,6 @@ func (s *ActivityService) GetUserActivitiesFiltered(userID uint, filter *dto.Act
 	if err != nil {
 		metadata = &repository.CompletionMetadata{
 			MonthlyCompletions: make(map[uint]time.Time),
-			OneTimeCompletions: make(map[uint]time.Time),
 			TodayCompletions:   make(map[uint]int),
 		}
 	}
@@ -573,11 +560,6 @@ func (s *ActivityService) filterByScheduledDate(activities []model.Activity, tar
 				}
 			}
 			filtered = append(filtered, *activity)
-
-		case model.FrequencyOneTime:
-			if _, completed := metadata.OneTimeCompletions[activity.ID]; !completed {
-				filtered = append(filtered, *activity)
-			}
 		}
 	}
 

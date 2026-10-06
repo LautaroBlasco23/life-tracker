@@ -5,7 +5,7 @@
     "validation": {
       "title": { "type": "string" },
       "description": { "type": "string", "required": false },
-      "frequency": { "type": "enum", "values": ["daily", "weekly", "monthly", "oneTime"] },
+      "frequency": { "type": "enum", "values": ["daily", "weekly", "monthly"] },
       "dayFrequency": { "type": "string", "required": false },
       "dayTime": { "type": "enum", "values": ["notSpecified", "morning", "afternoon", "evening"] },
       "completionAmount": { "type": "integer" }
@@ -29,7 +29,7 @@
     "validation": {
       "title": { "type": "string", "required": false },
       "description": { "type": "string", "required": false },
-      "frequency": { "type": "enum", "values": ["daily", "weekly", "monthly", "oneTime"], "required": false },
+      "frequency": { "type": "enum", "values": ["daily", "weekly", "monthly"], "required": false },
       "dayFrequency": { "type": "string", "required": false },
       "dayTime": { "type": "enum", "values": ["notSpecified", "morning", "afternoon", "evening"], "required": false },
       "completionAmount": { "type": "integer", "required": false }

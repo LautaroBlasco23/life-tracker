@@ -16,7 +16,6 @@ const (
 	FrequencyDaily   Frequency = "daily"
 	FrequencyWeekly  Frequency = "weekly"
 	FrequencyMonthly Frequency = "monthly"
-	FrequencyOneTime Frequency = "oneTime"
 )
 
 func (f *Frequency) Scan(value interface{}) error {
