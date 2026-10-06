@@ -11,7 +11,7 @@ import type { DayOfWeek } from '@shared/types/activity';
 import { activityService, useTranslations } from '@shared';
 import { showToast } from '../ui/toast';
 import { Button } from '../ui/button';
-import { useTheme } from '../../lib/theme-provider';
+import { useColors } from '../../lib/use-colors';
 import { cn } from '../../lib/cn';
 
 const DAY_ORDER: DayOfWeek[] = [
@@ -43,8 +43,7 @@ export function TemplatesModal({
   const t = useTranslations('activityTemplates');
   const tActivities = useTranslations('activities');
   const tCreate = useTranslations('createActivity');
-  const { theme } = useTheme();
-  const spinnerColor = theme === 'dark' ? '#61dafb' : '#0583f2';
+  const colors = useColors();
 
   const [category, setCategory] = useState<ActivityTemplateCategory>('health');
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
@@ -146,7 +145,7 @@ export function TemplatesModal({
               </Text>
             </View>
             <Pressable onPress={onClose} hitSlop={8} className="p-1">
-              <X size={20} color="#57606a" />
+              <X size={20} color={colors.textMuted} />
             </Pressable>
           </View>
 
@@ -167,7 +166,7 @@ export function TemplatesModal({
                   className={cn(
                     'text-xs',
                     category === value
-                      ? 'text-secondaryForeground dark:text-dark-secondaryForeground'
+                      ? 'text-primary-foreground dark:text-dark-primary-foreground'
                       : 'text-muted dark:text-dark-muted'
                   )}
                 >
@@ -199,7 +198,7 @@ export function TemplatesModal({
                         : 'border-border dark:border-dark-border'
                     )}
                   >
-                    {isSelected ? <Check size={13} color="#ffffff" /> : null}
+                    {isSelected ? <Check size={13} color={colors.primaryForeground} /> : null}
                   </View>
                   <View className="flex-1 min-w-0">
                     <Text className="text-sm font-medium text-foreground dark:text-dark-foreground">
@@ -240,7 +239,7 @@ export function TemplatesModal({
                     accessibilityLabel={t('customize')}
                     className="p-1"
                   >
-                    <Pencil size={16} color={spinnerColor} />
+                    <Pencil size={16} color={colors.primary} />
                   </Pressable>
                 </Pressable>
               );

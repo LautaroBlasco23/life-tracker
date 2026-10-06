@@ -34,6 +34,7 @@ import { OptionSelect } from '../ui/option-select';
 import { DeleteModal } from '../ui/delete-modal';
 import { showToast } from '../ui/toast';
 import { useTheme } from '../../lib/theme-provider';
+import { useColors } from '../../lib/use-colors';
 import { cn } from '../../lib/cn';
 
 const STATUS_OPTIONS: RoutineStatus[] = ['draft', 'active', 'stopped'];
@@ -49,7 +50,7 @@ export function RoutinesModal({ visible, onClose }: RoutinesModalProps) {
   const tPrivacy = useTranslations('privacy');
   const tActivities = useTranslations('activities');
   const { theme } = useTheme();
-  const spinnerColor = theme === 'dark' ? '#61dafb' : '#0583f2';
+  const colors = useColors();
 
   const [routines, setRoutines] = useState<Routine[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -164,7 +165,7 @@ export function RoutinesModal({ visible, onClose }: RoutinesModalProps) {
                   onPress={() => setSelectedRoutineId(null)}
                   className="h-9 w-9 rounded-lg items-center justify-center"
                 >
-                  <ChevronLeft size={20} color={spinnerColor} />
+                  <ChevronLeft size={20} color={colors.primary} />
                 </Pressable>
                 <Text className="text-sm text-muted dark:text-dark-muted">{t('backToList')}</Text>
               </View>
@@ -174,7 +175,7 @@ export function RoutinesModal({ visible, onClose }: RoutinesModalProps) {
                     {selectedRoutine.title}
                   </Text>
                   {selectedRoutine.isCompletedToday ? (
-                    <Check size={16} color={theme === 'dark' ? '#56d364' : '#1a7f37'} />
+                    <Check size={16} color={colors.success} />
                   ) : null}
                   {renderStatusBadge(selectedRoutine.status)}
                   <Text className="text-xs text-muted dark:text-dark-muted">
@@ -196,7 +197,7 @@ export function RoutinesModal({ visible, onClose }: RoutinesModalProps) {
                       onPress={() => handleStatusChange(selectedRoutine, 'stopped')}
                     >
                       <View className="flex-row items-center gap-1.5">
-                        <Square size={14} color={spinnerColor} />
+                        <Square size={14} color={colors.primary} />
                         <Text className="text-sm text-foreground dark:text-dark-foreground">{t('stop')}</Text>
                       </View>
                     </Button>
@@ -208,8 +209,8 @@ export function RoutinesModal({ visible, onClose }: RoutinesModalProps) {
                       onPress={() => handleStatusChange(selectedRoutine, 'active')}
                     >
                       <View className="flex-row items-center gap-1.5">
-                        <Play size={14} color="#0d1117" />
-                        <Text className="text-sm text-secondaryForeground dark:text-dark-secondaryForeground">
+                        <Play size={14} color={colors.primaryForeground} />
+                        <Text className="text-sm text-primary-foreground dark:text-dark-primary-foreground">
                           {t('start')}
                         </Text>
                       </View>
@@ -219,13 +220,13 @@ export function RoutinesModal({ visible, onClose }: RoutinesModalProps) {
                     onPress={() => setEditing(selectedRoutine)}
                     className="h-9 w-9 rounded-lg items-center justify-center"
                   >
-                    <Pencil size={16} color={spinnerColor} />
+                    <Pencil size={16} color={colors.primary} />
                   </Pressable>
                   <Pressable
                     onPress={() => setDeleting(selectedRoutine)}
                     className="h-9 w-9 rounded-lg items-center justify-center"
                   >
-                    <Trash2 size={16} color={theme === 'dark' ? '#ff7b72' : '#cf222e'} />
+                    <Trash2 size={16} color={colors.danger} />
                   </Pressable>
                 </View>
               </View>
@@ -312,16 +313,16 @@ export function RoutinesModal({ visible, onClose }: RoutinesModalProps) {
                   <Text className="text-sm text-muted dark:text-dark-muted">{t('description')}</Text>
                 </View>
                 <Pressable onPress={onClose} className="h-9 w-9 rounded-lg items-center justify-center">
-                  <X size={20} color={spinnerColor} />
+                  <X size={20} color={colors.primary} />
                 </Pressable>
               </View>
-              <View className="px-4 pb-2 space-y-2">
+              <View className="px-4 pb-2 gap-2">
                 <View className="flex-row items-center rounded-lg border border-border dark:border-dark-border px-3">
-                  <Search size={16} color="#57606a" />
+                  <Search size={16} color={colors.textMuted} />
                   <TextInput
                     className="flex-1 h-10 ml-2 text-foreground dark:text-dark-foreground"
                     placeholder={t('searchRoutines')}
-                    placeholderTextColor="#57606a"
+                    placeholderTextColor={colors.textMuted}
                     value={search}
                     onChangeText={setSearch}
                     autoCapitalize="none"
@@ -343,7 +344,7 @@ export function RoutinesModal({ visible, onClose }: RoutinesModalProps) {
                         className={cn(
                           'text-xs',
                           statusFilter === value
-                            ? 'text-secondaryForeground dark:text-dark-secondaryForeground'
+                            ? 'text-primary-foreground dark:text-dark-primary-foreground'
                             : 'text-muted dark:text-dark-muted'
                         )}
                       >
@@ -355,7 +356,7 @@ export function RoutinesModal({ visible, onClose }: RoutinesModalProps) {
               </View>
               {isLoading ? (
                 <View className="flex-1 items-center justify-center">
-                  <ActivityIndicator color={spinnerColor} />
+                  <ActivityIndicator color={colors.primary} />
                 </View>
               ) : (
                 <FlatList
@@ -375,7 +376,7 @@ export function RoutinesModal({ visible, onClose }: RoutinesModalProps) {
                         </Text>
                         <View className="flex-row items-center gap-1.5">
                           {item.isCompletedToday ? (
-                            <Check size={16} color={theme === 'dark' ? '#56d364' : '#1a7f37'} />
+                            <Check size={16} color={colors.success} />
                           ) : null}
                           {renderStatusBadge(item.status)}
                         </View>
@@ -387,7 +388,7 @@ export function RoutinesModal({ visible, onClose }: RoutinesModalProps) {
                   )}
                   ListEmptyComponent={
                     <View className="items-center py-10 px-6">
-                      <ListChecks size={32} color={spinnerColor} />
+                      <ListChecks size={32} color={colors.primary} />
                       <Text className="text-sm text-muted dark:text-dark-muted mt-3 text-center">
                         {routines.length === 0 ? t('noRoutines') : t('noMatchingRoutines')}
                       </Text>
@@ -403,7 +404,7 @@ export function RoutinesModal({ visible, onClose }: RoutinesModalProps) {
                 }}
                 className="absolute bottom-6 right-5 h-14 w-14 rounded-full bg-primary dark:bg-dark-primary items-center justify-center shadow-lg"
               >
-                <Plus size={26} color="#0d1117" />
+                <Plus size={26} color={colors.primaryForeground} />
               </Pressable>
             </View>
           )}
@@ -447,10 +448,6 @@ export function RoutinesModal({ visible, onClose }: RoutinesModalProps) {
   );
 }
 
-function mutedColor(theme: string) {
-  return theme === 'dark' ? '#c9d1d9' : '#57606a';
-}
-
 interface RoutineFormModalProps {
   visible: boolean;
   routine: Routine | null;
@@ -462,6 +459,7 @@ function RoutineFormModal({ visible, routine, onClose, onSaved }: RoutineFormMod
   const t = useTranslations('routines');
   const tCommon = useTranslations('common');
   const tPrivacy = useTranslations('privacy');
+  const colors = useColors();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [privacyStatus, setPrivacyStatus] = useState<PrivacyStatus>('private');
@@ -592,20 +590,20 @@ function RoutineFormModal({ visible, routine, onClose, onSaved }: RoutineFormMod
                     {a.title}
                   </Text>
                   <Pressable onPress={() => move(index, -1)} disabled={index === 0} className="p-1">
-                    <ChevronUp size={18} color={index === 0 ? '#57606a' : '#61dafb'} />
+                    <ChevronUp size={18} color={index === 0 ? colors.textMuted : colors.primary} />
                   </Pressable>
                   <Pressable
                     onPress={() => move(index, 1)}
                     disabled={index === selected.length - 1}
                     className="p-1"
                   >
-                    <ChevronDown size={18} color={index === selected.length - 1 ? '#57606a' : '#61dafb'} />
+                    <ChevronDown size={18} color={index === selected.length - 1 ? colors.textMuted : colors.primary} />
                   </Pressable>
                   <Pressable
                     onPress={() => setSelected((prev) => prev.filter((x) => x.id !== a.id))}
                     className="p-1 ml-1"
                   >
-                    <X size={16} color="#57606a" />
+                    <X size={16} color={colors.textMuted} />
                   </Pressable>
                 </View>
               ))

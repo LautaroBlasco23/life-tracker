@@ -7,12 +7,13 @@ import { Navigation } from '../../../components/navigation';
 import { FinanceDashboard } from '../../../components/finance/finance-dashboard';
 import { PaymentModal } from '../../../components/finance/payment-modal';
 import { useTheme } from '../../../lib/theme-provider';
+import { useColors } from '../../../lib/use-colors';
 
 /** /finance/dashboard — summary, monthly stats and fixed payments (web parity). */
 export default function FinanceDashboardScreen() {
   const t = useTranslations('finance');
   const { theme } = useTheme();
-  const spinnerColor = theme === 'dark' ? '#61dafb' : '#0583f2';
+  const colors = useColors();
 
   const [fixedTransactions, setFixedTransactions] = useState<FixedTransaction[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -39,7 +40,7 @@ export default function FinanceDashboardScreen() {
       <Navigation />
       {isLoading ? (
         <View className="flex-1 items-center justify-center">
-          <ActivityIndicator color={spinnerColor} />
+          <ActivityIndicator color={colors.primary} />
         </View>
       ) : (
         <View className="flex-1 p-4">

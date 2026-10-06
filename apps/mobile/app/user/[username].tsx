@@ -7,6 +7,7 @@ import { authService, socialService, useTranslations } from '@shared';
 import { Button } from '../../components/ui/button';
 import { StreakBadge } from '../../components/ui/streak-badge';
 import { useTheme } from '../../lib/theme-provider';
+import { useColors } from '../../lib/use-colors';
 
 export default function UserProfileScreen() {
   const { username } = useLocalSearchParams<{ username: string }>();
@@ -20,7 +21,7 @@ export default function UserProfileScreen() {
   const [notFound, setNotFound] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const spinnerColor = theme === 'dark' ? '#61dafb' : '#0583f2';
+  const colors = useColors();
   const currentUser = authService.getCurrentUser();
   const isSelf = profile && currentUser && profile.username === currentUser.username;
 
@@ -84,7 +85,7 @@ export default function UserProfileScreen() {
   if (isLoading) {
     return (
       <View className="flex-1 items-center justify-center bg-background dark:bg-dark-background">
-        <ActivityIndicator color={spinnerColor} />
+        <ActivityIndicator color={colors.primary} />
       </View>
     );
   }
@@ -167,7 +168,7 @@ export default function UserProfileScreen() {
       <View className="p-4">
         <View className="flex-row items-center mb-4">
           <Button variant="ghost" className="h-9 w-9 px-0" onPress={() => router.back()}>
-            <ChevronLeft size={22} color={spinnerColor} />
+            <ChevronLeft size={22} color={colors.primary} />
           </Button>
           <Text className="text-lg font-semibold text-foreground dark:text-dark-foreground ml-1">
             @{profile.username}
@@ -212,7 +213,7 @@ export default function UserProfileScreen() {
 
         {profile.profilePrivacyStatus === 'private' && !profile.canViewContent ? (
           <View className="items-center mt-10 rounded-xl border border-border dark:border-dark-border p-8 bg-surface dark:bg-dark-surface">
-            <Lock size={32} color={spinnerColor} />
+            <Lock size={32} color={colors.primary} />
             <Text className="text-lg font-medium text-foreground dark:text-dark-foreground mt-3">
               {t('privateProfile')}
             </Text>

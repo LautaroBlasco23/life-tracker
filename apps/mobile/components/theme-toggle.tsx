@@ -1,12 +1,12 @@
 import { Pressable } from 'react-native';
 import { Moon, Sun } from 'lucide-react-native';
 import { useTheme } from '../lib/theme-provider';
-
-const MUTED = { light: '#57606a', dark: '#c9d1d9' } as const;
+import { useColors } from '../lib/use-colors';
 
 /** Small icon button that toggles light/dark, usable in the app header. */
 export function ThemeToggle() {
   const { theme, toggleTheme } = useTheme();
+  const colors = useColors();
   return (
     <Pressable
       onPress={toggleTheme}
@@ -14,9 +14,9 @@ export function ThemeToggle() {
       accessibilityLabel="Toggle theme"
     >
       {theme === 'dark' ? (
-        <Sun size={16} color={MUTED.dark} />
+        <Sun size={16} color={colors.textMuted} />
       ) : (
-        <Moon size={16} color={MUTED.light} />
+        <Moon size={16} color={colors.textMuted} />
       )}
     </Pressable>
   );

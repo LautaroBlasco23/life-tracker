@@ -9,6 +9,7 @@ import { FormField } from '../../components/ui/form-field';
 import { Button } from '../../components/ui/button';
 import { showToast } from '../../components/ui/toast';
 import { useTheme } from '../../lib/theme-provider';
+import { useColors } from '../../lib/use-colors';
 import { Navigation } from '../../components/navigation';
 
 type SocialView = 'search' | 'requests';
@@ -27,7 +28,7 @@ export default function SocialScreen() {
   const [isLoadingRequests, setIsLoadingRequests] = useState(true);
   const [processingIds, setProcessingIds] = useState<number[]>([]);
 
-  const spinnerColor = theme === 'dark' ? '#61dafb' : '#0583f2';
+  const colors = useColors();
 
   const loadPendingRequests = useCallback(async () => {
     try {
@@ -182,7 +183,7 @@ export default function SocialScreen() {
 
   const renderFollowButton = (user: PublicUserCard) => {
     if (processingIds.includes(user.id)) {
-      return <ActivityIndicator color={spinnerColor} />;
+      return <ActivityIndicator color={colors.primary} />;
     }
     if (user.followStatus === 'pending') {
       return (
@@ -297,10 +298,10 @@ export default function SocialScreen() {
         ListEmptyComponent={
           view === 'search' ? (
             isSearching ? (
-              <ActivityIndicator color={spinnerColor} className="mt-10" />
+              <ActivityIndicator color={colors.primary} className="mt-10" />
             ) : hasSearched ? (
               <View className="items-center mt-10 px-6">
-                <Search size={32} color={spinnerColor} />
+                <Search size={32} color={colors.primary} />
                 <Text className="text-lg font-medium text-foreground dark:text-dark-foreground mt-3">
                   {t('noResults')}
                 </Text>
@@ -310,17 +311,17 @@ export default function SocialScreen() {
               </View>
             ) : (
               <View className="items-center mt-10 px-6">
-                <UserPlus size={32} color={spinnerColor} />
+                <UserPlus size={32} color={colors.primary} />
                 <Text className="text-sm text-muted dark:text-dark-muted mt-3 text-center">
                   {t('searchPlaceholder')}
                 </Text>
               </View>
             )
           ) : isLoadingRequests ? (
-            <ActivityIndicator color={spinnerColor} className="mt-10" />
+            <ActivityIndicator color={colors.primary} className="mt-10" />
           ) : (
             <View className="items-center mt-10 px-6">
-              <UserCheck size={32} color={spinnerColor} />
+              <UserCheck size={32} color={colors.primary} />
               <Text className="text-lg font-medium text-foreground dark:text-dark-foreground mt-3">
                 {t('noPendingRequests')}
               </Text>

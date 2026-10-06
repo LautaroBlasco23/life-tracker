@@ -17,6 +17,7 @@ import { useActiveSessions } from '../../hooks/use-active-sessions';
 import { formatDuration, formatRecordDate } from '../../lib/format-time';
 import { useMonthLabel, useMonthYearOptions } from '../../lib/filter-options';
 import { showToast } from '../../components/ui/toast';
+import { useColors } from '../../lib/use-colors';
 import { useTheme } from '../../lib/theme-provider';
 import { cn } from '../../lib/cn';
 import { Navigation } from '../../components/navigation';
@@ -68,7 +69,7 @@ export default function TimeScreen() {
   const t = useTranslations('time');
   const tCommon = useTranslations('common');
   const { theme } = useTheme();
-  const spinnerColor = theme === 'dark' ? '#61dafb' : '#0583f2';
+  const colors = useColors();
   const monthLabel = useMonthLabel();
   const { monthOptions, yearOptions } = useMonthYearOptions();
 
@@ -254,7 +255,7 @@ export default function TimeScreen() {
             <View className="flex-row items-center gap-2 mt-3 mb-4">
               <Button variant="outline" className="h-9" onPress={() => setShowFilterModal(true)}>
                 <View className="flex-row items-center gap-1.5">
-                  <Filter size={14} color={spinnerColor} />
+                  <Filter size={14} color={colors.primary} />
                   <Text className="text-sm text-foreground dark:text-dark-foreground">
                     {tCommon('filters')}
                     {filterCount > 0 ? ` (${filterCount})` : ''}
@@ -263,8 +264,8 @@ export default function TimeScreen() {
               </Button>
               <Button className="h-9" onPress={() => { setEditingRecord(null); setShowFormModal(true); }}>
                 <View className="flex-row items-center gap-1.5">
-                  <Plus size={14} color="#ffffff" />
-                  <Text className="text-sm text-white">{t('logTime')}</Text>
+                  <Plus size={14} color={colors.primaryForeground} />
+                  <Text className="text-sm text-primary-foreground dark:text-dark-primary-foreground">{t('logTime')}</Text>
                 </View>
               </Button>
             </View>
@@ -282,7 +283,7 @@ export default function TimeScreen() {
                       : 'border-border dark:border-dark-border'
                   )}
                 >
-                  <Text className={cn(period === p ? 'text-secondaryForeground dark:text-dark-secondaryForeground' : 'text-muted dark:text-dark-muted')}>
+                  <Text className={cn(period === p ? 'text-primary-foreground dark:text-dark-primary-foreground' : 'text-muted dark:text-dark-muted')}>
                     {t(p)}
                   </Text>
                 </Pressable>
@@ -291,9 +292,9 @@ export default function TimeScreen() {
 
             {/* Active sessions (persisted across restarts) */}
             {sessions.length > 0 ? (
-              <View className="mb-6 space-y-3">
+              <View className="mb-6 gap-3">
                 <View className="flex-row items-center gap-2">
-                  <Timer size={18} color={spinnerColor} />
+                  <Timer size={18} color={colors.primary} />
                   <Text className="font-semibold text-foreground dark:text-dark-foreground">
                     {t('activeRecordings')}
                   </Text>
@@ -319,7 +320,7 @@ export default function TimeScreen() {
             {/* Start recording (web parity card) */}
             <View className="rounded-xl border border-border dark:border-dark-border p-4 mb-6">
               <View className="flex-row items-center gap-2 mb-4">
-                <Timer size={18} color="#57606a" />
+                <Timer size={18} color={colors.textMuted} />
                 <Text className="font-semibold text-foreground dark:text-dark-foreground">
                   {t('startRecording')}
                 </Text>
@@ -373,7 +374,7 @@ export default function TimeScreen() {
             {records.length === 0 && !isLoading ? (
               <View className="mb-8 items-center">
                 <View className="h-16 w-16 rounded-full bg-surface dark:bg-dark-surface items-center justify-center mb-4">
-                  <Clock size={28} color="#57606a" />
+                  <Clock size={28} color={colors.textMuted} />
                 </View>
                 <Text className="text-lg font-medium text-foreground dark:text-dark-foreground text-center">
                   {filterCount > 0
@@ -405,7 +406,7 @@ export default function TimeScreen() {
                 itemCount={categoryRecords.length}
                 itemName={t('entry')}
               />
-              <View className="px-4 space-y-2">
+              <View className="px-4 gap-2">
                 {categoryRecords.map((record) => (
                   <Pressable
                     key={record.id}
@@ -435,7 +436,7 @@ export default function TimeScreen() {
         ListEmptyComponent={
           isLoading ? (
             <View className="py-10 items-center">
-              <ActivityIndicator color={spinnerColor} />
+              <ActivityIndicator color={colors.primary} />
             </View>
           ) : null
         }

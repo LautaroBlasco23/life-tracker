@@ -21,7 +21,7 @@ import { Button } from '../../components/ui/button';
 import { DeleteModal } from '../../components/ui/delete-modal';
 import { FormField } from '../../components/ui/form-field';
 import { showToast } from '../../components/ui/toast';
-import { useTheme } from '../../lib/theme-provider';
+import { useColors } from '../../lib/use-colors';
 import { Navigation } from '../../components/navigation';
 
 const DRAFT_STORAGE_KEY = 'notes_drafts';
@@ -67,8 +67,7 @@ function formatEditedAt(iso: string): string {
 export default function NotesScreen() {
   const t = useTranslations('notes');
   const tCommon = useTranslations('common');
-  const { theme } = useTheme();
-  const spinnerColor = theme === 'dark' ? '#61dafb' : '#0583f2';
+  const colors = useColors();
 
   const [notes, setNotes] = useState<Note[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -230,11 +229,11 @@ export default function NotesScreen() {
               {t('title')}
             </Text>
             <View className="mt-3 flex-row items-center rounded-lg border border-border dark:border-dark-border px-3">
-              <Search size={16} color="#57606a" />
+              <Search size={16} color={colors.textMuted} />
               <TextInput
                 className="flex-1 h-10 ml-2 text-foreground dark:text-dark-foreground"
                 placeholder={t('search')}
-                placeholderTextColor="#57606a"
+                placeholderTextColor={colors.textMuted}
                 value={query}
                 onChangeText={setQuery}
                 autoCapitalize="none"
@@ -277,7 +276,7 @@ export default function NotesScreen() {
                   {formatEditedAt(item.editedAt)}
                 </Text>
                 <Pressable onPress={() => setNoteToDelete(item)} hitSlop={8} className="p-1">
-                  <Trash2 size={15} color="#57606a" />
+                  <Trash2 size={15} color={colors.textMuted} />
                 </Pressable>
               </View>
             </View>
@@ -293,7 +292,7 @@ export default function NotesScreen() {
         ListEmptyComponent={
           isLoading ? (
             <View className="py-10 items-center">
-              <ActivityIndicator color={spinnerColor} />
+              <ActivityIndicator color={colors.primary} />
             </View>
           ) : null
         }
@@ -303,7 +302,7 @@ export default function NotesScreen() {
         onPress={openCreate}
         className="absolute bottom-6 right-5 h-14 w-14 rounded-full bg-primary dark:bg-dark-primary items-center justify-center shadow-lg"
       >
-        <Plus size={26} color="#0d1117" />
+        <Plus size={26} color={colors.primaryForeground} />
       </Pressable>
 
       <Modal visible={showForm} animationType="slide" transparent onRequestClose={() => setShowForm(false)}>
@@ -321,7 +320,7 @@ export default function NotesScreen() {
                 </Pressable>
               ) : null}
             </View>
-            <View className="space-y-4">
+            <View className="gap-4">
               <FormField label={t('titlePlaceholder')} placeholder={t('titlePlaceholder')} value={title} onChangeText={setTitle} />
               <View className="flex-row items-center justify-between">
                 <Text className="text-sm text-foreground dark:text-dark-foreground">
@@ -337,21 +336,21 @@ export default function NotesScreen() {
                 <ScrollView className="min-h-[160px] rounded-lg border border-border dark:border-dark-border p-3" nestedScrollEnabled>
                   <Markdown
                     style={{
-                      body: { color: theme === 'dark' ? '#f0f6fc' : '#1f2328' },
-                      heading1: { color: theme === 'dark' ? '#f0f6fc' : '#1f2328' },
-                      heading2: { color: theme === 'dark' ? '#f0f6fc' : '#1f2328' },
-                      heading3: { color: theme === 'dark' ? '#f0f6fc' : '#1f2328' },
-                      link: { color: theme === 'dark' ? '#61dafb' : '#0583f2' },
-                      strong: { color: theme === 'dark' ? '#f0f6fc' : '#1f2328' },
+                      body: { color: colors.foreground },
+                      heading1: { color: colors.foreground },
+                      heading2: { color: colors.foreground },
+                      heading3: { color: colors.foreground },
+                      link: { color: colors.primary },
+                      strong: { color: colors.foreground },
                       blockquote: {
-                        backgroundColor: theme === 'dark' ? '#161b22' : '#f6f8fa',
-                        borderColor: theme === 'dark' ? '#30363d' : '#d0d7de',
+                        backgroundColor: colors.surface,
+                        borderColor: colors.border,
                       },
                       code_inline: {
-                        color: theme === 'dark' ? '#f0f6fc' : '#1f2328',
-                        backgroundColor: theme === 'dark' ? '#161b22' : '#f6f8fa',
+                        color: colors.foreground,
+                        backgroundColor: colors.surface,
                       },
-                      hr: { backgroundColor: theme === 'dark' ? '#30363d' : '#d0d7de' },
+                      hr: { backgroundColor: colors.border },
                     }}
                   >
                     {content || ''}
@@ -361,7 +360,7 @@ export default function NotesScreen() {
                 <TextInput
                   className="min-h-[160px] rounded-lg border border-border dark:border-dark-border p-3 text-foreground dark:text-dark-foreground"
                   placeholder={t('contentPlaceholder')}
-                  placeholderTextColor="#57606a"
+                  placeholderTextColor={colors.textMuted}
                   value={content}
                   onChangeText={setContent}
                   multiline

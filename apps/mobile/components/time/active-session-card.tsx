@@ -5,7 +5,7 @@ import { getElapsedSeconds } from '../../hooks/use-active-sessions';
 import { useTranslations } from '@shared';
 import { formatTimerDisplay } from '../../lib/format-time';
 import { Button } from '../ui/button';
-import { useTheme } from '../../lib/theme-provider';
+import { useColors } from '../../lib/use-colors';
 import { cn } from '../../lib/cn';
 
 interface ActiveSessionCardProps {
@@ -30,8 +30,7 @@ export function ActiveSessionCard({
 }: ActiveSessionCardProps) {
   const t = useTranslations('time');
   const tCommon = useTranslations('common');
-  const { theme } = useTheme();
-  const spinnerColor = theme === 'dark' ? '#61dafb' : '#0583f2';
+  const colors = useColors();
   const isRunning = session.startedAt !== null;
   const elapsedSeconds = getElapsedSeconds(session, now);
 
@@ -46,7 +45,7 @@ export function ActiveSessionCard({
         <View className="flex-row items-center gap-2 min-w-0 flex-1">
           <Timer
             size={18}
-            color={spinnerColor}
+            color={colors.primary}
           />
           <Text className="font-semibold text-foreground dark:text-dark-foreground flex-1" numberOfLines={1}>
             {session.description || session.category}
@@ -90,7 +89,7 @@ export function ActiveSessionCard({
             className="p-2"
             hitSlop={8}
           >
-            <Trash2 size={18} color="#57606a" />
+            <Trash2 size={18} color={colors.textMuted} />
           </Pressable>
         </View>
       </View>

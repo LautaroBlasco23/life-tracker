@@ -29,6 +29,7 @@ import { UpdatePasswordModal } from '../../components/profile/update-password-mo
 import { UpdateEmailModal } from '../../components/profile/update-email-modal';
 import { exportBackup, importBackup, pickBackupFile } from '../../lib/data-backup';
 import { useTheme } from '../../lib/theme-provider';
+import { useColors } from '../../lib/use-colors';
 import { Navigation } from '../../components/navigation';
 
 export default function ProfileScreen() {
@@ -38,6 +39,7 @@ export default function ProfileScreen() {
   const tCommon = useTranslations('common');
   const { locale, setLocale } = useLanguage();
   const { theme, toggleTheme } = useTheme();
+  const colors = useColors();
 
   const [user, setUser] = useState<User | null>(authService.getCurrentUser());
   const [showApiUrlModal, setShowApiUrlModal] = useState(false);
@@ -280,7 +282,7 @@ export default function ProfileScreen() {
             onPress={togglePrivacy}
           >
             <View className="flex-row items-center gap-2 flex-1">
-              <Lock size={16} color="#57606a" />
+              <Lock size={16} color={colors.textMuted} />
               <Text className="text-foreground dark:text-dark-foreground">
                 {tPrivacy('profilePrivacy')}
               </Text>
@@ -326,7 +328,7 @@ export default function ProfileScreen() {
         <View className="flex-row gap-3 mb-6">
           <Button variant="outline" className="flex-1" onPress={() => setIsPasswordModalOpen(true)}>
             <View className="flex-row items-center gap-2">
-              <KeyRound size={16} color="#57606a" />
+              <KeyRound size={16} color={colors.textMuted} />
               <Text className="text-sm text-foreground dark:text-dark-foreground">
                 {t('changePassword')}
               </Text>
@@ -334,7 +336,7 @@ export default function ProfileScreen() {
           </Button>
           <Button variant="outline" className="flex-1" onPress={() => setIsEmailModalOpen(true)}>
             <View className="flex-row items-center gap-2">
-              <Mail size={16} color="#57606a" />
+              <Mail size={16} color={colors.textMuted} />
               <Text className="text-sm text-foreground dark:text-dark-foreground">
                 {t('changeEmail')}
               </Text>
@@ -359,7 +361,7 @@ export default function ProfileScreen() {
               disabled={isExporting || isImporting}
             >
               <View className="flex-row items-center gap-2">
-                <Download size={16} color="#57606a" />
+                <Download size={16} color={colors.textMuted} />
                 <Text className="text-sm text-foreground dark:text-dark-foreground">
                   {isExporting ? tBackup('exporting') : tBackup('exportButton')}
                 </Text>
@@ -373,7 +375,7 @@ export default function ProfileScreen() {
               disabled={isExporting || isImporting}
             >
               <View className="flex-row items-center gap-2">
-                <Upload size={16} color="#57606a" />
+                <Upload size={16} color={colors.textMuted} />
                 <Text className="text-sm text-foreground dark:text-dark-foreground">
                   {isImporting ? tBackup('importing') : tBackup('importButton')}
                 </Text>
@@ -434,7 +436,7 @@ export default function ProfileScreen() {
               autoCapitalize="none"
               autoCorrect={false}
               placeholder="http://192.168.1.10:8080/api"
-              placeholderTextColor="#57606a"
+              placeholderTextColor={colors.textMuted}
             />
             <View className="flex-row gap-3 mt-5">
               <Button variant="outline" className="flex-1" onPress={() => setShowApiUrlModal(false)}>

@@ -4,6 +4,7 @@ import { AlertTriangle } from 'lucide-react-native';
 import { useTranslations } from '@shared';
 import { Button } from './button';
 import { useTheme } from '../../lib/theme-provider';
+import { useColors } from '../../lib/use-colors';
 
 interface DeleteModalProps {
   visible: boolean;
@@ -31,6 +32,7 @@ export function DeleteModal({
   const t = useTranslations('deleteModal');
   const tCommon = useTranslations('common');
   const { theme } = useTheme();
+  const colors = useColors();
 
   const handleDelete = async () => {
     setIsDeleting(true);
@@ -50,7 +52,7 @@ export function DeleteModal({
             <View className="h-9 w-9 rounded-full bg-danger/10 dark:bg-dark-danger/10 items-center justify-center">
               <AlertTriangle
                 size={18}
-                color={theme === 'dark' ? '#ff7b72' : '#cf222e'}
+                color={colors.danger}
               />
             </View>
             <View className="flex-1">

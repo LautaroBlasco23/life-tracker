@@ -3,7 +3,6 @@ import { Pressable, Text, View } from 'react-native';
 import { usePathname, useRouter } from 'expo-router';
 import {
   Activity,
-  Bell,
   ChartPie,
   Menu,
   StickyNote,
@@ -17,6 +16,7 @@ import type { LucideIcon } from 'lucide-react-native';
 import { useTranslations } from '@shared';
 import { ThemeToggle } from './theme-toggle';
 import { useTheme } from '../lib/theme-provider';
+import { useColors } from '../lib/use-colors';
 import { cn } from '../lib/cn';
 
 type NavItem = {
@@ -28,7 +28,6 @@ type NavItem = {
 const NAV_ITEMS: NavItem[] = [
   { href: '/activities', icon: Activity, labelKey: 'activities' },
   { href: '/time', icon: Timer, labelKey: 'timeTracker' },
-  { href: '/reminders', icon: Bell, labelKey: 'reminders' },
   { href: '/notes', icon: StickyNote, labelKey: 'notes' },
   { href: '/finance/transactions', icon: Wallet, labelKey: 'financeTransactions' },
   { href: '/finance/dashboard', icon: ChartPie, labelKey: 'financeDashboard' },
@@ -48,14 +47,14 @@ export function Navigation() {
   const currentPath = pathname.length > 1 && pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
   const [isOpen, setIsOpen] = useState(false);
   const t = useTranslations('nav');
-  const { theme } = useTheme();
+  const colors = useColors();
   const router = useRouter();
 
   const toggleMenu = useCallback(() => setIsOpen((prev) => !prev), []);
   const closeMenu = useCallback(() => setIsOpen(false), []);
 
-  const muted = theme === 'dark' ? '#c9d1d9' : '#57606a';
-  const primary = theme === 'dark' ? '#61dafb' : '#0583f2';
+  const muted = colors.textMuted;
+  const primary = colors.primary;
 
   return (
     <>

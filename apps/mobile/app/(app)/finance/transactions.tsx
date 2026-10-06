@@ -45,7 +45,6 @@ export default function TransactionsScreen() {
   const tSocial = useTranslations('social');
   const tCommon = useTranslations('common');
   const { theme } = useTheme();
-  const spinnerColor = theme === 'dark' ? '#61dafb' : '#0583f2';
   const colors = themeColors[theme];
   const { monthOptions, yearOptions } = useMonthYearOptions();
 
@@ -402,7 +401,7 @@ export default function TransactionsScreen() {
             <View className="flex-row items-center gap-2 mb-3">
               <Button variant="outline" className="h-9" onPress={() => setShowFilterModal(true)}>
                 <View className="flex-row items-center gap-1.5">
-                  <SlidersHorizontal size={14} color={spinnerColor} />
+                  <SlidersHorizontal size={14} color={colors.primary} />
                   <Text className="text-sm text-foreground dark:text-dark-foreground">
                     {tCommon('filters')}
                     {filterCount > 0 ? ` (${filterCount})` : ''}
@@ -412,7 +411,7 @@ export default function TransactionsScreen() {
               {filterCount > 0 ? (
                 <Button variant="ghost" className="h-9" onPress={() => setFilter({})}>
                   <View className="flex-row items-center gap-1">
-                    <X size={14} color={spinnerColor} />
+                    <X size={14} color={colors.primary} />
                     <Text className="text-sm text-primary dark:text-dark-primary">
                       {tCommon('clearAll')}
                     </Text>
@@ -427,7 +426,7 @@ export default function TransactionsScreen() {
             <Text className="mx-4 mb-2 mt-2 text-sm font-medium text-muted dark:text-dark-muted">
               {item.label}
             </Text>
-            <View className="mx-4 space-y-2">
+            <View className="mx-4 gap-2">
               {item.items.map(renderMovement)}
             </View>
           </View>
@@ -435,7 +434,7 @@ export default function TransactionsScreen() {
         ListFooterComponent={renderBills()}
         ListEmptyComponent={
           isLoading ? (
-            <ActivityIndicator color={spinnerColor} className="mt-10" />
+            <ActivityIndicator color={colors.primary} className="mt-10" />
           ) : (
             <View className="items-center mt-10 px-6">
               <Text className="text-lg font-medium text-foreground dark:text-dark-foreground">
@@ -458,7 +457,7 @@ export default function TransactionsScreen() {
         }}
         className="absolute bottom-6 right-5 h-14 w-14 rounded-full bg-primary dark:bg-dark-primary items-center justify-center shadow-lg"
       >
-        <Plus size={26} color="#0d1117" />
+        <Plus size={26} color={colors.primaryForeground} />
       </Pressable>
 
       <TransactionFormModal

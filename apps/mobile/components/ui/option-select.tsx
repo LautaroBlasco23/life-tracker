@@ -3,6 +3,7 @@ import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { Check, ChevronDown } from 'lucide-react-native';
 import { useTranslations } from '@shared';
 import { cn } from '../../lib/cn';
+import { useColors } from '../../lib/use-colors';
 
 export interface Option<T extends string = string> {
   value: T;
@@ -27,6 +28,7 @@ export function OptionSelect<T extends string>({
 }: OptionSelectProps<T>) {
   const [open, setOpen] = useState(false);
   const tCommon = useTranslations('common');
+  const colors = useColors();
   const selected = options.find((o) => o.value === value);
 
   return (
@@ -45,7 +47,7 @@ export function OptionSelect<T extends string>({
         >
           {selected?.label ?? placeholder}
         </Text>
-        <ChevronDown size={18} color="#57606a" />
+        <ChevronDown size={18} color={colors.textMuted} />
       </Pressable>
 
       <Modal visible={open} animationType="slide" transparent onRequestClose={() => setOpen(false)}>
@@ -66,7 +68,7 @@ export function OptionSelect<T extends string>({
                 >
                   <Text className="text-base text-foreground dark:text-dark-foreground">{opt.label}</Text>
                   {value === opt.value ? (
-                    <Check size={18} color="#61dafb" />
+                    <Check size={18} color={colors.primary} />
                   ) : null}
                 </Pressable>
               ))}
