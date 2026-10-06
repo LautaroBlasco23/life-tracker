@@ -2,7 +2,7 @@ name: Mobile CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
     paths: ["apps/mobile/**", "packages/shared/**"]
   pull_request:
     branches: [main]
@@ -10,6 +10,7 @@ on:
 
 jobs:
   type-check-and-export:
+    name: type-check-and-export
     runs-on: ubuntu-latest
 
     steps:
