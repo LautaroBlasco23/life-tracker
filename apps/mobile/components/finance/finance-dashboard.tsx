@@ -7,6 +7,7 @@ import { formatCurrency } from '@shared/utils/format';
 import { Card, ProgressBar } from '../ui/card';
 import { Button } from '../ui/button';
 import { useTheme } from '../../lib/theme-provider';
+import { useColors } from '../../lib/use-colors';
 import { fetchDolarRates, type DolarRate } from '../../lib/dolarapi';
 
 interface FinanceDashboardProps {
@@ -28,7 +29,7 @@ export function FinanceDashboard({ fixedTransactions, onRecordPayment }: Finance
   const t = useTranslations('finance');
   const tCategories = useTranslations('financeCategories');
   const tCreate = useTranslations('createTransaction');
-  const { theme } = useTheme();
+  const colors = useColors();
 
   const [summary, setSummary] = useState<FinanceSummary | null>(null);
   const [monthlyStats, setMonthlyStats] = useState<MonthlyStats[]>([]);
@@ -80,8 +81,8 @@ export function FinanceDashboard({ fixedTransactions, onRecordPayment }: Finance
     .filter((d) => d.monthIndex <= new Date().getMonth())
     .slice(-6)
     .flatMap((d) => [
-      { label: d.label, value: d.income, frontColor: '#22c55e' },
-      { label: '', value: d.outcome, frontColor: '#ef4444' },
+      { label: d.label, value: d.income, frontColor: colors.success },
+      { label: '', value: d.outcome, frontColor: colors.danger },
     ]);
 
   const renderCategoryBreakdown = (
@@ -96,7 +97,7 @@ export function FinanceDashboard({ fixedTransactions, onRecordPayment }: Finance
       );
     }
     return (
-      <View className="space-y-3">
+      <View className="gap-3">
         {items.map((item) => (
           <View key={item.categoryName}>
             <View className="mb-1 flex-row items-center justify-between">
@@ -122,11 +123,11 @@ export function FinanceDashboard({ fixedTransactions, onRecordPayment }: Finance
 
   if (isLoading) return null;
 
-  const gridColor = theme === 'dark' ? '#30363d' : '#d0d7de';
-  const axisColor = theme === 'dark' ? '#c9d1d9' : '#57606a';
+  const gridColor = colors.border;
+  const axisColor = colors.textMuted;
 
   return (
-    <View className="space-y-4">
+    <View className="gap-4">
       <View className="flex-row gap-3">
         <Card className="flex-1">
           <Text className="text-xs text-muted dark:text-dark-muted">{t('totalIncome')}</Text>
@@ -224,7 +225,7 @@ export function FinanceDashboard({ fixedTransactions, onRecordPayment }: Finance
         {upcomingBills.length === 0 ? (
           <Text className="text-sm text-muted dark:text-dark-muted">{t('noUpcomingBills')}</Text>
         ) : (
-          <View className="space-y-3">
+          <View className="gap-3">
             {upcomingBills.map((tx) => (
               <View
                 key={tx.id}

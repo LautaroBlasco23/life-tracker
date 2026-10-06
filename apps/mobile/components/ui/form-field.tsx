@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Pressable, Text, TextInput, View, type TextInputProps } from 'react-native';
 import { useTranslations } from '@shared';
 import { cn } from '../../lib/cn';
+import { useColors } from '../../lib/use-colors';
 
 interface FormFieldProps extends TextInputProps {
   label?: string;
@@ -12,9 +13,10 @@ export function FormField({ label, error, secureTextEntry, className, ...props }
   const [showPassword, setShowPassword] = useState(false);
   const isPassword = secureTextEntry;
   const tCommon = useTranslations('common');
+  const colors = useColors();
 
   return (
-    <View className="space-y-1.5">
+    <View className="gap-1.5">
       {label ? (
         <Text className="text-sm text-foreground dark:text-dark-foreground">{label}</Text>
       ) : null}
@@ -24,7 +26,7 @@ export function FormField({ label, error, secureTextEntry, className, ...props }
             'h-11 flex-1 rounded-lg border border-border dark:border-dark-border bg-transparent px-3 text-foreground dark:text-dark-foreground',
             className
           )}
-          placeholderTextColor="#57606a"
+          placeholderTextColor={colors.textMuted}
           secureTextEntry={isPassword && !showPassword}
           autoCapitalize="none"
           {...props}

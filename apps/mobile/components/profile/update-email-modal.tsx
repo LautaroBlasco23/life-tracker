@@ -124,7 +124,7 @@ export function UpdateEmailModal({
             {t('description')}
           </Text>
 
-          <View className="space-y-1.5 mb-4">
+          <View className="gap-1.5 mb-4">
             <Text className="text-sm text-foreground dark:text-dark-foreground">
               {t('currentEmail')}
             </Text>

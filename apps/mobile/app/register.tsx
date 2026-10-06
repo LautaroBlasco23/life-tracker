@@ -145,7 +145,7 @@ export default function RegisterScreen() {
           {t('createAccountDescription')}
         </Text>
 
-        <View className="space-y-4">
+        <View className="gap-4">
           <FormField label={t('firstName')} placeholder={t('firstNamePlaceholder')} value={firstName} onChangeText={setFirstName} />
           <FormField label={t('lastName')} placeholder={t('lastNamePlaceholder')} value={lastName} onChangeText={setLastName} />
           <FormField
