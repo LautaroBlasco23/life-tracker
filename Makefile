@@ -40,6 +40,10 @@ INFRA := $(abspath infra)
 GOPATH_BIN := $(shell go env GOPATH 2>/dev/null)/bin
 export PATH := $(GOPATH_BIN):$(PATH)
 
+# The mobile key loop uses bash-only `read -n 1` (single keypress); the rest
+# of the recipes are POSIX-compatible, so this is safe globally.
+SHELL := /bin/bash
+
 GREEN := \033[1;32m
 DIM   := \033[2m
 RST   := \033[0m
@@ -65,7 +69,7 @@ FEO := cd infra && docker compose -p infra -f docker-compose.frontend.yml -f doc
 	db-up db-down db-remove db-test-up db-test-down db-test-remove \
 	floci-up floci-provision floci-status floci-down floci-deploy \
 	frontend-up frontend-down frontend-build \
-	mobile mobile-logs mobile-stop \
+	mobile mobile-rebuild mobile-logs mobile-stop \
 	monitoring-up monitoring-down dev-migrate up down build deploy-frontend
 
 .DEFAULT_GOAL := help
@@ -79,6 +83,7 @@ help:
 	@printf "    make dev-container  container mode: API :8080 · postgres · mongo · web :3000\n"
 	@printf "    make dev-emulator   AWS path: floci + Lambda + API Gateway · web :3000\n"
 	@printf "    make dev-full       container mode + observability: Prometheus :9090 · Grafana :3001\n"
+	@printf "    make mobile         mobile dev loop: emulator + API + Metro · [R] rebuilds native app\n"
 	@printf "\n"
 	@printf "$(GREEN)  STOP$(RST)\n"
 	@printf "    make stop           stops EVERYTHING, whichever mode is running\n"
@@ -140,6 +145,8 @@ components:
 	@printf "\n"
 	@printf "$(GREEN)  📱 Mobile (emulator on Windows, build in WSL)$(RST)\n"
 	@printf "    make %-18s %s\n" "mobile" "one command dev loop: emulator + build + API + Metro + launch"
+	@printf "    %-24s %s\n" "" "then stays open: [R] rebuild+reinstall · Enter relaunch · q quit"
+	@printf "    make %-18s %s\n" "mobile-rebuild" "rebuild the native app + reinstall (same as the [R] key)"
 	@printf "    make %-18s %s\n" "mobile-logs"      "tail API + Metro logs"
 	@printf "    make %-18s %s\n" "mobile-stop"      "stop what make mobile started (pidfiles)"
 
@@ -469,7 +476,10 @@ ANDROID_ABI ?= x86_64
 #   3. builds + installs the debug APK if the package isn't installed,
 #   4. wires device :8081 -> Metro (reverse mappings die with the emulator),
 #   5. starts the API (:8080) and Metro (:8081) DETACHED (nohup + pidfiles)
-#      if not already up, then launches the app and exits.
+#      if not already up, then launches the app,
+#   6. stays in a key loop: [R] rebuild+reinstall the native app (make
+#      mobile-rebuild), Enter relaunches it, q exits. Ctrl-C also just exits
+#      the loop; detached processes keep running.
 # Everything runs in its own session, so `make` returns in seconds and
 # Ctrl-C during startup can't wedge the terminal (learned the hard way:
 # interactive background children + make's signal handling deadlock).
@@ -528,6 +538,48 @@ mobile:
 	$(WIN_ADB) shell monkey -p $(ANDROID_PKG) 1 >/dev/null 2>&1; \
 	echo "✓ $(ANDROID_PKG) launched — JS edits hot-reload via Fast Refresh"; \
 	echo "  follow logs: make mobile-logs · stop: make mobile-stop"
+# Interactive key loop: [R] rebuilds the NATIVE app (prebuild + assembleDebug +
+# reinstall — needed after app.json / icon / splash / native-dep changes, which
+# Fast Refresh can't apply), Enter relaunches, q exits. JS edits never need R.
+# Skipped when stdin isn't a TTY (CI, piped make) so automation keeps the old
+# return-immediately behavior. Ctrl-C here just exits the loop — the API and
+# Metro run detached and are unaffected.
+	@if [ -t 0 ]; then \
+		echo ""; \
+		echo "Keys: [R] rebuild+reinstall native app · Enter relaunch · q quit (JS edits hot-reload on their own)"; \
+		while true; do \
+			printf "mobile> "; \
+			IFS= read -r -n 1 key || { echo; break; }; \
+			case "$$key" in \
+				"") echo ;; \
+				r|R) echo " $$key"; $(MAKE) --no-print-directory mobile-rebuild || echo "✗ rebuild failed — see output above" ;; \
+				q|Q) echo " $$key"; echo "✓ bye — API/Metro keep running (make mobile-stop to stop them)"; break ;; \
+				*) echo " $$key"; $(WIN_ADB) shell monkey -p $(ANDROID_PKG) 1 >/dev/null 2>&1 && echo "✓ app relaunched" ;; \
+			esac; \
+		done; \
+	fi
+
+# Rebuild the native app and reinstall it on the emulator. What the [R] key in
+# `make mobile` runs; also usable directly. The prebuild step is conditional:
+# expo prebuild --clean regenerates android/ and forces a full native
+# recompile (minutes), so it only runs when something native-affecting
+# (app.json, package.json, assets/, plugin/) is newer than the generated
+# android/ project. Otherwise Gradle does an incremental build (seconds).
+mobile-rebuild:
+	@if [ ! -f apps/mobile/android/app/build.gradle ] || \
+		[ -n "$$(find apps/mobile/app.json apps/mobile/package.json apps/mobile/assets apps/mobile/plugin -newer apps/mobile/android/app/build.gradle -print -quit 2>/dev/null)" ]; then \
+		echo "==> prebuild (native config changed since last prebuild)"; \
+		cd apps/mobile && npx expo prebuild --platform android --clean --no-install; \
+	else \
+		echo "✓ android/ is newer than app.json/assets/plugin — skipping prebuild"; \
+	fi
+	@echo "==> assembleDebug ($(ANDROID_ABI) only)"
+	cd apps/mobile/android && ./gradlew :app:assembleDebug -PreactNativeArchitectures=$(ANDROID_ABI)
+	@echo "==> reinstalling app-debug.apk"
+	$(WIN_ADB) install -r "$$(wslpath -w $$(realpath apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk))"
+	$(WIN_ADB) reverse tcp:8081 tcp:8081
+	$(WIN_ADB) shell monkey -p $(ANDROID_PKG) 1 >/dev/null 2>&1
+	@echo "✓ reinstalled + relaunched"
 
 # Tail the detached mobile processes' logs (Ctrl-C here is safe — it only
 # ends the tail).
