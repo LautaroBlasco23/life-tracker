@@ -1,0 +1,39 @@
+name: PR title lint
+
+# Version bumps and the changelog are computed from squash-merge PR titles,
+# so every PR title must follow Conventional Commits. The job blocks merge
+# with a helpful comment otherwise.
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions:
+  pull-requests: read
+  checks: write
+
+jobs:
+  lint:
+    name: Conventional title
+    runs-on: ubuntu-latest
+    steps:
+      - uses: amannn/action-semantic-pull-request@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          # feat!, fix!, BREAKING CHANGE footer -> major; feat -> minor;
+          # fix/perf -> patch; everything else -> no release.
+          types: |
+            feat
+            fix
+            perf
+            revert
+            docs
+            style
+            refactor
+            test
+            build
+            ci
+            chore
+          requireScope: false
+          subjectPattern: '.+'
+          wip: true

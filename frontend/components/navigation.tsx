@@ -16,6 +16,7 @@ import {
 import type { LucideIcon } from 'lucide-react';
 import { useTranslations } from '@shared/contexts/language-context';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { APP_VERSION } from '@/lib/version';
 
 type NavItem = {
   href: string;
@@ -172,7 +173,7 @@ export function Navigation() {
         {/* Sidebar footer */}
         <div className="p-4 border-t border-sidebar-border">
           <div className="text-xs text-sidebar-foreground/60 text-center">
-            LifeTracker v1.0
+            {`LifeTracker v${APP_VERSION}`}
           </div>
         </div>
       </aside>

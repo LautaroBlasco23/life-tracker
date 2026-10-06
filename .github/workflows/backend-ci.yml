@@ -3,6 +3,14 @@ name: Backend CI
 on:
   push:
     branches: ["main"]
+    tags:
+      - "v*"
+    paths:
+      - "backend/**"
+      - "infra/**"
+      - "Makefile"
+      - ".github/workflows/backend-ci.yml"
+  pull_request:
     paths:
       - "backend/**"
       - "infra/**"
@@ -69,10 +77,12 @@ jobs:
           curl -sf "http://localhost:4566/execute-api/lifetracker-api/dev/health" \
             | grep -q '"status":"ok"'
 
+  # Docker image is published only for real versions: vX.Y.Z tags cut by
+  # release-please (see release.yml). Tags: X.Y.Z, X.Y and latest.
   build-push:
     needs: test
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: startsWith(github.ref, 'refs/tags/v')
 
     steps:
       - uses: actions/checkout@v4
@@ -92,8 +102,9 @@ jobs:
         with:
           images: ${{ env.IMAGE_NAME }}
           tags: |
-            type=sha,prefix={{branch}}-
-            type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest
 
       - name: Build and push
         uses: docker/build-push-action@v6

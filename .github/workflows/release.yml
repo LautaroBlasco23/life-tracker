@@ -1,0 +1,23 @@
+name: Release Please
+
+# PR-oriented release flow: after each merge to main, release-please
+# inspects conventional commits since the last release, opens (or updates)
+# a "chore(main): release X.Y.Z" PR that bumps package.json files, mobile
+# app.json and CHANGELOG.md. Merging that release PR creates the vX.Y.Z
+# tag + GitHub Release, which triggers the Docker build/push workflows.
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: google-github-actions/release-please-action@v4
+        with:
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json

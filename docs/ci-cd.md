@@ -4,13 +4,28 @@ GitHub Actions workflows live in `.github/workflows/` at the **repository root**
 
 ## `backend-ci.yml`
 
-- **`test` job**: runs on pushes/PRs touching `backend/**`. Starts the floci AWS emulator (Docker socket required), provisions S3/RDS/DocumentDB/Secrets Manager via `infra/scripts/provision.sh`, runs the integration test suite against the floci services, then deploys the API as a Lambda behind API Gateway v2 (`make floci-deploy`) and smoke-tests `/health` through the gateway. Go 1.24.
-- **`build-push` job**: after tests pass, on `main` pushes only — builds and pushes the backend image to Docker Hub (`*DOCKERHUB_USERNAME*/lifetracker-backend`), and uploads Postman endpoint collections as an artifact.
+- **`test` job**: runs on pushes/PRs touching `backend/**` (plus `infra/**`, `Makefile`). Starts the floci AWS emulator (Docker socket required), provisions S3/RDS/DocumentDB/Secrets Manager via `infra/scripts/provision.sh`, runs the integration test suite against the floci services, then deploys the API as a Lambda behind API Gateway v2 (`make floci-deploy`) and smoke-tests `/health` through the gateway. Go 1.24.
+- **`build-push` job**: runs **only on `vX.Y.Z` tags** — builds and pushes the backend image to Docker Hub (`*DOCKERHUB_USERNAME*/lifetracker-backend`) tagged `X.Y.Z`, `X.Y` and `latest`, and uploads Postman endpoint collections as an artifact.
 
 ## `frontend-ci.yml`
 
 - **`build-export` job**: runs on pushes/PRs touching `frontend/**`. Installs dependencies and runs `next build` with `output: 'export'`, asserting `out/index.html` is produced.
-- **`build-and-push` job**: builds and pushes the frontend image to Docker Hub (`lautaroblasco1998/lifetracker-frontend`). On PRs it builds without pushing.
+- **`build-and-push` job**: runs **only on `vX.Y.Z` tags** — builds and pushes the frontend image to Docker Hub (`lautaroblasco1998/lifetracker-frontend`) tagged `X.Y.Z`, `X.Y` and `latest`, then smoke-tests the pushed image.
+- **`smoke` job**: after `build-and-push`, pulls `:latest` (the just-pushed release image) and verifies nginx serving, env injection and the `/api` proxy.
+
+## `release.yml` — versioning workflow
+
+Releases are **PR-driven** (release-please):
+
+1. Every PR is squash-merged to `main`, so each PR title becomes one conventional commit. PR titles are validated by `pr-title.yml` (`feat:`, `fix:`, `chore:`, … — required).
+2. After each merge to `main`, release-please inspects commits since the last release and opens/updates a **release PR** (`chore(main): release X.Y.Z`) that bumps `package.json` (root, frontend, shared), mobile `app.json` and `CHANGELOG.md` in one commit.
+3. **Merging the release PR** creates the `vX.Y.Z` tag + GitHub Release, which triggers the Docker `build-push`/`build-and-push` jobs in both CI workflows. No other event builds images.
+4. Bump rules: `feat!`/`fix!`/`BREAKING CHANGE` → **major**, `feat` → **minor**, `fix`/`perf` → **patch**, other types → no release.
+5. Highest bump wins if several PRs merge before the release PR is merged (one version absorbs them all, `feat` beats `fix`).
+
+The app version displayed in the web navbar is injected at build time from `frontend/package.json` (`next.config.mjs` → `NEXT_PUBLIC_APP_VERSION`), so navbar and release versions never drift.
+
+> **Branch-protection note:** release-please commits via `GITHUB_TOKEN`. If strict branch protection ("require PRs") is enabled on `main`, add an exemption for that actor or a PAT in the release job, or release PRs can't be created/updated.
 
 ## Repository Secrets
 
