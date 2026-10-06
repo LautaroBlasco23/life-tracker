@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation';
 import {
   Activity,
   Bell,
-  ChartPie,
   Timer,
   User,
   Wallet,
@@ -44,16 +43,7 @@ export function Navigation() {
     { href: '/time', icon: Timer, label: t('timeTracker') },
     { href: '/reminders', icon: Bell, label: t('reminders') },
     { href: '/notes', icon: StickyNote, label: t('notes') },
-    {
-      href: '/finance/transactions',
-      icon: Wallet,
-      label: t('financeTransactions'),
-    },
-    {
-      href: '/finance/dashboard',
-      icon: ChartPie,
-      label: t('financeDashboard'),
-    },
+    { href: '/finance', icon: Wallet, label: t('finance') },
     { href: '/social', icon: Users, label: t('social') },
     { href: '/profile', icon: User, label: t('profile') },
   ];
