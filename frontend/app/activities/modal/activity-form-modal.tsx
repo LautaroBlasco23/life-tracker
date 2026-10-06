@@ -291,10 +291,11 @@ export function ActivityFormModal({
       return;
     }
 
-    const dueAt = buildDateTime(dueDate, endTime);
+    // No active window: completable for the entire selected day.
+    const dueAt = buildDateTime(dueDate, hasWindow ? endTime : '23:59');
     const activeFrom = hasWindow
       ? buildDateTime(dueDate, startTime)
-      : new Date();
+      : buildDateTime(dueDate, '00:00');
     if (activeFrom >= dueAt) {
       showToast({
         title: tReminder('validationError'),
@@ -648,20 +649,6 @@ export function ActivityFormModal({
                   </div>
                 )}
               </div>
-
-              {!hasWindow && (
-                <div className="space-y-2">
-                  <Label htmlFor="entity-defaultEndTime" className="text-xs">
-                    {tReminder('windowEndHint')}
-                  </Label>
-                  <TimeInput
-                    id="entity-defaultEndTime"
-                    value={endTime}
-                    onChange={setEndTime}
-                    className="bg-input border-border"
-                  />
-                </div>
-              )}
             </>
           )}
 

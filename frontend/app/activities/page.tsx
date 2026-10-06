@@ -9,6 +9,10 @@ import { reminderService } from '@shared/services/reminder-service';
 import type { Activity, DayTime } from '@shared/types/activity';
 import type { StreakInfo } from '@shared/types/activity';
 import type { Reminder } from '@shared/types/reminder';
+import {
+  isReminderDueOn,
+  isReminderDueOnOrBefore,
+} from '@shared/types/reminder';
 import { StreakBadge } from '@/components/ui/streak-badge';
 import {
   Plus,
@@ -157,6 +161,15 @@ export default function ActivitiesPage() {
   const targetDate =
     viewMode === 'filtered' ? activeFilter.scheduledFor : undefined;
   const dateLabel = formatDateLabel(targetDate);
+
+  // Reminders shown for the date the page is displaying: today's view keeps
+  // today's + past missed ones; a filtered day shows only that day's.
+  const isViewingToday = !targetDate || isToday(targetDate);
+  const visibleReminders = reminders.filter((reminder) =>
+    isViewingToday
+      ? isReminderDueOnOrBefore(reminder, now)
+      : isReminderDueOn(reminder, parseLocalDate(targetDate))
+  );
 
   useEffect(() => {
     activityService
@@ -887,7 +900,7 @@ export default function ActivitiesPage() {
           )}
 
           <ReminderSection
-            reminders={reminders}
+            reminders={visibleReminders}
             now={now}
             processingIds={reminderProcessingIds}
             onComplete={handleCompleteReminder}
