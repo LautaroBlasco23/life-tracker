@@ -159,8 +159,13 @@ components:
 # db-up; the API runs its embedded migrations on every (re)start, so no
 # explicit migrate step is needed. Ctrl-C stops air + the frontend; the
 # databases stay up (make stop / make db-down to stop them).
+# Air (and other Go tooling) lives in GOPATH/bin via `make install-tools`.
+# Fail fast with the fix instead of starting the frontend and erroring later.
+CHECK_AIR = command -v air >/dev/null 2>&1 || { echo "air not found — run 'make install-tools'"; exit 1; };
+
 dev: setup db-up
 	@echo "==> fast lane: air (api :8080) + next dev (web :3000) + compose databases"
+	$(CHECK_AIR)
 	@echo "==> env file: $(notdir $(ENV_FILE))"
 	@[ -f "$(ENV_FILE)" ] || (echo ".env/.env.example not found — run 'make setup'"; exit 1)
 	@until docker exec golang_api_postgres pg_isready -U postgres >/dev/null 2>&1; do sleep 1; done
@@ -320,11 +325,13 @@ hooks:
 	cd backend && chmod +x .githooks/*
 
 backend-dev: hooks db-up
+	$(CHECK_AIR)
 	@until docker exec golang_api_postgres pg_isready -U postgres >/dev/null 2>&1; do sleep 1; done
 	# config.Load() walks up from backend/ and picks up the root .env.
 	cd backend && air -c .air.toml
 
 floci-dev: floci-up floci-provision
+	$(CHECK_AIR)
 	@set -a; . "$(INFRA)/.floci.env"; set +a; \
 	cd backend && air -c .air.toml
 
@@ -526,6 +533,7 @@ mobile:
 		echo "✓ API already on :8080"; \
 	else \
 		$(MAKE) --no-print-directory db-up; \
+		$(CHECK_AIR) \
 		until docker exec golang_api_postgres pg_isready -U postgres >/dev/null 2>&1; do sleep 1; done; \
 		nohup setsid sh -c 'cd backend && exec air -c .air.toml' >/tmp/lifetracker-api.log 2>&1 & \
 		echo $$! > /tmp/lifetracker-api.pid; \
