@@ -49,6 +49,9 @@ jobs:
       - name: Install tools
         run: make -C .. install-tools
 
+      - name: Lint (golangci-lint)
+        run: golangci-lint run ./...
+
       - name: Start floci
         run: |
           docker network create golang_api_network 2>/dev/null || true
