@@ -109,7 +109,6 @@
     "daily": "Daily",
     "weekly": "Weekly",
     "monthly": "Monthly",
-    "modeActivity": "Recurring activity",
     "modeReminder": "Reminder",
     "modeHint": "Check to schedule a one-time reminder with a deadline instead of a recurring activity.",
     "noActivitiesForToday": "No activities for today",

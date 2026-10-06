@@ -1,15 +1,17 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Pressable, Text, View } from 'react-native';
-import { Plus, Repeat, SlidersHorizontal, X, LayoutTemplate, Bell } from 'lucide-react-native';
+import { Plus, Repeat, SlidersHorizontal, X, LayoutTemplate } from 'lucide-react-native';
 import { useFocusEffect } from 'expo-router';
 import { activityService, useTranslations } from '@shared';
+import { reminderService } from '@shared/services/reminder-service';
 import type { Activity, DayTime, Frequency, DayOfWeek, StreakInfo } from '@shared/types/activity';
+import type { Reminder, ReminderStatus } from '@shared/types/reminder';
 import { Navigation } from '../../components/navigation';
 import { Button } from '../../components/ui/button';
 import { ActivityCard } from '../../components/ui/activity-card';
 import { ActivityFormModal } from '../../components/activity/activity-form-modal';
 import { RoutinesModal } from '../../components/activity/routines-modal';
-import { RemindersModal } from '../../components/reminder/reminders-modal';
+import { ReminderCard, sortReminders, formatDateTime } from '../../components/reminder/reminder-card';
 import { TemplatesModal } from '../../components/activity/templates-modal';
 import type { ActivityTemplate } from '@shared/lib/activity-templates';
 import { StreakBadge } from '../../components/ui/streak-badge';
@@ -36,7 +38,6 @@ export default function ActivitiesScreen() {
   const [editing, setEditing] = useState<Activity | null>(null);
   const [deleting, setDeleting] = useState<Activity | null>(null);
   const [showRoutines, setShowRoutines] = useState(false);
-  const [showReminders, setShowReminders] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [prefill, setPrefill] = useState<{
     title: string;
@@ -47,6 +48,11 @@ export default function ActivitiesScreen() {
   } | null>(null);
   const [filter, setFilter] = useState<FilterState>({});
   const [showFilterModal, setShowFilterModal] = useState(false);
+  const [reminders, setReminders] = useState<Reminder[]>([]);
+  const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
+  const [deletingReminder, setDeletingReminder] = useState<Reminder | null>(null);
+  const [reminderProcessingIds, setReminderProcessingIds] = useState<Set<number>>(new Set());
+  const [now, setNow] = useState(() => new Date());
   const colors = useColors();
 
   const filterFields: FilterField[] = [
@@ -97,10 +103,27 @@ export default function ActivitiesScreen() {
     }
   }, [t, filter]);
 
+  useEffect(() => {
+    if (reminders.length === 0) return;
+    // 30s tick: re-derives reminder statuses (locked → active, etc.). Minute
+    // precision is enough for reminders.
+    const id = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(id);
+  }, [reminders.length]);
+
+  const loadReminders = useCallback(async () => {
+    try {
+      setReminders(await reminderService.getReminders());
+    } catch {
+      // Reminder load failures shouldn't block the activities list.
+    }
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       loadActivities();
-    }, [loadActivities])
+      loadReminders();
+    }, [loadActivities, loadReminders])
   );
 
   const updateActivity = (updated: Activity) => {
@@ -222,6 +245,104 @@ export default function ActivitiesScreen() {
     setEditing(null);
   };
 
+  const handleReminderSaved = (saved: Reminder) => {
+    setReminders((prev) => {
+      const exists = prev.some((r) => r.id === saved.id);
+      return exists ? prev.map((r) => (r.id === saved.id ? saved : r)) : [saved, ...prev];
+    });
+    setEditingReminder(null);
+  };
+
+  const updateReminderState = (updated: Reminder) => {
+    setReminders((prev) => prev.map((r) => (r.id === updated.id ? updated : r)));
+  };
+
+  const setReminderProcessing = (id: number, processing: boolean) => {
+    setReminderProcessingIds((prev) => {
+      const next = new Set(prev);
+      if (processing) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  };
+
+  const handleCompleteReminder = async (reminder: Reminder) => {
+    if (reminder.completedAt) return;
+    setReminderProcessing(reminder.id, true);
+    const optimistic = { ...reminder, completedAt: new Date().toISOString() };
+    updateReminderState(optimistic);
+    try {
+      updateReminderState(await reminderService.completeReminder(reminder.id));
+      showToast({
+        title: tReminders('reminderComplete'),
+        description: tReminders('reminderCompletedDescription', { title: reminder.title }),
+      });
+    } catch {
+      updateReminderState(reminder);
+      showToast({ title: tCommon('error'), variant: 'destructive' });
+    } finally {
+      setReminderProcessing(reminder.id, false);
+    }
+  };
+
+  const handleRevertReminder = async (reminder: Reminder) => {
+    setReminderProcessing(reminder.id, true);
+    const optimistic = { ...reminder, completedAt: null };
+    updateReminderState(optimistic);
+    try {
+      await reminderService.revertCompletion(reminder.id);
+      showToast({
+        title: tReminders('completionReverted'),
+        description: tReminders('revertDescription', { title: reminder.title }),
+      });
+    } catch {
+      updateReminderState(reminder);
+      showToast({ title: tCommon('error'), variant: 'destructive' });
+    } finally {
+      setReminderProcessing(reminder.id, false);
+    }
+  };
+
+  const handleDeleteReminder = async () => {
+    if (!deletingReminder) return;
+    try {
+      await reminderService.deleteReminder(deletingReminder.id);
+      setReminders((prev) => prev.filter((r) => r.id !== deletingReminder.id));
+      setDeletingReminder(null);
+      showToast({
+        title: tReminders('reminderDeleted'),
+        description: tReminders('reminderDeletedDescription'),
+      });
+    } catch {
+      showToast({ title: tReminders('deleteFailed'), variant: 'destructive' });
+      throw new Error('delete failed');
+    }
+  };
+
+  const handleReminderLongPress = (reminder: Reminder, status: ReminderStatus) => {
+    const options: Array<{ text: string; onPress?: () => void; style?: 'destructive' | 'cancel' }> = [];
+    if (status === 'completed') {
+      options.push({ text: tReminders('revertCompletion'), onPress: () => handleRevertReminder(reminder) });
+    } else if (status === 'active' || status === 'missed') {
+      options.push({ text: tReminders('completeNow'), onPress: () => handleCompleteReminder(reminder) });
+    }
+    options.push({
+      text: tCommon('edit'),
+      onPress: () => {
+        setEditing(null);
+        setEditingReminder(reminder);
+        setShowForm(true);
+      },
+    });
+    options.push({
+      text: tReminders('deleteReminder'),
+      style: 'destructive',
+      onPress: () => setDeletingReminder(reminder),
+    });
+    options.push({ text: tCommon('cancel'), style: 'cancel' });
+    Alert.alert(reminder.title, undefined, options);
+  };
+
   // Web parity: customize a template = prefill the create form.
   const handleCustomizeTemplate = (template: ActivityTemplate) => {
     setShowTemplates(false);
@@ -241,6 +362,28 @@ export default function ActivitiesScreen() {
     items: activities.filter((a) => a.dayTime === cat),
   })).filter((g) => g.items.length > 0);
 
+  // Reminders render as an extra card section above the activity groups.
+  const sections: Array<
+    | { key: string; kind: 'reminders'; items: Reminder[] }
+    | { key: string; kind: 'activities'; dayTime: DayTime; items: Activity[] }
+  > = [
+    ...(reminders.length > 0
+      ? [
+          {
+            key: 'reminders',
+            kind: 'reminders' as const,
+            items: sortReminders(reminders, now),
+          },
+        ]
+      : []),
+    ...grouped.map((g) => ({
+      key: g.dayTime,
+      kind: 'activities' as const,
+      dayTime: g.dayTime,
+      items: g.items,
+    })),
+  ];
+
   const filterCount = getActiveFilterCount(filter);
 
   if (isLoading) {
@@ -255,8 +398,8 @@ export default function ActivitiesScreen() {
     <View className="flex-1 relative bg-background dark:bg-dark-background">
       <Navigation />
       <FlatList
-        data={grouped}
-        keyExtractor={(item) => item.dayTime}
+        data={sections}
+        keyExtractor={(item) => item.key}
         ListHeaderComponent={
           <View className="p-4 pb-2">
             <Text className="text-2xl font-semibold text-foreground dark:text-dark-foreground">
@@ -270,14 +413,6 @@ export default function ActivitiesScreen() {
                   <Repeat size={14} color={colors.primary} />
                   <Text className="text-sm text-foreground dark:text-dark-foreground">
                     {tRoutines('title')}
-                  </Text>
-                </View>
-              </Button>
-              <Button variant="outline" className="h-9" onPress={() => setShowReminders(true)}>
-                <View className="flex-row items-center gap-1.5">
-                  <Bell size={14} color={colors.primary} />
-                  <Text className="text-sm text-foreground dark:text-dark-foreground">
-                    {tReminders('title')}
                   </Text>
                 </View>
               </Button>
@@ -346,24 +481,43 @@ export default function ActivitiesScreen() {
             ) : null}
           </View>
         }
-        renderItem={({ item }) => (
-          <View className="px-4 pb-5">
-            <Text className="text-sm font-medium text-muted dark:text-dark-muted mb-2">
-              {t(item.dayTime)}
-            </Text>
-            <View className="gap-3">
-              {item.items.map((activity) => (
-                <ActivityCard
-                  key={activity.id}
-                  activity={activity}
-                  isProcessing={processingIds.has(activity.id)}
-                  onPress={() => handleRecordCompletion(activity)}
-                  onLongPress={() => handleLongPress(activity)}
+        renderItem={({ item }) =>
+          item.kind === 'reminders' ? (
+            <View className="px-4 pb-5">
+              <Text className="text-sm font-medium text-muted dark:text-dark-muted mb-2">
+                {tReminders('title')}
+              </Text>
+              {item.items.map((reminder) => (
+                <ReminderCard
+                  key={reminder.id}
+                  reminder={reminder}
+                  now={now}
+                  processing={reminderProcessingIds.has(reminder.id)}
+                  onComplete={handleCompleteReminder}
+                  onRevert={handleRevertReminder}
+                  onLongPress={handleReminderLongPress}
                 />
               ))}
             </View>
-          </View>
-        )}
+          ) : (
+            <View className="px-4 pb-5">
+              <Text className="text-sm font-medium text-muted dark:text-dark-muted mb-2">
+                {t(item.dayTime)}
+              </Text>
+              <View className="gap-3">
+                {item.items.map((activity) => (
+                  <ActivityCard
+                    key={activity.id}
+                    activity={activity}
+                    isProcessing={processingIds.has(activity.id)}
+                    onPress={() => handleRecordCompletion(activity)}
+                    onLongPress={() => handleLongPress(activity)}
+                  />
+                ))}
+              </View>
+            </View>
+          )
+        }
         contentContainerClassName="pb-24"
       />
 
@@ -377,14 +531,14 @@ export default function ActivitiesScreen() {
       <ActivityFormModal
         visible={showForm}
         activity={editing}
+        reminder={editingReminder}
         prefill={prefill}
-        onClose={() => { setShowForm(false); setEditing(null); setPrefill(null); }}
+        onClose={() => { setShowForm(false); setEditing(null); setEditingReminder(null); setPrefill(null); }}
         onSaved={onSaved}
+        onReminderSaved={handleReminderSaved}
       />
 
       <RoutinesModal visible={showRoutines} onClose={() => setShowRoutines(false)} />
-
-      <RemindersModal visible={showReminders} onClose={() => setShowReminders(false)} />
 
       <TemplatesModal
         visible={showTemplates}
@@ -407,6 +561,31 @@ export default function ActivitiesScreen() {
         title={t('deleteActivity')}
         itemName={deleting?.title ?? ''}
         onConfirm={handleDeleteActivity}
+      />
+
+      <DeleteModal
+        visible={deletingReminder !== null}
+        onClose={() => setDeletingReminder(null)}
+        title={tReminders('deleteReminder')}
+        itemName={deletingReminder?.title ?? ''}
+        itemDetails={
+          deletingReminder ? (
+            <View>
+              <Text className="text-sm font-medium text-foreground dark:text-dark-foreground">
+                {deletingReminder.title}
+              </Text>
+              {deletingReminder.description ? (
+                <Text className="text-xs text-muted dark:text-dark-muted mt-0.5">
+                  {deletingReminder.description}
+                </Text>
+              ) : null}
+              <Text className="text-xs text-muted dark:text-dark-muted mt-1">
+                {tReminders('dueBy', { date: formatDateTime(new Date(deletingReminder.dueAt)) })}
+              </Text>
+            </View>
+          ) : null
+        }
+        onConfirm={handleDeleteReminder}
       />
     </View>
   );

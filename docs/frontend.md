@@ -25,11 +25,12 @@ Developed initially with Vercel V0. Built with Next.js and TypeScript.
   - Visual progress indicators
 
 - **Reminders**
-  - One-time events living inside the Activities page (modal, not a route)
+  - One-time events shown as cards inside the Activities page (no separate route)
+  - Created via the shared activity form by checking "Reminder"
   - Deadline with date picker and optional active window
   - Status badges and countdowns (Overdue / Open now / Upcoming / Completed)
-  - Unified create/edit form with a "Recurring activity" toggle that switches
-    between activity and reminder field sets
+  - Unified create/edit form defaults to a normal activity; the checkbox
+    switches it to reminder mode
 
 - **Finance Management**
   - Personal finance tracking interface

@@ -116,7 +116,9 @@ export function ActivityFormModal({
       return;
     }
 
-    setEntityMode(lockedMode ?? 'reminder');
+    // Create mode: normal activity by default; the Reminder checkbox opts into
+    // reminder mode.
+    setEntityMode(lockedMode ?? 'activity');
     setTitle(prefill?.title ?? '');
     setDescription('');
     setCompletionAmount(String(prefill?.completionAmount ?? 1));
@@ -269,25 +271,32 @@ export function ActivityFormModal({
             {modeToggle ? (
               <View className="rounded-xl border border-border dark:border-dark-border p-3">
                 <Pressable
-                  onPress={() => setEntityMode((m) => (m === 'activity' ? 'reminder' : 'activity'))}
+                  onPress={() =>
+                    setEntityMode((m) =>
+                      m === 'activity' ? 'reminder' : 'activity'
+                    )
+                  }
                   className="flex-row items-center gap-2"
                 >
                   <View
                     className={cn(
                       'h-5 w-5 rounded border items-center justify-center',
-                      entityMode === 'activity'
+                      entityMode === 'reminder'
                         ? 'bg-primary dark:bg-dark-primary border-primary dark:border-dark-primary'
                         : 'border-border dark:border-dark-border'
                     )}
                   >
-                    {entityMode === 'activity' ? (
+                    {entityMode === 'reminder' ? (
                       <Check size={14} color={colors.primaryForeground} />
                     ) : null}
                   </View>
                   <Text className="text-sm font-medium text-foreground dark:text-dark-foreground">
-                    {entityMode === 'activity' ? tAct('modeActivity') : tAct('modeReminder')}
+                    {tAct('modeReminder')}
                   </Text>
                 </Pressable>
+                <Text className="text-xs text-muted dark:text-dark-muted mt-1">
+                  {tAct('modeHint')}
+                </Text>
               </View>
             ) : null}
 

@@ -1,6 +1,7 @@
 import { Pressable, Text, View } from 'react-native';
 import { Check, Clock, Undo2 } from 'lucide-react-native';
 import { themeColors } from '@shared/lib/theme-colors';
+import { useTranslations } from '@shared';
 import type { Reminder, ReminderStatus } from '@shared/types/reminder';
 import { getReminderStatus } from '@shared/types/reminder';
 import { useTheme } from '../../lib/theme-provider';
@@ -66,7 +67,7 @@ export function ReminderCard({
   onRevert,
   onLongPress,
 }: ReminderCardProps) {
-  const t = useTranslations();
+  const t = useTranslations('reminders');
   const { theme } = useTheme();
   const colors = useColors();
   const palette = themeColors[theme];

@@ -109,7 +109,6 @@
     "daily": "Diaria",
     "weekly": "Semanal",
     "monthly": "Mensual",
-    "modeActivity": "Actividad recurrente",
     "modeReminder": "Recordatorio",
     "modeHint": "Marca la casilla para programar un recordatorio de un solo uso con fecha límite en lugar de una actividad recurrente.",
     "noActivitiesForToday": "No hay actividades para hoy",
