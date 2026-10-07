@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { AuthGuard } from '@/components/auth-guard';import { Navigation } from '@/components/navigation';
+import { AuthGuard } from '@/components/auth-guard';
+import { Navigation } from '@/components/navigation';
 import { activityService } from '@shared/services/activity-service';
 import { reminderService } from '@shared/services/reminder-service';
 import type { Activity, DayTime } from '@shared/types/activity';
@@ -153,9 +154,9 @@ export default function ActivitiesPage() {
   const [globalStreak, setGlobalStreak] = useState<StreakInfo | null>(null);
   const [reminders, setReminders] = useState<Reminder[]>([]);
   const [editingReminder, setEditingReminder] = useState<Reminder | null>(null);
-  const [reminderProcessingIds, setReminderProcessingIds] = useState<Set<number>>(
-    new Set()
-  );
+  const [reminderProcessingIds, setReminderProcessingIds] = useState<
+    Set<number>
+  >(new Set());
   const [now, setNow] = useState(() => new Date());
 
   const targetDate =

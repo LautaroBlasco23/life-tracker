@@ -96,7 +96,9 @@ export function TemplatesModal({
     completionAmount: template.completionAmount,
     frequency: template.frequency,
     dayFrequency:
-      template.frequency === 'weekly' ? (template.dayFrequency ?? []) : undefined,
+      template.frequency === 'weekly'
+        ? (template.dayFrequency ?? [])
+        : undefined,
     dayTime: template.dayTime,
     privacyStatus: 'private' as const,
   });

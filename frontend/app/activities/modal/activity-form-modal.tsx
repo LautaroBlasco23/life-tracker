@@ -39,10 +39,7 @@ import type {
   PrivacyStatus,
 } from '@shared/types/activity';
 import type { Reminder } from '@shared/types/reminder';
-import {
-  buildDateTime,
-  formatTimeInput,
-} from '@shared/lib/datetime';
+import { buildDateTime, formatTimeInput } from '@shared/lib/datetime';
 import { showToast } from '@/lib/toast';
 import { useTranslations } from '@shared/contexts/language-context';
 import { TimeInput } from '@/components/ui/time-input';
@@ -252,7 +249,10 @@ export function ActivityFormModal({
       };
 
       if (activity) {
-        const updated = await activityService.updateActivity(activity.id, payload);
+        const updated = await activityService.updateActivity(
+          activity.id,
+          payload
+        );
         onActivityUpdated?.(updated);
         showToast({
           title: tAct('activityUpdated'),
@@ -315,7 +315,10 @@ export function ActivityFormModal({
       };
 
       if (reminder) {
-        const updated = await reminderService.updateReminder(reminder.id, payload);
+        const updated = await reminderService.updateReminder(
+          reminder.id,
+          payload
+        );
         onReminderUpdated?.(updated);
         showToast({
           title: tReminder('reminderUpdated'),
@@ -334,7 +337,9 @@ export function ActivityFormModal({
     } catch (error) {
       console.error('Save reminder error:', error);
       showToast({
-        title: reminder ? tReminder('updateFailed') : tReminder('creationFailed'),
+        title: reminder
+          ? tReminder('updateFailed')
+          : tReminder('creationFailed'),
         description:
           error instanceof Error ? error.message : 'An error occurred',
         variant: 'destructive',
@@ -470,7 +475,9 @@ export function ActivityFormModal({
                     type="number"
                     min="1"
                     value={completionAmount}
-                    onChange={(e) => setCompletionAmount(Number(e.target.value))}
+                    onChange={(e) =>
+                      setCompletionAmount(Number(e.target.value))
+                    }
                     required
                     className="bg-input border-border"
                   />
@@ -608,7 +615,9 @@ export function ActivityFormModal({
                   <Checkbox
                     id="entity-hasWindow"
                     checked={hasWindow}
-                    onCheckedChange={(checked) => setHasWindow(checked === true)}
+                    onCheckedChange={(checked) =>
+                      setHasWindow(checked === true)
+                    }
                     className="border-muted-foreground/70"
                   />
                   <Label

@@ -1,10 +1,6 @@
 'use client';
 
-import {
-  Bell,
-  Undo2,
-  Check,
-} from 'lucide-react';
+import { Bell, Undo2, Check } from 'lucide-react';
 import { CategoryHeader } from '@/components/ui/category/categoryHeader';
 import { EntityCard } from '@/components/ui/card/entityCard';
 import { Countdown } from '@/components/ui/countdown';
