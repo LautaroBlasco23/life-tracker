@@ -9,12 +9,17 @@ describe("buildApiUrl", () => {
   });
 
   it("builds the API base for a remote host", () => {
-    expect(buildApiUrl("api.example.com")).toBe("http://api.example.com/api");
+    // Hardened behavior (security commit): remote hosts get https — tokens
+    // travel in the Authorization header, so network-reachable APIs must not
+    // use plaintext http.
+    expect(buildApiUrl("api.example.com")).toBe("https://api.example.com/api");
   });
 
-  it("does not prepend a scheme to hosts that already have one", () => {
-    // Existing behavior: host is inserted verbatim.
-    expect(buildApiUrl("http://localhost:8080")).toBe("http://http://localhost:8080/api");
+  it("strips a typed scheme instead of prepending to it", () => {
+    // http(s):// input is normalized, then the correct scheme is re-added:
+    // localhost stays http, remote hosts get https.
+    expect(buildApiUrl("http://localhost:8080")).toBe("http://localhost:8080/api");
+    expect(buildApiUrl("https://api.example.com")).toBe("https://api.example.com/api");
   });
 
   it("round-trips the default API host from config", () => {
