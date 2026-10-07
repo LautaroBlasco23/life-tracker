@@ -250,15 +250,9 @@ func (s *RoutineService) GetRoutine(userID, routineID uint, loc *time.Location) 
 	return response, nil
 }
 
-func (s *RoutineService) UpdateRoutine(userID, routineID uint, req *dto.UpdateRoutineRequest, loc *time.Location) (*dto.RoutineResponse, error) {
-	routine, err := s.repo.FindByID(routineID, userID)
-	if err != nil {
-		if errors.Is(err, repository.ErrRoutineNotFound) {
-			return nil, errors.New("routine not found")
-		}
-		return nil, errors.New("failed to fetch routine")
-	}
-
+// routineUpdates translates the optional PATCH fields into column updates.
+// Empty map = nothing to change on the routine row itself.
+func (s *RoutineService) routineUpdates(req *dto.UpdateRoutineRequest) (map[string]interface{}, error) {
 	updates := map[string]interface{}{}
 	if req.Title != nil {
 		updates["title"] = *req.Title
@@ -280,6 +274,22 @@ func (s *RoutineService) UpdateRoutine(userID, routineID uint, req *dto.UpdateRo
 			return nil, err
 		}
 		updates["day_frequency"] = *req.DayFrequency
+	}
+	return updates, nil
+}
+
+func (s *RoutineService) UpdateRoutine(userID, routineID uint, req *dto.UpdateRoutineRequest, loc *time.Location) (*dto.RoutineResponse, error) {
+	routine, err := s.repo.FindByID(routineID, userID)
+	if err != nil {
+		if errors.Is(err, repository.ErrRoutineNotFound) {
+			return nil, errors.New("routine not found")
+		}
+		return nil, errors.New("failed to fetch routine")
+	}
+
+	updates, err := s.routineUpdates(req)
+	if err != nil {
+		return nil, err
 	}
 	if len(updates) > 0 {
 		if updateErr := s.repo.Update(routine, updates); updateErr != nil {

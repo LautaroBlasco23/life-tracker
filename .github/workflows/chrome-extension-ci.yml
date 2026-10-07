@@ -1,0 +1,58 @@
+# Chrome extension CI (chrome-extension/, plain JS + Vitest).
+#
+# The extension files are ES modules (import/export) loaded by the browser;
+# Node 22 parses module syntax in `node --check` (auto-detection since 22.7),
+# and --check only PARSES the file, never executes it — safe even for
+# background.js/popup.js, whose top-level code references chrome.* / DOM
+# (that code lives in listeners/callbacks, never runs during a parse).
+#
+# - vitest covers the pure-logic parts (config.js is trivially importable);
+#     background.js / popup.js are only syntax-checked here — importing them
+#     in Node would fail on `chrome.*` / `document.*` at module top level.
+# - no Docker hub push: the extension ships via the Chrome Web Store, not CI.
+name: Chrome Extension CI
+
+on:
+  push:
+    branches: ["main"]
+    tags:
+      - "v*"
+    paths:
+      - "chrome-extension/**"
+      - ".github/workflows/chrome-extension-ci.yml"
+  pull_request:
+    paths:
+      - "chrome-extension/**"
+      - ".github/workflows/chrome-extension-ci.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          # chrome-extension is outside the npm workspaces (apps/mobile +
+          # packages/shared only) — its own lockfile, cached in isolation.
+          cache: npm
+          cache-dependency-path: chrome-extension/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+        working-directory: chrome-extension
+
+      - name: Run tests (vitest)
+        run: npm test
+        working-directory: chrome-extension
+
+      # Syntax sanity check on the shipped scripts. node --check parses
+      # without executing, so chrome.*/document references never evaluate.
+      - name: Syntax check extension scripts
+        run: |
+          node --check background.js
+          node --check popup.js
+          node --check config.js
+        working-directory: chrome-extension

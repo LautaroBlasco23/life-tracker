@@ -426,7 +426,6 @@ func TestValidateDayFrequency(t *testing.T) {
 }
 
 func TestShouldShowToday(t *testing.T) {
-
 	now := time.Now().In(testLoc)
 	metadata := &repository.CompletionMetadata{
 		MonthlyCompletions: make(map[uint]time.Time),

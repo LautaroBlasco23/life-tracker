@@ -68,6 +68,7 @@ bin/
 # Test coverage
 coverage.txt
 coverage.html
+coverage.out
 *.cover
 
 # Temporary files

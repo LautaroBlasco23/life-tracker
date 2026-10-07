@@ -57,14 +57,10 @@ func Compute(daily map[uint]map[string]int, inputs []Input, loc *time.Location, 
 	return computeAt(daily, inputs, loc, windowDays, time.Now().In(loc))
 }
 
-// computeAt is Compute with an explicit reference date for testability.
-func computeAt(daily map[uint]map[string]int, inputs []Input, loc *time.Location, windowDays int, today time.Time) dto.StreakInfo {
-	if len(inputs) == 0 {
-		return dto.StreakInfo{Current: 0, Longest: 0}
-	}
-
-	// earliestPerMonth: per activity, monthKey "2006-01" -> earliest
-	// day-of-month with count >= CompletionAmount.
+// buildSchedules precomputes, per activity: the earliest completed
+// day-of-month per month ("2006-01" -> day) and, for weekly activities, the
+// set of due weekdays.
+func buildSchedules(daily map[uint]map[string]int, inputs []Input) (map[uint]map[string]int, map[uint]map[time.Weekday]bool) {
 	earliestPerMonth := make(map[uint]map[string]int, len(inputs))
 	weeklyDays := make(map[uint]map[time.Weekday]bool, len(inputs))
 
@@ -98,53 +94,75 @@ func computeAt(daily map[uint]map[string]int, inputs []Input, loc *time.Location
 		}
 	}
 
+	return earliestPerMonth, weeklyDays
+}
+
+// dueOn reports whether the activity is due (or overdue) on the given date
+// under its configured frequency.
+func dueOn(in Input, weeklyDays map[uint]map[time.Weekday]bool, earliestPerMonth map[uint]map[string]int, d time.Time) bool {
+	switch in.Frequency {
+	case model.FrequencyDaily:
+		return true
+	case model.FrequencyWeekly:
+		return weeklyDays[in.ActivityID][d.Weekday()]
+	case model.FrequencyMonthly:
+		// Overdue from the day after the earliest completion until the next
+		// completion re-anchors the month.
+		earliest, ok := earliestPerMonth[in.ActivityID][d.Format("2006-01")]
+		return !ok || earliest > d.Day()
+	default:
+		return false
+	}
+}
+
+// dayStatus walks the due activities of one day: anyDue says whether any
+// activity was due, allDone whether all due ones met their completion amount.
+func dayStatus(daily map[uint]map[string]int, inputs []Input, weeklyDays map[uint]map[time.Weekday]bool, earliestPerMonth map[uint]map[string]int, d time.Time) (anyDue, allDone bool) {
+	dayKey := d.Format("2006-01-02")
+	allDone = true
+	for _, in := range inputs {
+		if !dueOn(in, weeklyDays, earliestPerMonth, d) {
+			continue
+		}
+		anyDue = true
+		if daily[in.ActivityID][dayKey] < in.CompletionAmount {
+			allDone = false
+		}
+	}
+	return anyDue, allDone
+}
+
+// computeAt is Compute with an explicit reference date for testability.
+func computeAt(daily map[uint]map[string]int, inputs []Input, loc *time.Location, windowDays int, today time.Time) dto.StreakInfo {
+	if len(inputs) == 0 {
+		return dto.StreakInfo{Current: 0, Longest: 0}
+	}
+
+	earliestPerMonth, weeklyDays := buildSchedules(daily, inputs)
+
 	today = today.In(loc)
 
 	current, longest, run := 0, 0, 0
 	broke := false
 	for i := 0; i < windowDays; i++ {
 		d := today.AddDate(0, 0, -i)
-		dayKey := d.Format("2006-01-02")
-		monthKey := d.Format("2006-01")
-		dayOfMonth := d.Day()
-
-		anyDue := false
-		allDone := true
-		for _, in := range inputs {
-			due := false
-			switch in.Frequency {
-			case model.FrequencyDaily:
-				due = true
-			case model.FrequencyWeekly:
-				due = weeklyDays[in.ActivityID][d.Weekday()]
-			case model.FrequencyMonthly:
-				earliest, ok := earliestPerMonth[in.ActivityID][monthKey]
-				due = !ok || earliest > dayOfMonth
-			}
-			if !due {
-				continue
-			}
-			anyDue = true
-			if daily[in.ActivityID][dayKey] < in.CompletionAmount {
-				allDone = false
-			}
-		}
-
+		anyDue, allDone := dayStatus(daily, inputs, weeklyDays, earliestPerMonth, d)
 		if !anyDue {
 			continue
 		}
-		if allDone {
+		switch {
+		case allDone:
 			run++
 			if run > longest {
 				longest = run
 			}
-		} else if !broke {
+		case !broke:
 			// The current streak ends at the first incomplete due day
 			// encountered walking backwards; keep scanning for longest.
 			current = run
 			broke = true
 			run = 0
-		} else {
+		default:
 			run = 0
 		}
 	}

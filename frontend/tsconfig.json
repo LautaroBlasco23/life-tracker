@@ -34,5 +34,5 @@
     "../packages/shared/src/**/*.ts",
     "../packages/shared/src/**/*.tsx"
   ],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "out", "../packages/shared/src/**/*.test.ts"]
 }

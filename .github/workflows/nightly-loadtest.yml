@@ -1,0 +1,61 @@
+# Nightly full k6 load test (plus manual re-run via workflow_dispatch).
+#
+# The root `make loadtest` orchestrates the whole suite — see loadtest/Makefile
+# `run`: stack-up -> provision -> smoke -> read-heavy -> write-heavy ->
+# auth-storm -> mixed-rhythms -> features -> cleanup. Every k6 script carries
+# its own thresholds (p95, failure rate, ...), so a breach makes k6 exit
+# non-zero and fails this job. No Prometheus dashboards are needed in CI.
+#
+# Options chosen and why:
+#   - .env: the load-test compose stack (infra/docker-compose.loadtest.yml
+#     override) pins its own DB credentials and volumes, but the base
+#     docker-compose.yml still lists `env_file: ../.env`; `make setup`
+#     creates it from .env.example when missing (idempotent).
+#   - REMOTE_WRITE=0: the loadtest Makefile defaults k6 remote-write output
+#     to ON (streaming to :9090). No Prometheus is *required* here, so we
+#     disable the stream to keep the runs self-sufficient. NOTE: the `run`
+#     target's stack-up dep also boots the observability containers
+#     (node-exporter/prometheus/grafana) — they idle harmlessly; keeping
+#     `make loadtest` as the single entry point was chosen over replicating
+#     its step list here.
+#   - JSON summaries: every heavy lane writes loadtest/reports/<lane>-<TS>.json
+#     (see loadtest/Makefile), uploaded as an artifact for later inspection.
+name: Nightly Load Test
+
+on:
+  schedule:
+    # 03:00 UTC daily — off-hours for the runner and the (unlikely) humans.
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+jobs:
+  loadtest:
+    runs-on: ubuntu-latest
+    # Full suite is minutes-scale, but breakpoints/spikes + image builds can
+    # stretch; stay generous and let k6 thresholds do the gating.
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Base compose has `env_file: ../.env`. Creates .env from .env.example
+      # only when missing — never overwrites a local one.
+      - name: Ensure .env exists
+        run: make setup
+
+      - name: Run full k6 load test suite
+        run: make loadtest REMOTE_WRITE=0
+
+      # The suite leaves the stack running by design (local workflow); stop
+      # it so the runner doesn't hold resources until reaping.
+      - name: Stop load-test stack
+        if: always()
+        run: make loadtest-stack-down
+
+      - name: Upload k6 reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: k6-reports-${{ github.run_id }}
+          path: loadtest/reports/
+          retention-days: 14

@@ -61,7 +61,10 @@ FE  := cd infra && docker compose -p infra -f docker-compose.frontend.yml
 # floci gateway — used by the container-mode lanes (dev / dev-full).
 FEO := cd infra && docker compose -p infra -f docker-compose.frontend.yml -f docker-compose.frontend.override.yml
 
-.PHONY: help components dev dev-container dev-emulator dev-full stop test test-only loadtest loadtest-% \
+.PHONY: help components dev dev-container dev-emulator dev-full stop test test-only test-coverage \
+	test-js test-shared test-frontend test-mobile loadtest loadtest-% \
+	test-e2e test-e2e-floci test-floci-coverage \
+	loadtest-stack-up loadtest-stack-down \
 	backend-dev backend-start setup install-tools code-check hooks \
 	floci-dev migrate-floci test-floci \
 	fe-run-dev fe-build-dev fe-logs-dev fe-shell-dev fe-clean \
@@ -91,6 +94,9 @@ help:
 	@printf "$(GREEN)  TEST$(RST)\n"
 	@printf "    make test           backend tests — isolated test DB + race detector\n"
 	@printf "    make test-only      backend tests — reuses a running test DB\n"
+	@printf "    make test-e2e       backend essential E2E — production router + real auth\n"
+	@printf "    make test-coverage  backend tests + coverage profile (report-only)\n"
+	@printf "    make test-js        all JS/TS suites: shared + frontend + mobile\n"
 	@printf "    make loadtest       k6 full suite — also: loadtest-breakpoint / -soak / -tap\n"
 	@printf "\n"
 	@printf "$(DIM)  ── component-level ──────────────────────────────────────────────$(RST)\n"
@@ -110,6 +116,7 @@ components:
 	@printf "    make %-18s %s\n" "floci-dev"        "run the API on the host against floci services (air)"
 	@printf "    make %-18s %s\n" "migrate-floci"    "run DB migrations against floci services"
 	@printf "    make %-18s %s\n" "test-floci"       "test suite against floci RDS + DocumentDB"
+	@printf "    make %-18s %s\n" "test-e2e-floci"   "essential E2E suite against floci test DBs"
 	@printf "\n"
 	@printf "$(GREEN)  🖥️  Frontend only$(RST)\n"
 	@printf "    make %-18s %s\n" "fe-run-dev"       "dev container with hot reload on :3000"
@@ -346,6 +353,34 @@ test-floci:
 	export DB_NAME="$${DB_NAME}_test" MONGO_DATABASE="$${MONGO_DATABASE}_test"; \
 	cd backend && ENVIRONMENT=test gotestsum --format=short-verbose -- -race -p 1 ./...
 
+# Same suite as test-floci plus a coverage profile (report-only; the CI gate
+# ratchets from the baseline instead of an invented threshold).
+test-floci-coverage:
+	@[ -f "$(INFRA)/.floci.env" ] || (echo ".floci.env not found — run 'make floci-provision' first"; exit 1)
+	@echo "Note: tests truncate tables in the provisioned test DB (provision.sh creates it)."
+	@set -a; . "$(INFRA)/.floci.env"; set +a; \
+	export DB_NAME="$${DB_NAME}_test" MONGO_DATABASE="$${MONGO_DATABASE}_test"; \
+	cd backend && ENVIRONMENT=test gotestsum --format=short-verbose -- -race -p 1 -coverprofile=./coverage.out ./...; \
+	go tool cover -func=./coverage.out | tail -1
+
+# Essential E2E: production router + real JWT auth middleware against the
+# compose test DBs. Guarded by the `e2e` build tag, so the regular suite
+# (`make test`) stays fast. Does not truncate shared tables — uses unique
+# users per run, so it coexists with unit/integration runs on the same DBs.
+test-e2e: db-test-up
+	cd backend && ENVIRONMENT=test gotestsum --format=short-verbose -- -race -tags=e2e ./tests/e2e/...; \
+	TEST_EXIT=$$?; \
+	$(MAKE) -C $(CURDIR) db-test-down; \
+	exit $$TEST_EXIT
+
+# E2E variant against the floci-provisioned test DBs (the CI path). Same env
+# dance as test-floci so the tests resolve the emulated RDS/DocumentDB.
+test-e2e-floci:
+	@[ -f "$(INFRA)/.floci.env" ] || (echo ".floci.env not found — run 'make floci-provision' first"; exit 1)
+	@set -a; . "$(INFRA)/.floci.env"; set +a; \
+	export DB_NAME="$${DB_NAME}_test" MONGO_DATABASE="$${MONGO_DATABASE}_test"; \
+	cd backend && ENVIRONMENT=test gotestsum --format=short-verbose -- -race -tags=e2e ./tests/e2e/...
+
 # --- Tests ---
 
 test: db-test-up
@@ -356,6 +391,38 @@ test: db-test-up
 
 test-only:
 	cd backend && ENVIRONMENT=test gotestsum --format=short-verbose -- -race -p 1 ./...
+
+# Same suite as `test` plus a coverage profile (report-only; thresholds are
+# ratcheted against this baseline later).
+test-coverage: db-test-up
+	cd backend && ENVIRONMENT=test gotestsum --format=short-verbose -- -race -p 1 -coverprofile=./coverage.out ./...; \
+	TEST_EXIT=$$?; \
+	$(MAKE) -C $(CURDIR) db-test-down; \
+	go tool cover -func=./coverage.out | tail -1; \
+	exit $$TEST_EXIT
+
+# All JS/TS suites (shared + frontend + mobile). Each has its own config:
+# shared/frontend run vitest, mobile runs jest-expo (workspace-local).
+test-js: test-shared test-frontend test-mobile
+
+test-shared:
+	npm test -w @life-tracker/shared
+
+test-frontend:
+	cd frontend && npm test
+
+# --- Load testing in CI ---
+
+# Backend service + test DBs only (no observability, no Prometheus): the lane
+# the nightly k6 suite runs against. Heavy scenarios stay out of PRs entirely.
+loadtest-stack-up:
+	$(MAKE) -C loadtest stack-up
+
+loadtest-stack-down:
+	$(MAKE) -C loadtest stack-down
+
+test-mobile:
+	npm run test -w apps/mobile
 
 # Delegate every `make loadtest-<target>` to loadtest/Makefile, forwarding
 # command-line variables (USERS=500, RATE=600, BASE_URL=..., ...).

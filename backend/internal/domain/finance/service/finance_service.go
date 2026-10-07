@@ -197,6 +197,139 @@ func (s *FinanceService) GetFixedTransactions(userID uint, month, year *int, loc
 	return responses, nil
 }
 
+// txMatchesFilter applies the type/category query filters to a fixed
+// transaction (used for both payment movements and pending-bill movements).
+func txMatchesFilter(fx *model.Transaction, transactionType, category *string) bool {
+	if transactionType != nil && string(fx.Type) != *transactionType {
+		return false
+	}
+	if category != nil && fx.Category != *category {
+		return false
+	}
+	return true
+}
+
+func variableMovement(tx *model.Transaction) *dto.MovementResponse {
+	return &dto.MovementResponse{
+		ID:          tx.ID.Hex(),
+		SourceType:  "transaction",
+		Type:        string(tx.Type),
+		Amount:      tx.Amount,
+		Category:    tx.Category,
+		Description: tx.Description,
+		Date:        tx.Date,
+		Paid:        true,
+	}
+}
+
+func paymentMovement(payment *model.Payment, fx *model.Transaction) *dto.MovementResponse {
+	return &dto.MovementResponse{
+		ID:            payment.ID.Hex(),
+		SourceType:    "payment",
+		Type:          string(fx.Type),
+		Amount:        payment.Amount,
+		Category:      fx.Category,
+		Description:   fx.Description,
+		Date:          payment.Date,
+		Paid:          true,
+		TransactionID: fx.ID.Hex(),
+	}
+}
+
+// pendingFixedMovement renders an unpaid fixed bill, or nil when the current
+// period is already paid (findErr != nil or payment found).
+func (s *FinanceService) pendingFixedMovement(ctx context.Context, fx *model.Transaction, userID uint, loc *time.Location, lastPaymentAmount map[primitive.ObjectID]float64) *dto.MovementResponse {
+	payment, err := s.paymentRepo.FindCurrentPeriodPayment(ctx, fx.ID, userID, fx.PaymentFrequency)
+	if err != nil || payment != nil {
+		return nil
+	}
+	return &dto.MovementResponse{
+		ID:            fx.ID.Hex(),
+		SourceType:    "fixed",
+		Type:          string(fx.Type),
+		Amount:        lastPaymentAmount[fx.ID],
+		Category:      fx.Category,
+		Description:   fx.Description,
+		Date:          s.currentPeriodStart(fx.PaymentFrequency, loc),
+		Paid:          false,
+		TransactionID: fx.ID.Hex(),
+	}
+}
+
+// collectMovements fetches the three movement sources and merges them into
+// one unsorted list: variable transactions, fixed-transaction payments, and
+// (when the feed is unfiltered) pending fixed bills.
+func (s *FinanceService) collectMovements(ctx context.Context, userID uint, transactionType, category *string, effectiveStart, effectiveEnd *time.Time, unfiltered bool, loc *time.Location) ([]*dto.MovementResponse, error) {
+	variableFrequency := string(model.TransactionFrequencyVariable)
+	transactions, err := s.transactionRepo.FindByFilter(ctx, repository.TransactionFilter{
+		UserID:          userID,
+		TransactionType: transactionType,
+		Frequency:       &variableFrequency,
+		Category:        category,
+		StartDate:       effectiveStart,
+		EndDate:         effectiveEnd,
+	}, 0)
+	if err != nil {
+		return nil, errors.New("failed to fetch transactions")
+	}
+
+	payments, err := s.paymentRepo.FindByFilter(ctx, repository.PaymentFilter{
+		UserID:    userID,
+		StartDate: effectiveStart,
+		EndDate:   effectiveEnd,
+	}, 0)
+	if err != nil {
+		return nil, errors.New("failed to fetch payments")
+	}
+
+	fixedTransactions, err := s.transactionRepo.FindFixedTransactions(ctx, userID)
+	if err != nil {
+		return nil, errors.New("failed to fetch fixed transactions")
+	}
+
+	fixedTxMap := make(map[primitive.ObjectID]*model.Transaction, len(fixedTransactions))
+	for i := range fixedTransactions {
+		fixedTxMap[fixedTransactions[i].ID] = &fixedTransactions[i]
+	}
+
+	movements := make([]*dto.MovementResponse, 0, len(transactions)+len(payments)+len(fixedTransactions))
+
+	for i := range transactions {
+		movements = append(movements, variableMovement(&transactions[i]))
+	}
+
+	// Payments are sorted by date descending; the first occurrence per
+	// transaction is therefore its most recent payment.
+	lastPaymentAmount := make(map[primitive.ObjectID]float64)
+	for i := range payments {
+		payment := payments[i]
+		fx, exists := fixedTxMap[payment.TransactionID]
+		if !exists || !txMatchesFilter(fx, transactionType, category) {
+			continue
+		}
+		movements = append(movements, paymentMovement(&payment, fx))
+		if _, seen := lastPaymentAmount[payment.TransactionID]; !seen {
+			lastPaymentAmount[payment.TransactionID] = payment.Amount
+		}
+	}
+
+	// Pending fixed bills: only surfaced on the unfiltered feed so they do
+	// not pollute historical (date-filtered) views.
+	if unfiltered {
+		for i := range fixedTransactions {
+			fx := &fixedTransactions[i]
+			if !txMatchesFilter(fx, transactionType, category) {
+				continue
+			}
+			if movement := s.pendingFixedMovement(ctx, fx, userID, loc, lastPaymentAmount); movement != nil {
+				movements = append(movements, movement)
+			}
+		}
+	}
+
+	return movements, nil
+}
+
 // GetMovements returns a unified, date-descending list of money movements for the
 // user: variable transactions, payments of fixed transactions, and — when no date
 // filter is active — pending fixed bills (paid=false) anchored at the start of
@@ -211,112 +344,9 @@ func (s *FinanceService) GetMovements(userID uint, transactionType, category *st
 		effectiveStart, effectiveEnd = s.calculateDateRange(startDate, endDate, month, year, loc)
 	}
 
-	variableFrequency := string(model.TransactionFrequencyVariable)
-	transactions, err := s.transactionRepo.FindByFilter(ctx, repository.TransactionFilter{
-		UserID:          userID,
-		TransactionType: transactionType,
-		Frequency:       &variableFrequency,
-		Category:        category,
-		StartDate:       effectiveStart,
-		EndDate:         effectiveEnd,
-	}, 0)
+	movements, err := s.collectMovements(ctx, userID, transactionType, category, effectiveStart, effectiveEnd, !hasExplicitDateFilter, loc)
 	if err != nil {
-		return nil, 0, errors.New("failed to fetch transactions")
-	}
-
-	payments, err := s.paymentRepo.FindByFilter(ctx, repository.PaymentFilter{
-		UserID:    userID,
-		StartDate: effectiveStart,
-		EndDate:   effectiveEnd,
-	}, 0)
-	if err != nil {
-		return nil, 0, errors.New("failed to fetch payments")
-	}
-
-	fixedTransactions, err := s.transactionRepo.FindFixedTransactions(ctx, userID)
-	if err != nil {
-		return nil, 0, errors.New("failed to fetch fixed transactions")
-	}
-
-	fixedTxMap := make(map[primitive.ObjectID]*model.Transaction, len(fixedTransactions))
-	for i := range fixedTransactions {
-		fixedTxMap[fixedTransactions[i].ID] = &fixedTransactions[i]
-	}
-
-	movements := make([]*dto.MovementResponse, 0, len(transactions)+len(payments)+len(fixedTransactions))
-
-	for i := range transactions {
-		tx := transactions[i]
-		movements = append(movements, &dto.MovementResponse{
-			ID:          tx.ID.Hex(),
-			SourceType:  "transaction",
-			Type:        string(tx.Type),
-			Amount:      tx.Amount,
-			Category:    tx.Category,
-			Description: tx.Description,
-			Date:        tx.Date,
-			Paid:        true,
-		})
-	}
-
-	// Payments are sorted by date descending; the first occurrence per
-	// transaction is therefore its most recent payment.
-	lastPaymentAmount := make(map[primitive.ObjectID]float64)
-	for i := range payments {
-		payment := payments[i]
-		fx, exists := fixedTxMap[payment.TransactionID]
-		if !exists {
-			continue
-		}
-		if transactionType != nil && string(fx.Type) != *transactionType {
-			continue
-		}
-		if category != nil && fx.Category != *category {
-			continue
-		}
-		movements = append(movements, &dto.MovementResponse{
-			ID:            payment.ID.Hex(),
-			SourceType:    "payment",
-			Type:          string(fx.Type),
-			Amount:        payment.Amount,
-			Category:      fx.Category,
-			Description:   fx.Description,
-			Date:          payment.Date,
-			Paid:          true,
-			TransactionID: fx.ID.Hex(),
-		})
-		if _, seen := lastPaymentAmount[payment.TransactionID]; !seen {
-			lastPaymentAmount[payment.TransactionID] = payment.Amount
-		}
-	}
-
-	// Pending fixed bills: only surfaced on the unfiltered feed so they do
-	// not pollute historical (date-filtered) views.
-	if !hasExplicitDateFilter {
-		for i := range fixedTransactions {
-			fx := fixedTransactions[i]
-			if transactionType != nil && string(fx.Type) != *transactionType {
-				continue
-			}
-			if category != nil && fx.Category != *category {
-				continue
-			}
-			payment, err := s.paymentRepo.FindCurrentPeriodPayment(ctx, fx.ID, userID, fx.PaymentFrequency)
-			if err != nil || payment != nil {
-				continue
-			}
-			movements = append(movements, &dto.MovementResponse{
-				ID:            fx.ID.Hex(),
-				SourceType:    "fixed",
-				Type:          string(fx.Type),
-				Amount:        lastPaymentAmount[fx.ID],
-				Category:      fx.Category,
-				Description:   fx.Description,
-				Date:          s.currentPeriodStart(fx.PaymentFrequency, loc),
-				Paid:          false,
-				TransactionID: fx.ID.Hex(),
-			})
-		}
+		return nil, 0, err
 	}
 
 	sort.SliceStable(movements, func(i, j int) bool {
