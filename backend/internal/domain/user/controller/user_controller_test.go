@@ -60,7 +60,6 @@ func setupTestRouter(t *testing.T) (*gin.Engine, *service.UserService, func()) {
 		users.PUT("/me", controller.UpdateProfile)
 		users.GET("", controller.GetAllUsers)
 		users.GET("/:id", controller.GetUserByID)
-		users.DELETE("/:id", controller.DeleteUser)
 	}
 
 	cleanup := func() {
@@ -258,39 +257,6 @@ func TestGetUserByIDHandler(t *testing.T) {
 		router.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusNotFound, w.Code)
-	})
-}
-
-func TestDeleteUserHandler(t *testing.T) {
-	router, _, cleanup := setupTestRouter(t)
-	defer cleanup()
-
-	t.Run("delete user successfully", func(t *testing.T) {
-		db, _ := gorm.Open(postgres.Open(fmt.Sprintf(
-			"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
-			cfg.DBHost, cfg.DBPort, cfg.DBUser, cfg.DBPassword, cfg.DBName, cfg.DBSSLMode,
-		)), &gorm.Config{})
-		createTestUser(t, db, 2)
-
-		req := httptest.NewRequest(http.MethodDelete, "/users/2", nil)
-		w := httptest.NewRecorder()
-
-		router.ServeHTTP(w, req)
-
-		assert.Equal(t, http.StatusOK, w.Code)
-
-		var resp map[string]interface{}
-		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
-		assert.Equal(t, "User deleted successfully", resp["message"])
-	})
-
-	t.Run("delete non-existent user", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodDelete, "/users/9999", nil)
-		w := httptest.NewRecorder()
-
-		router.ServeHTTP(w, req)
-
-		assert.Equal(t, http.StatusBadRequest, w.Code)
 	})
 }
 

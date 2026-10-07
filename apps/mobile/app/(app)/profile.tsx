@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import {
+  Alert,
   Image,
   Modal,
   Pressable,
@@ -150,6 +151,12 @@ export default function ProfileScreen() {
   const saveApiUrl = () => {
     const url = apiUrlInput.trim().replace(/\/+$/, '');
     if (!url) return;
+    // Production builds must point at https://: this value controls where the
+    // Bearer tokens are sent. Dev builds keep http:// allowed for LAN testing.
+    if (!url.startsWith('https://') && !__DEV__) {
+      Alert.alert(t('apiUrlInvalidTitle'), t('apiUrlInvalidMessage'));
+      return;
+    }
     setApiUrl(url);
     storage.setItem('apiUrl', url);
     setShowApiUrlModal(false);

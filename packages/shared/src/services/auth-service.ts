@@ -59,6 +59,16 @@ class AuthService {
   private authChangeCallbacks: Set<AuthChangeCallback> = new Set();
 
   constructor() {
+    this.loadStoredSession();
+  }
+
+  /**
+   * (Re)load the persisted session from storage. Runs synchronously at module
+   * init on web (localStorage). Native platforms may back tokens with async
+   * secure storage: they install a synchronous write-through cache, then call
+   * this again once the secure store has been read.
+   */
+  loadStoredSession(): boolean {
     this.accessToken = storage.getItem('accessToken');
     this.refreshToken = storage.getItem('refreshToken');
     const userData = storage.getItem('currentUser');
@@ -70,6 +80,12 @@ class AuthService {
         storage.removeItem('currentUser');
       }
     }
+
+    const restored = this.accessToken !== null;
+    if (restored) {
+      this.notifyAuthChange(true);
+    }
+    return restored;
   }
 
   onAuthChange(callback: AuthChangeCallback): () => void {
@@ -210,6 +226,26 @@ class AuthService {
   }
 
   async logout(): Promise<void> {
+    // Best-effort server-side revocation of the refresh token so the session
+    // dies on the server too (XSS-stolen copies of the token are still
+    // revoked only if we got here — hence "best-effort", never blocking).
+    if (this.refreshToken) {
+      try {
+        await fetch(`${this.baseUrl}/auth/logout`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(this.accessToken
+              ? { Authorization: `Bearer ${this.accessToken}` }
+              : {}),
+          },
+          body: JSON.stringify({ refreshToken: this.refreshToken }),
+        });
+      } catch {
+        // Network/endpoint errors must not block local sign-out.
+      }
+    }
+
     this.currentUser = null;
     this.accessToken = null;
     this.refreshToken = null;
@@ -309,6 +345,19 @@ class AuthService {
 
     if (!response.ok) {
       await this.handleErrorResponse(response);
+    }
+
+    // Password change revokes every previous refresh token server-side; the
+    // response carries a fresh pair that keeps this device signed in.
+    const backendResponse: { data: BackendRefreshResponse['data'] } =
+      await response.json();
+    const tokens = backendResponse.data;
+
+    if (tokens?.accessToken) {
+      this.accessToken = tokens.accessToken;
+      this.refreshToken = tokens.refreshToken;
+      storage.setItem('accessToken', tokens.accessToken);
+      storage.setItem('refreshToken', tokens.refreshToken);
     }
   }
 

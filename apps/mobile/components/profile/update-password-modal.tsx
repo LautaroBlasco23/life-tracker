@@ -41,7 +41,7 @@ export function UpdatePasswordModal({ visible, onClose }: UpdatePasswordModalPro
       return;
     }
 
-    if (newPassword.length < 6) {
+    if (newPassword.length < 8) {
       showToast({
         title: t('passwordTooShort'),
         description: t('passwordTooShortDescription'),

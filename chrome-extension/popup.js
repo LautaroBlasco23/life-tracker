@@ -1,8 +1,5 @@
 import { DEFAULT_TRACKED_DOMAINS, DEFAULT_API_HOST } from "./config.js";
-
-function buildApiUrl(host) {
-  return `http://${host}/api`;
-}
+import { buildApiUrl, isTrackedHost, normalizeDomainInput } from "./lib/tracker.js";
 
 async function getApiHost() {
   const { apiHost } = await chrome.storage.local.get("apiHost");
@@ -85,7 +82,7 @@ async function renderTrackBanner() {
   }
 
   const domains = await getTrackedDomains();
-  const isTracked = domains.some((d) => hostname.endsWith(d));
+  const isTracked = isTrackedHost(hostname, domains);
   if (isTracked) return;
 
   const domain = hostname.replace(/^www\./, "");
@@ -173,6 +170,20 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
 
+    // Remote (https) hosts need an explicit user-granted host permission:
+    // the manifest no longer asks for <all_urls>. Local dev hosts are
+    // pre-granted. Denial is non-fatal — it only matters for servers
+    // without permissive CORS.
+    if (apiBase.startsWith("https://")) {
+      const origin = new URL(apiBase).origin + "/*";
+      const granted =
+        (await chrome.permissions.contains({ origins: [origin] })) ||
+        (await chrome.permissions.request({ origins: [origin] }));
+      if (!granted) {
+        showLoginMsg("Remote tracking may not work without host permission.", "err");
+      }
+    }
+
     clearLoginMsg();
     setLoginLoading(true);
 
@@ -242,7 +253,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   document.getElementById("add-domain-btn").addEventListener("click", async () => {
     const input = document.getElementById("new-domain");
-    const domain = input.value.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "");
+    const domain = normalizeDomainInput(input.value);
     if (!domain) return;
 
     const domains = await getTrackedDomains();

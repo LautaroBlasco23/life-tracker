@@ -50,7 +50,7 @@ func TestRequestLoggerMiddleware(t *testing.T) {
 		t.Fatalf("log line is not valid JSON: %v", err)
 	}
 
-	for _, key := range []string{"method", "path", "status", "duration_ms", "client_ip", "request_id", "user_id", "email"} {
+	for _, key := range []string{"method", "path", "status", "duration_ms", "client_ip", "request_id", "user_id"} {
 		if _, ok := entry[key]; !ok {
 			t.Errorf("log entry missing key %q: %v", key, entry)
 		}

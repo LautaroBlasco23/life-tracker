@@ -43,8 +43,7 @@ func (c *ReminderController) CreateReminder(ctx *gin.Context) {
 	var req dto.CreateReminderRequest
 	if bindErr := ctx.ShouldBindJSON(&req); bindErr != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Invalid request",
-			"details": bindErr.Error(),
+			"error": "Invalid request",
 		})
 		return
 	}
@@ -120,8 +119,7 @@ func (c *ReminderController) UpdateReminder(ctx *gin.Context) {
 	var req dto.UpdateReminderRequest
 	if bindErr := ctx.ShouldBindJSON(&req); bindErr != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Invalid request",
-			"details": bindErr.Error(),
+			"error": "Invalid request",
 		})
 		return
 	}

@@ -215,17 +215,6 @@ func (s *UserService) GetAllUsers() ([]dto.PublicUserCard, error) {
 	return cards, nil
 }
 
-func (s *UserService) DeleteUser(userID uint) error {
-	if err := s.repo.Delete(userID); err != nil {
-		if errors.Is(err, repository.ErrUserNotFound) {
-			return errors.New("user not found")
-		}
-		return errors.New("failed to delete user")
-	}
-	monitoring.ActiveUsers.Dec()
-	return nil
-}
-
 func (s *UserService) UploadProfileImage(ctx context.Context, userID uint, email string, file *multipart.FileHeader) (*dto.UserResponse, error) {
 	if err := validateImageFile(file); err != nil {
 		return nil, err

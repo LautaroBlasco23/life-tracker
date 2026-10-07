@@ -6,6 +6,7 @@ import (
 	"life-tracker-backend/internal/domain/auth/service"
 	userService "life-tracker-backend/internal/domain/user/service"
 	"life-tracker-backend/internal/infrastructure/imagestore"
+	"life-tracker-backend/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -16,11 +17,14 @@ func RegisterAuthRoutes(router *gin.RouterGroup, db *gorm.DB, cfg *config.Config
 	userService := userService.NewUserService(db, imageClient)
 	authController := controller.NewAuthController(authService, userService)
 
-	authGroup := router.Group("/auth")
+	// Public auth endpoints are the brute-force / credential-stuffing target:
+	// every route is per-IP rate limited (see internal/middleware/rate_limit.go).
+	limited := router.Group("/auth",
+		middleware.RateLimitMiddleware(middleware.AuthRateLimit, middleware.AuthRateWindow))
 	{
-		authGroup.POST("/register", authController.Register)
-		authGroup.POST("/login", authController.Login)
-		authGroup.POST("/refresh", authController.RefreshToken)
+		limited.POST("/register", authController.Register)
+		limited.POST("/login", authController.Login)
+		limited.POST("/refresh", authController.RefreshToken)
 	}
 }
 
@@ -33,5 +37,6 @@ func RegisterProtectedAuthRoutes(router *gin.RouterGroup, db *gorm.DB, cfg *conf
 	{
 		authGroup.PUT("/password", authController.UpdatePassword)
 		authGroup.PUT("/email", authController.UpdateEmail)
+		authGroup.POST("/logout", authController.Logout)
 	}
 }

@@ -153,8 +153,7 @@ func (c *FinanceController) CreateTransaction(ctx *gin.Context) {
 	var req dto.CreateTransactionRequest
 	if bindErr := ctx.ShouldBindJSON(&req); bindErr != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Invalid request",
-			"details": bindErr.Error(),
+			"error": "Invalid request",
 		})
 		return
 	}
@@ -325,8 +324,7 @@ func (c *FinanceController) UpdateTransaction(ctx *gin.Context) {
 	var req dto.UpdateTransactionRequest
 	if bindErr := ctx.ShouldBindJSON(&req); bindErr != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Invalid request",
-			"details": bindErr.Error(),
+			"error": "Invalid request",
 		})
 		return
 	}
@@ -373,8 +371,7 @@ func (c *FinanceController) CreatePayment(ctx *gin.Context) {
 	var req dto.CreatePaymentRequest
 	if bindErr := ctx.ShouldBindJSON(&req); bindErr != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Invalid request",
-			"details": bindErr.Error(),
+			"error": "Invalid request",
 		})
 		return
 	}

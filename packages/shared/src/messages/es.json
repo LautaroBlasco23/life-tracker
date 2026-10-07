@@ -540,6 +540,8 @@
     "apiUrl": "URL de la API",
     "apiUrlUpdated": "URL de la API actualizada",
     "apiUrlUpdatedDescription": "Cerrá sesión y volvé a iniciar sesión para usar el nuevo servidor.",
+    "apiUrlInvalidTitle": "URL de la API inválida",
+    "apiUrlInvalidMessage": "La URL de la API debe empezar con https:// en las builds de producción.",
     "privacy": "Privacidad"
   },
   "dataBackup": {
@@ -573,7 +575,7 @@
     "passwordsDoNotMatch": "Las contraseñas no coinciden",
     "passwordsDoNotMatchDescription": "Asegurate de que las nuevas contraseñas coincidan.",
     "passwordTooShort": "Contraseña muy corta",
-    "passwordTooShortDescription": "La contraseña debe tener al menos 6 caracteres.",
+    "passwordTooShortDescription": "La contraseña debe tener al menos 8 caracteres.",
     "passwordUpdated": "Contraseña actualizada",
     "passwordUpdatedDescription": "Tu contraseña fue actualizada correctamente.",
     "updateFailed": "Error al actualizar"

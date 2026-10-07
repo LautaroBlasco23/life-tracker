@@ -353,30 +353,6 @@ func TestUserService_SearchUsers(t *testing.T) {
 	})
 }
 
-func TestUserService_DeleteUser(t *testing.T) {
-	service := getTestService(t)
-
-	t.Run("delete existing user", func(t *testing.T) {
-		userID := createTestUser(t, service)
-
-		err := service.DeleteUser(userID)
-
-		assert.NoError(t, err)
-
-		var user model.User
-		err = testDB.Unscoped().First(&user, userID).Error
-		assert.NoError(t, err)
-		assert.NotNil(t, user.DeletedAt)
-	})
-
-	t.Run("delete non-existent user", func(t *testing.T) {
-		err := service.DeleteUser(9999)
-
-		assert.Error(t, err)
-		assert.Contains(t, err.Error(), "user not found")
-	})
-}
-
 func TestUserService_ValidateImageFile(t *testing.T) {
 	tests := []struct {
 		name     string

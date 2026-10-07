@@ -42,6 +42,42 @@ type Config struct {
 	CORSAllowedOrigins string
 }
 
+// insecureSecrets are placeholder/known-weak secret values that must never
+// reach a running (non-test) server: anyone guessing them could mint valid
+// JWTs for any user.
+var insecureSecrets = map[string]struct{}{
+	"default-secret-change-this": {},
+	"your-secret-key-here":       {},
+	"dev-secret-change-me":       {},
+	"changeme":                   {},
+	"secret":                     {},
+}
+
+// Validate enforces minimum configuration safety for a server that will
+// actually run. Skipped in the test environment so `make test` stays
+// self-contained.
+func (c *Config) Validate() error {
+	if c.Environment == "test" {
+		return nil
+	}
+
+	if c.JWTSecret == "" {
+		return fmt.Errorf("JWT_SECRET is not set: generate one with `openssl rand -hex 32` and put it in .env")
+	}
+	if _, ok := insecureSecrets[c.JWTSecret]; ok {
+		return fmt.Errorf("JWT_SECRET is an insecure placeholder: generate a real secret with `openssl rand -hex 32` and put it in .env")
+	}
+	if len(c.JWTSecret) < 32 {
+		slog.Warn("JWT_SECRET is shorter than 32 characters; use `openssl rand -hex 32`")
+	}
+
+	if c.DBPassword == "" || c.DBPassword == "password" {
+		return fmt.Errorf("DB_PASSWORD is not set (or is the insecure default): set a real password in .env")
+	}
+
+	return nil
+}
+
 func Load() *Config {
 	env := getEnv("ENVIRONMENT", "")
 	if env == "" {

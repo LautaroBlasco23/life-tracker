@@ -48,14 +48,14 @@ func setupTestDatabase(t *testing.T) {
 		require.NoError(t, err)
 		sqlDB.SetMaxOpenConns(1)
 
-		require.NoError(t, db.AutoMigrate(&model.Auth{}, &userModel.User{}))
+		require.NoError(t, db.AutoMigrate(&model.Auth{}, &userModel.User{}, &model.RefreshToken{}))
 		testDB = db
 	}
 }
 
 func cleanDatabase(t *testing.T) {
 	t.Helper()
-	require.NoError(t, testDB.Exec("TRUNCATE TABLE auths, users RESTART IDENTITY CASCADE;").Error)
+	require.NoError(t, testDB.Exec("TRUNCATE TABLE auths, users, refresh_tokens RESTART IDENTITY CASCADE;").Error)
 }
 
 func getTestService(t *testing.T) *AuthService {
@@ -373,8 +373,10 @@ func TestAuthService_UpdatePassword(t *testing.T) {
 			NewPassword:     "newpassword123",
 		}
 
-		err := service.UpdatePassword(userID, req)
+		tokens, err := service.UpdatePassword(userID, req)
 		assert.NoError(t, err)
+		assert.NotEmpty(t, tokens.AccessToken)
+		assert.NotEmpty(t, tokens.RefreshToken)
 
 		var auth model.Auth
 		err = testDB.Where("user_id = ?", userID).First(&auth).Error
@@ -390,7 +392,7 @@ func TestAuthService_UpdatePassword(t *testing.T) {
 			NewPassword:     "newpassword123",
 		}
 
-		err := service.UpdatePassword(userID, req)
+		_, err := service.UpdatePassword(userID, req)
 
 		assert.Error(t, err)
 		assert.Contains(t, err.Error(), "current password is incorrect")
@@ -402,7 +404,7 @@ func TestAuthService_UpdatePassword(t *testing.T) {
 			NewPassword:     "newpassword123",
 		}
 
-		err := service.UpdatePassword(9999, req)
+		_, err := service.UpdatePassword(9999, req)
 
 		assert.Error(t, err)
 	})
@@ -564,5 +566,59 @@ func TestAuthService_TokenValidation(t *testing.T) {
 
 		assert.Error(t, err)
 		assert.Nil(t, validatedClaims)
+	})
+}
+
+// Subject: refresh-token revocation — password/email changes must kill
+// existing sessions, and a rotated refresh token must not be reusable.
+func TestAuthService_RefreshTokenRevocation(t *testing.T) {
+	service := getTestService(t)
+
+	registerReq := &dto.RegisterRequest{
+		Email:     "revocation@example.com",
+		Password:  "password123",
+		FirstName: "Revocation",
+		LastName:  "Test",
+		Username:  "revocationtest",
+	}
+	tokens, userID, err := service.Register(registerReq)
+	require.NoError(t, err)
+
+	var rotatedRefresh string
+
+	t.Run("rotated refresh token cannot be reused", func(t *testing.T) {
+		time.Sleep(time.Second)
+
+		newTokens, err := service.RefreshToken(tokens.RefreshToken)
+		require.NoError(t, err)
+		require.NotEmpty(t, newTokens.RefreshToken)
+		rotatedRefresh = newTokens.RefreshToken
+
+		// The old token was rotated: a second use must be rejected even
+		// though the JWT itself is still cryptographically valid.
+		replayed, err := service.RefreshToken(tokens.RefreshToken)
+		assert.Error(t, err)
+		assert.Nil(t, replayed)
+	})
+
+	t.Run("password change revokes outstanding refresh tokens", func(t *testing.T) {
+		// rotatedRefresh was issued before the password change.
+		pwdReq := &dto.UpdatePasswordRequest{
+			CurrentPassword: "password123",
+			NewPassword:     "newpassword123",
+		}
+		freshTokens, err := service.UpdatePassword(userID, pwdReq)
+		require.NoError(t, err)
+		require.NotEmpty(t, freshTokens.RefreshToken)
+
+		// The pre-change token is now dead.
+		_, err = service.RefreshToken(rotatedRefresh)
+		assert.Error(t, err)
+
+		// The fresh pair issued after the change still works.
+		time.Sleep(time.Second)
+		afterTokens, err := service.RefreshToken(freshTokens.RefreshToken)
+		assert.NoError(t, err)
+		assert.NotEmpty(t, afterTokens.RefreshToken)
 	})
 }

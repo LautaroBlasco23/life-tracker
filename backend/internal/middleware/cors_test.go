@@ -33,7 +33,8 @@ func TestCORSMiddleware_AllowAllOrigins(t *testing.T) {
 	middleware(c)
 
 	assert.Equal(t, "*", recorder.Header().Get("Access-Control-Allow-Origin"))
-	assert.Equal(t, "true", recorder.Header().Get("Access-Control-Allow-Credentials"))
+	// Wildcard origins cannot be combined with credentials per the CORS spec.
+	assert.Equal(t, "false", recorder.Header().Get("Access-Control-Allow-Credentials"))
 	assert.Contains(t, recorder.Header().Get("Access-Control-Allow-Headers"), "Authorization")
 	assert.Contains(t, recorder.Header().Get("Access-Control-Allow-Methods"), "POST")
 }
@@ -133,8 +134,8 @@ func TestCORSMiddleware_NoOriginHeader(t *testing.T) {
 	middleware := CORSMiddleware("https://app.example.com")
 	middleware(c)
 
-	// Should still set other headers
-	assert.Equal(t, "true", recorder.Header().Get("Access-Control-Allow-Credentials"))
+	// Credentials are only echoed for origins on the allow-list.
+	assert.Empty(t, recorder.Header().Get("Access-Control-Allow-Credentials"))
 	assert.NotEmpty(t, recorder.Header().Get("Access-Control-Allow-Headers"))
 	assert.NotEmpty(t, recorder.Header().Get("Access-Control-Allow-Methods"))
 }
@@ -186,6 +187,6 @@ func TestCORSMiddleware_EmptyAllowedOrigins(t *testing.T) {
 
 	// Should not allow the origin since nothing is configured
 	assert.Empty(t, recorder.Header().Get("Access-Control-Allow-Origin"))
-	// But should still set other headers
-	assert.Equal(t, "true", recorder.Header().Get("Access-Control-Allow-Credentials"))
+	// Credentials are only echoed for origins on the allow-list.
+	assert.Empty(t, recorder.Header().Get("Access-Control-Allow-Credentials"))
 }

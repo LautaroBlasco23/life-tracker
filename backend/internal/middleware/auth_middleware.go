@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"fmt"
 	"net/http"
 	"strings"
 
@@ -36,7 +37,11 @@ func JWTAuthMiddleware(secretKey string) gin.HandlerFunc {
 		}
 
 		tokenString := tokenParts[1]
-		token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(_ *jwt.Token) (interface{}, error) {
+		token, err := jwt.ParseWithClaims(tokenString, &JWTClaims{}, func(t *jwt.Token) (interface{}, error) {
+			// Pin the algorithm: never let a token's own header choose it.
+			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok || t.Header["alg"] != jwt.SigningMethodHS256.Alg() {
+				return nil, fmt.Errorf("unexpected signing method: %v", t.Header["alg"])
+			}
 			return []byte(secretKey), nil
 		})
 		if err != nil {

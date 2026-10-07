@@ -31,6 +31,18 @@ jobs:
         working-directory: apps/mobile
         run: npm run type-check
 
+      - name: Unit tests (jest-expo)
+        working-directory: apps/mobile
+        run: npm test
+
+      - name: Shared package tests (vitest)
+        run: npm test -w @life-tracker/shared
+
+      # Supply-chain gate: fail on known high/critical vulns in the
+      # production dependency tree.
+      - name: Dependency audit (npm audit)
+        run: npm audit --omit=dev --audit-level=high
+
       - name: Export Android bundle
         working-directory: apps/mobile
         run: npx expo export --platform android

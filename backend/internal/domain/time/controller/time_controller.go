@@ -47,8 +47,7 @@ func (c *TimeController) CreateRecord(ctx *gin.Context) {
 	var req dto.CreateTimeRecordRequest
 	if err = ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Invalid request",
-			"details": err.Error(),
+			"error": "Invalid request",
 		})
 		return
 	}
@@ -155,8 +154,7 @@ func (c *TimeController) UpdateRecord(ctx *gin.Context) {
 	var req dto.UpdateTimeRecordRequest
 	if err = ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Invalid request",
-			"details": err.Error(),
+			"error": "Invalid request",
 		})
 		return
 	}

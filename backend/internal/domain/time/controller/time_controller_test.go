@@ -162,7 +162,7 @@ func TestCreateRecord_WithInvalidJSON_ReturnsBadRequest(t *testing.T) {
 	var resp map[string]interface{}
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
 	assert.Contains(t, resp["error"], "Invalid request")
-	assert.NotNil(t, resp["details"])
+	assert.Nil(t, resp["details"], "internal validator details must not leak to clients")
 }
 
 // Rejects a request missing the required category field with a 400 error.

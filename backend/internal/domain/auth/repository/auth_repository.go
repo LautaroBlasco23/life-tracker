@@ -2,6 +2,7 @@ package repository
 
 import (
 	"errors"
+	"time"
 
 	"life-tracker-backend/internal/domain/auth/model"
 	userModel "life-tracker-backend/internal/domain/user/model"
@@ -27,6 +28,12 @@ type AuthRepository interface {
 	UpdatePassword(userID uint, passwordHash string) error
 	UpdateEmail(userID uint, email string) error
 	UpdateUsername(userID uint, username string) error
+
+	// Refresh-token store: server-side revocable sessions.
+	CreateRefreshToken(userID uint, tokenHash string, expiresAt time.Time) error
+	FindValidRefreshToken(tokenHash string) (*model.RefreshToken, error)
+	RevokeRefreshToken(tokenHash string) error
+	RevokeAllRefreshTokens(userID uint) error
 }
 
 type UserRepository interface {
@@ -150,6 +157,51 @@ func (r *GormAuthRepository) UpdateUsername(userID uint, username string) error 
 		return ErrAuthNotFound
 	}
 	return nil
+}
+
+func (r *GormAuthRepository) CreateRefreshToken(userID uint, tokenHash string, expiresAt time.Time) error {
+	return r.db.Create(&model.RefreshToken{
+		UserID:    userID,
+		TokenHash: tokenHash,
+		ExpiresAt: expiresAt,
+	}).Error
+}
+
+// FindValidRefreshToken returns the record only if it exists, is not revoked
+// and not expired; otherwise ErrAuthNotFound.
+func (r *GormAuthRepository) FindValidRefreshToken(tokenHash string) (*model.RefreshToken, error) {
+	var rt model.RefreshToken
+	err := r.db.Where(
+		"token_hash = ? AND revoked_at IS NULL AND expires_at > ?", tokenHash, time.Now(),
+	).First(&rt).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrAuthNotFound
+		}
+		return nil, err
+	}
+	return &rt, nil
+}
+
+func (r *GormAuthRepository) RevokeRefreshToken(tokenHash string) error {
+	now := time.Now()
+	result := r.db.Model(&model.RefreshToken{}).
+		Where("token_hash = ? AND revoked_at IS NULL", tokenHash).
+		Update("revoked_at", now)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return ErrAuthNotFound
+	}
+	return nil
+}
+
+func (r *GormAuthRepository) RevokeAllRefreshTokens(userID uint) error {
+	now := time.Now()
+	return r.db.Model(&model.RefreshToken{}).
+		Where("user_id = ? AND revoked_at IS NULL", userID).
+		Update("revoked_at", now).Error
 }
 
 type GormUserRepository struct {

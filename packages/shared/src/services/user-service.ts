@@ -93,16 +93,6 @@ class UserService {
     return result.data;
   }
 
-  async deleteUser(id: number): Promise<void> {
-    const response = await authService.makeAuthenticatedRequest(
-      `${this.baseUrl}/users/${id}`,
-      { method: 'DELETE' }
-    );
-    if (!response.ok) {
-      throw new Error('Failed to delete user');
-    }
-  }
-
   async checkEmailAvailability(email: string): Promise<boolean> {
     // Use regular fetch since this is a public endpoint (no auth required)
     const response = await fetch(

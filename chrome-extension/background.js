@@ -1,8 +1,5 @@
 import { DEFAULT_TRACKED_DOMAINS, DEFAULT_API_HOST } from "./config.js";
-
-function buildApiUrl(host) {
-  return `http://${host}/api`;
-}
+import { buildApiUrl, matchDomain } from "./lib/tracker.js";
 
 chrome.runtime.onInstalled.addListener(async () => {
   const existing = await chrome.storage.local.get(["trackedDomains", "apiHost"]);
@@ -34,7 +31,7 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
   const host = apiHost || DEFAULT_API_HOST;
   const base = buildApiUrl(host);
 
-  const matched = domains.find((d) => url.hostname.endsWith(d));
+  const matched = matchDomain(url.hostname, domains);
   if (!matched) return;
   if (!token) return;
 

@@ -141,7 +141,7 @@ func (c *SocialController) Subscribe(ctx *gin.Context) {
 	}
 	var req dto.SubscribeRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request", "details": err.Error()})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
 	}
 	resp, err := c.subscriptionService.Subscribe(userID, &req)

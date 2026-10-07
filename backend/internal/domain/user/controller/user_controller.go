@@ -98,8 +98,7 @@ func (c *UserController) UpdateProfile(ctx *gin.Context) {
 	var req dto.UpdateUserRequest
 	if err = ctx.ShouldBindJSON(&req); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Invalid request",
-			"details": err.Error(),
+			"error": "Invalid request",
 		})
 		return
 	}
@@ -150,22 +149,6 @@ func (c *UserController) GetUserByID(ctx *gin.Context) {
 	})
 }
 
-func (c *UserController) DeleteUser(ctx *gin.Context) {
-	idParam := ctx.Param("id")
-	userID, err := strconv.ParseUint(idParam, 10, 32)
-	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
-		return
-	}
-
-	if err := c.userService.DeleteUser(uint(userID)); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-		return
-	}
-
-	ctx.JSON(http.StatusOK, gin.H{"message": "User deleted successfully"})
-}
-
 func (c *UserController) UploadProfileImage(ctx *gin.Context) {
 	userID, err := getUserID(ctx)
 	if err != nil {
@@ -200,7 +183,7 @@ func (c *UserController) UploadProfileImage(ctx *gin.Context) {
 func (c *UserController) SearchUsers(ctx *gin.Context) {
 	var query dto.UserSearchQuery
 	if err := ctx.ShouldBindQuery(&query); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid query parameters", "details": err.Error()})
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid query parameters"})
 		return
 	}
 

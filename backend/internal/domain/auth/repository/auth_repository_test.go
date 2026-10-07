@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"testing"
+	"time"
 
 	"life-tracker-backend/internal/config"
 	"life-tracker-backend/internal/domain/auth/model"
@@ -56,6 +57,7 @@ func setupTestDatabase(t *testing.T) {
 		// Migrate both Auth and User models
 		require.NoError(t, db.AutoMigrate(&userModel.User{}))
 		require.NoError(t, db.AutoMigrate(&model.Auth{}))
+		require.NoError(t, db.AutoMigrate(&model.RefreshToken{}))
 		testDB = db
 	}
 }
@@ -65,6 +67,7 @@ func cleanDatabase(t *testing.T) {
 	// Clean both auth and users tables
 	require.NoError(t, testDB.Exec("TRUNCATE TABLE auths RESTART IDENTITY CASCADE;").Error)
 	require.NoError(t, testDB.Exec("TRUNCATE TABLE users RESTART IDENTITY CASCADE;").Error)
+	require.NoError(t, testDB.Exec("TRUNCATE TABLE refresh_tokens RESTART IDENTITY CASCADE;").Error)
 }
 
 func getAuthRepository(t *testing.T) AuthRepository {
@@ -349,4 +352,78 @@ func TestUserRepository_FindByID(t *testing.T) {
 		assert.Nil(t, found)
 		assert.ErrorIs(t, err, ErrUserNotFound)
 	})
+}
+
+// ============================================================================
+// Refresh-token store
+// ============================================================================
+
+// Subject: GormAuthRepository refresh-token methods — revocable sessions.
+// Covers: create → find valid → revoke single → revoke all → expiry.
+
+func TestAuthRepository_RefreshTokenLifecycle(t *testing.T) {
+	repo := getAuthRepository(t)
+	userID := createTestUser(t, "Refresh", "Test")
+
+	tokenHash := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+
+	t.Run("create and find valid refresh token", func(t *testing.T) {
+		expires := time.Now().Add(24 * time.Hour)
+		require.NoError(t, repo.CreateRefreshToken(userID, tokenHash, expires))
+
+		found, err := repo.FindValidRefreshToken(tokenHash)
+		assert.NoError(t, err)
+		assert.NotNil(t, found)
+		assert.Equal(t, userID, found.UserID)
+	})
+
+	t.Run("revoked token is not valid", func(t *testing.T) {
+		require.NoError(t, repo.RevokeRefreshToken(tokenHash))
+
+		found, err := repo.FindValidRefreshToken(tokenHash)
+		assert.ErrorIs(t, err, ErrAuthNotFound)
+		assert.Nil(t, found)
+
+		// Revoking again reports not found (idempotence contract).
+		err = repo.RevokeRefreshToken(tokenHash)
+		assert.ErrorIs(t, err, ErrAuthNotFound)
+	})
+
+	t.Run("expired token is not valid", func(t *testing.T) {
+		expiredHash := "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+		require.NoError(t, repo.CreateRefreshToken(userID, expiredHash, time.Now().Add(-time.Hour)))
+
+		found, err := repo.FindValidRefreshToken(expiredHash)
+		assert.ErrorIs(t, err, ErrAuthNotFound)
+		assert.Nil(t, found)
+	})
+}
+
+func TestAuthRepository_RevokeAllRefreshTokens(t *testing.T) {
+	repo := getAuthRepository(t)
+	userID := createTestUser(t, "Revoke", "All")
+	otherID := createTestUser(t, "Other", "User")
+
+	hashes := []string{
+		"cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+		"dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+	}
+	expires := time.Now().Add(24 * time.Hour)
+	for _, h := range hashes {
+		require.NoError(t, repo.CreateRefreshToken(userID, h, expires))
+	}
+	otherHash := "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+	require.NoError(t, repo.CreateRefreshToken(otherID, otherHash, expires))
+
+	require.NoError(t, repo.RevokeAllRefreshTokens(userID))
+
+	for _, h := range hashes {
+		_, err := repo.FindValidRefreshToken(h)
+		assert.ErrorIs(t, err, ErrAuthNotFound, "token %s should be revoked", h)
+	}
+
+	// Other user's token is untouched.
+	found, err := repo.FindValidRefreshToken(otherHash)
+	assert.NoError(t, err)
+	assert.NotNil(t, found)
 }

@@ -51,8 +51,7 @@ func (c *ActivityController) CreateActivity(ctx *gin.Context) {
 	var req dto.CreateActivityRequest
 	if bindErr := ctx.ShouldBindJSON(&req); bindErr != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Invalid request",
-			"details": bindErr.Error(),
+			"error": "Invalid request",
 		})
 		return
 	}
@@ -200,8 +199,7 @@ func (c *ActivityController) UpdateActivity(ctx *gin.Context) {
 	var req dto.UpdateActivityRequest
 	if bindErr := ctx.ShouldBindJSON(&req); bindErr != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Invalid request",
-			"details": bindErr.Error(),
+			"error": "Invalid request",
 		})
 		return
 	}
@@ -271,8 +269,7 @@ func (c *ActivityController) RecordActivity(ctx *gin.Context) {
 	var req dto.RecordActivityRequest
 	if bindErr := ctx.ShouldBindJSON(&req); bindErr != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Invalid request",
-			"details": bindErr.Error(),
+			"error": "Invalid request",
 		})
 		return
 	}

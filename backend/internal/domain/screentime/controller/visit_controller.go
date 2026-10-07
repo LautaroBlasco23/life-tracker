@@ -53,8 +53,7 @@ func (c *VisitController) RecordVisit(ctx *gin.Context) {
 	var req dto.RecordVisitRequest
 	if bindErr := ctx.ShouldBindJSON(&req); bindErr != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error":   "Invalid request",
-			"details": bindErr.Error(),
+			"error": "Invalid request",
 		})
 		return
 	}

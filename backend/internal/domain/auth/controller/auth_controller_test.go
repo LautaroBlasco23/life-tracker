@@ -40,9 +40,10 @@ func setupTestRouter(t *testing.T) (*gin.Engine, *service.AuthService, func()) {
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	require.NoError(t, err, "Failed to connect to PostgreSQL")
 
+	db.Exec("DROP TABLE IF EXISTS refresh_tokens CASCADE")
 	db.Exec("DROP TABLE IF EXISTS auths CASCADE")
 	db.Exec("DROP TABLE IF EXISTS users CASCADE")
-	require.NoError(t, db.AutoMigrate(&model.Auth{}, &userModel.User{}))
+	require.NoError(t, db.AutoMigrate(&model.Auth{}, &userModel.User{}, &model.RefreshToken{}))
 
 	authService := service.NewAuthService(db, cfg)
 	userSvc := userService.NewUserService(db, nil)

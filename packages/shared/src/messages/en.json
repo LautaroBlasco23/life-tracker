@@ -540,6 +540,8 @@
     "apiUrl": "API URL",
     "apiUrlUpdated": "API URL updated",
     "apiUrlUpdatedDescription": "Sign out and sign back in to use the new server.",
+    "apiUrlInvalidTitle": "Invalid API URL",
+    "apiUrlInvalidMessage": "The API URL must start with https:// in release builds.",
     "privacy": "Privacy"
   },
   "dataBackup": {
@@ -573,7 +575,7 @@
     "passwordsDoNotMatch": "Passwords do not match",
     "passwordsDoNotMatchDescription": "Please make sure your new passwords match.",
     "passwordTooShort": "Password too short",
-    "passwordTooShortDescription": "Password must be at least 6 characters long.",
+    "passwordTooShortDescription": "Password must be at least 8 characters long.",
     "passwordUpdated": "Password updated",
     "passwordUpdatedDescription": "Your password has been successfully updated.",
     "updateFailed": "Update failed"
