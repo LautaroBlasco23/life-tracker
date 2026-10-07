@@ -77,7 +77,22 @@ export function ReminderSection({
       badges.push({ label: t('completedLate'), variant: 'secondary' });
     }
 
-    if (status === 'missed') {
+    if (status === 'completed' && reminder.completedAt) {
+      const completed = new Date(reminder.completedAt);
+      const sameDay =
+        completed.toDateString() === new Date(reminder.dueAt).toDateString();
+      badges.push({
+        label: t('completedAt', {
+          date: sameDay
+            ? completed.toLocaleTimeString(undefined, {
+                hour: 'numeric',
+                minute: '2-digit',
+              })
+            : formatDateTime(completed),
+        }),
+        variant: 'outline',
+      });
+    } else if (status === 'missed') {
       badges.push({
         label: t('expired', { date: formatDateTime(new Date(reminder.dueAt)) }),
         variant: 'outline',
@@ -123,11 +138,20 @@ export function ReminderSection({
     return null;
   };
 
-  const sortedReminders = [...reminders].sort(
-    (a, b) =>
+  const sortedReminders = [...reminders].sort((a, b) => {
+    const statusDiff =
       STATUS_ORDER[getReminderStatus(a, now)] -
-      STATUS_ORDER[getReminderStatus(b, now)]
-  );
+      STATUS_ORDER[getReminderStatus(b, now)];
+    if (statusDiff !== 0) return statusDiff;
+    // Within the completed group, most recently completed first.
+    if (getReminderStatus(a, now) === 'completed') {
+      return (
+        new Date(b.completedAt ?? 0).getTime() -
+        new Date(a.completedAt ?? 0).getTime()
+      );
+    }
+    return 0;
+  });
 
   const total = reminders.length;
 

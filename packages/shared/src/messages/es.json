@@ -765,6 +765,7 @@
     "completeNow": "Marcar como completado",
     "revertCompletion": "Deshacer completado",
     "completedLate": "Completado tarde",
+    "completedAt": "Completado {date}",
     "reminderDeleted": "Recordatorio eliminado",
     "reminderDeletedDescription": "El recordatorio ha sido eliminado.",
     "deleteFailed": "Error al eliminar",

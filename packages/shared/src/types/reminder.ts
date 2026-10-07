@@ -69,3 +69,21 @@ export function isReminderDueOn(
 ): boolean {
   return formatDateInput(new Date(reminder.dueAt)) === formatDateInput(date);
 }
+
+/**
+ * True when the reminder belongs to the day being viewed. Completed reminders
+ * only show on the day they were due — once that day passes they disappear,
+ * resurfacing when browsing back to it (e.g. via a date filter). Pending and
+ * missed reminders stay visible on today's view until resolved.
+ */
+export function isReminderVisibleOn(
+  reminder: Pick<Reminder, 'dueAt' | 'completedAt'>,
+  targetDate: Date,
+  now: Date = new Date()
+): boolean {
+  if (reminder.completedAt) {
+    return isReminderDueOn(reminder, targetDate);
+  }
+  const isViewingToday = formatDateInput(targetDate) === formatDateInput(now);
+  return isViewingToday && isReminderDueOnOrBefore(reminder, now);
+}

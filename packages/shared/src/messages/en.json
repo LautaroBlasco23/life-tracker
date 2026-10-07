@@ -765,6 +765,7 @@
     "completeNow": "Mark as completed",
     "revertCompletion": "Undo completion",
     "completedLate": "Completed late",
+    "completedAt": "Completed {date}",
     "reminderDeleted": "Reminder deleted",
     "reminderDeletedDescription": "The reminder has been removed.",
     "deleteFailed": "Delete failed",
