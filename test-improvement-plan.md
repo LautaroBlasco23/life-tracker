@@ -48,6 +48,14 @@ Status: [x] (verified green; see per-item notes)
       verified. **Fix by main agent: the E2E agent claimed but never wrote the
       `//go:build e2e` line — added it; default `./...` now excludes e2e
       (865 default tests + 7 e2e).**
+- [x] Real migration bootstrap hardened (order-independence): the E2E TestMain
+      now drops and recreates the `public` schema before running migrations.
+      Without it, running e2e AFTER the unit suite on the compose test DBs
+      failed with "Dirty database version 1" (unit suites AutoMigrate tables
+      without recording schema_migrations; migration 1 then collides). With
+      the reset, e2e always applies migrations v1..vN to a clean slate —
+      same as the CI/floci lane. FINAL VERIFICATION: full unit suite
+      (870 tests, -race, fresh DB) → e2e right after → 7/7 green.
 - [x] Makefile targets added: `test-e2e` (compose test DBs), `test-e2e-floci`
       (CI path), `test-floci-coverage`, `loadtest-stack-up/down` delegations.
 - [x] `social` domain now tested: 42 tests green (follow lifecycle incl.
@@ -145,6 +153,22 @@ until suites mature; revisit when baseline stabilizes.
 
 ## Issues found during implementation
 
+> (Items 13–21 were added during the integration/verification pass; the
+> numbered list is append-only. Item numbering matches the text below.)
+22. **Parallel actor in the repo during implementation**: two commits landed
+    mid-session that I did not author — `b23c0c6 feat(security): revocable
+    sessions, rate limiting and endpoint hardening` and `b5de183 test:
+    repo-wide test hardening` (the latter includes this work's changes).
+    b23c0c6 explains the intermittent auth/refresh-token test failures chased
+    during verification (code changed under running suites) and part of the
+    docker container churn. It also hardened the chrome extension's
+    `buildApiUrl` (https for remote hosts) without updating its tests — 2
+    failures surfaced in the final green-check; tests aligned to the new
+    behavior (23/23 green).
+23. **Final green-check of the committed tree** (post b5de183): backend 870
+    tests + 7 e2e green (-race, fresh DB), shared 16, mobile 14, frontend 8,
+    chrome 23 — all passing; `make code-check` → 0 issues; prettier clean.
+
 1. **`backend-ci.yml` had a duplicated `pull_request:` trigger block** — the
    identical trigger pasted twice; GitHub accepted it, but it duplicated the
    path filters (masked edit risk).
@@ -223,9 +247,20 @@ until suites mature; revisit when baseline stabilizes.
     without writing the CI job / coverage steps its config referenced. Both
     gaps caught and fixed in the integration pass — agent claims must be
     re-verified against the actual tree.
-20. **Local `.env` placeholder `JWT_SECRET` breaks freshly built images** —
-    new config validation rejects insecure placeholders (old containers ran
-    fine). One-time user action: `openssl rand -hex 32` → `.env`.
+20. **Local `.env` placeholder `JWT_SECRET` breaks the dev lane (pre-existing,
+    confirmed)**: `make dev`'s air was crash-looping for hours BEFORE this
+    session ("exit status 1" ×18 in `backend/tmp/build-errors.log`, server
+    down on :8080) because the committed config validation rejects insecure
+    placeholder secrets. One-time fix applied without reading the file:
+    appended a generated `JWT_SECRET=$(openssl rand -hex 32)` to `.env`
+    (godotenv takes the last value). **User action still needed: restart
+    `make dev`** (Ctrl-C + re-run) — the running air watcher is wedged and
+    only picks up the fix on a fresh start.
+21. **Environmental instability during verification**: test DB containers
+    were stopped/removed mid-run several times (traced to stale `make test`
+    processes from a previous session whose teardown finally fired, plus
+    overlapping agent DB operations). Final verification was re-run in
+    isolated steps with container checks between stages; all green.
 
 ## Open questions / deferred items
 
