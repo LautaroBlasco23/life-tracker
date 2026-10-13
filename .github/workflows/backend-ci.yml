@@ -11,16 +11,12 @@ on:
       - "Makefile"
       - ".github/workflows/backend-ci.yml"
   pull_request:
-    paths:
-      - "backend/**"
-      - "infra/**"
-      - "Makefile"
-      - ".github/workflows/backend-ci.yml"
+    branches: ["main"]
 
 env:
   IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/lifetracker-backend
   # Must match backend/go.mod and the golang image in backend/Dockerfile.
-  GO_VERSION: "1.26"
+  GO_VERSION: "1.26.9"
 
 jobs:
   test:
@@ -121,6 +117,12 @@ jobs:
   api-perf-smoke:
     needs: test
     runs-on: ubuntu-latest
+    # Same default as the test job: its `make -C ..` recipes resolve to the
+    # repo root. Without it, make runs from the checkout parent dir and fails
+    # with "No rule to make target 'floci-provision'".
+    defaults:
+      run:
+        working-directory: backend
 
     steps:
       - uses: actions/checkout@v4

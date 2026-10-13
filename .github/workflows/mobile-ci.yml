@@ -3,10 +3,10 @@ name: Mobile CI
 on:
   push:
     branches: [main]
-    paths: ["apps/mobile/**", "packages/shared/**"]
+    paths: ["apps/mobile/**", "packages/shared/**", "scripts/**", ".github/workflows/mobile-ci.yml"]
   pull_request:
+    # No paths filter — see frontend-ci.yml.
     branches: [main]
-    paths: ["apps/mobile/**", "packages/shared/**"]
 
 jobs:
   type-check-and-export:
@@ -39,9 +39,12 @@ jobs:
         run: npm test -w @life-tracker/shared
 
       # Supply-chain gate: fail on known high/critical vulns in the
-      # production dependency tree.
+      # production dependency tree. Wraps `npm audit` with an allowlist
+      # (see scripts/audit-prod.mjs for the rationale — --omit=dev is
+      # unreliable at a workspace root, and several RN/Expo advisories
+      # have no fixed release yet).
       - name: Dependency audit (npm audit)
-        run: npm audit --omit=dev --audit-level=high
+        run: node scripts/audit-prod.mjs
 
       - name: Export Android bundle
         working-directory: apps/mobile
