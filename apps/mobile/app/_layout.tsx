@@ -3,6 +3,7 @@ import '../lib/storage-init';
 
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { LanguageProvider } from '@shared';
 import { ThemeProvider } from '../lib/theme-provider';
@@ -10,22 +11,26 @@ import { ToastProvider } from '../components/ui/toast';
 
 export default function RootLayout() {
   return (
-    <ThemeProvider>
-      <LanguageProvider>
-        <SafeAreaProvider>
-          <SafeAreaView className="flex-1 bg-background dark:bg-dark-background" edges={['top']}>
-            <StatusBar style="auto" />
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="index" />
-              <Stack.Screen name="login" />
-              <Stack.Screen name="register" />
-              <Stack.Screen name="(app)" />
-              <Stack.Screen name="user/[username]" />
-            </Stack>
-            <ToastProvider />
-          </SafeAreaView>
-        </SafeAreaProvider>
-      </LanguageProvider>
-    </ThemeProvider>
+    // Root wrapper for react-native-gesture-handler (needed by the notes
+    // screen's DraggableFlatList); must wrap all other UI.
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ThemeProvider>
+        <LanguageProvider>
+          <SafeAreaProvider>
+            <SafeAreaView className="flex-1 bg-background dark:bg-dark-background" edges={['top']}>
+              <StatusBar style="auto" />
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="index" />
+                <Stack.Screen name="login" />
+                <Stack.Screen name="register" />
+                <Stack.Screen name="(app)" />
+                <Stack.Screen name="user/[username]" />
+              </Stack>
+              <ToastProvider />
+            </SafeAreaView>
+          </SafeAreaProvider>
+        </LanguageProvider>
+      </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }

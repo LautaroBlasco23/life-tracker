@@ -1,0 +1,6 @@
+ALTER TABLE notes DROP CONSTRAINT IF EXISTS fk_notes_note_group;
+DROP INDEX IF EXISTS idx_notes_group_id;
+ALTER TABLE notes DROP COLUMN IF EXISTS group_id;
+ALTER TABLE notes DROP COLUMN IF EXISTS position;
+
+DROP TABLE IF EXISTS note_groups;

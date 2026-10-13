@@ -118,6 +118,27 @@ func (c *NoteController) UpdateNote(ctx *gin.Context) {
 	})
 }
 
+func (c *NoteController) ReorderNotes(ctx *gin.Context) {
+	userID := ctx.GetUint("userID")
+
+	var req dto.ReorderNotesRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+
+	if err := c.service.ReorderNotes(userID, &req); err != nil {
+		if errors.Is(err, service.ErrGroupNotFound) {
+			ctx.JSON(http.StatusBadRequest, gin.H{"message": "Note group not found"})
+			return
+		}
+		ctx.JSON(http.StatusInternalServerError, gin.H{"message": "Failed to reorder notes"})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{"message": "Notes reordered successfully"})
+}
+
 func (c *NoteController) DeleteNote(ctx *gin.Context) {
 	userID := ctx.GetUint("userID")
 

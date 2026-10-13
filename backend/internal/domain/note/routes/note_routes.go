@@ -18,6 +18,7 @@ func RegisterNoteRoutes(router *gin.RouterGroup, db *gorm.DB) {
 		noteGroup.GET("", noteController.GetNotes)
 		noteGroup.GET("/:id", noteController.GetNote)
 		noteGroup.PUT("/:id", noteController.UpdateNote)
+		noteGroup.POST("/reorder", noteController.ReorderNotes)
 		noteGroup.DELETE("/:id", noteController.DeleteNote)
 	}
 }

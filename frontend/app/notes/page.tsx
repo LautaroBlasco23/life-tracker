@@ -7,7 +7,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { AuthGuard } from '@/components/auth-guard';
 import { Navigation } from '@/components/navigation';
 import { noteService } from '@shared/services/note-service';
-import type { Note } from '@shared/types/note';
+import { noteGroupService } from '@shared/services/note-group-service';
+import type { Note, NoteGroup } from '@shared/types/note';
 import {
   Plus,
   Search,
@@ -15,13 +16,28 @@ import {
   Trash2,
   ArrowLeft,
   Pencil,
+  FolderPlus,
 } from 'lucide-react';
 import { showToast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 import { DeleteModal } from '@/components/ui/card/delete-modal';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { useTranslations } from '@shared/contexts/language-context';
 import { MarkdownView } from '@/components/notes/markdown-view';
 import { NoteToolbar } from '@/components/notes/note-toolbar';
+import {
+  NotesSidebar,
+  sortGroups,
+  sortSectionNotes,
+} from '@/components/notes/notes-sidebar';
+import { CreateGroupModal } from '@/components/notes/create-group-modal';
 
 const DRAFT_STORAGE_KEY = 'notes_drafts';
 
@@ -64,8 +80,10 @@ function loadDraft(noteId: number): { title: string; content: string } | null {
 
 export default function NotesPage() {
   const t = useTranslations('notes');
+  const tCommon = useTranslations('common');
 
-  const [notes, setNotes] = useState<Note[]>([]);
+  const [notes, setNotesState] = useState<Note[]>([]);
+  const [groups, setGroupsState] = useState<NoteGroup[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
@@ -76,29 +94,65 @@ export default function NotesPage() {
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState<Note | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [createGroupOpen, setCreateGroupOpen] = useState(false);
+  const [deleteGroupModalOpen, setDeleteGroupModalOpen] = useState(false);
+  const [groupToDelete, setGroupToDelete] = useState<NoteGroup | null>(null);
+  const [isDeletingGroup, setIsDeletingGroup] = useState(false);
+  // Latest values (used to snapshot state for optimistic-revert on failed requests).
+  const notesRef = useRef<Note[]>([]);
+  const groupsRef = useRef<NoteGroup[]>([]);
   const initializedRef = useRef(false);
 
-  const loadNotes = useCallback(async (query?: string) => {
-    try {
-      setIsLoading(true);
-      const userNotes = query
-        ? await noteService.searchNotes(query)
-        : await noteService.getNotes();
-      setNotes(userNotes);
-      return userNotes;
-    } catch (error) {
-      console.error('Failed to load notes:', error);
-      showToast({
-        title: t('failedToLoad'),
-        description:
-          error instanceof Error ? error.message : 'An error occurred',
-        variant: 'destructive',
-      });
-      return [];
-    } finally {
-      setIsLoading(false);
-    }
+  const setNotes = useCallback((value: Note[] | ((prev: Note[]) => Note[])) => {
+    setNotesState((prev) => {
+      const next = typeof value === 'function' ? value(prev) : value;
+      notesRef.current = next;
+      return next;
+    });
   }, []);
+
+  const setGroups = useCallback(
+    (value: NoteGroup[] | ((prev: NoteGroup[]) => NoteGroup[])) => {
+      setGroupsState((prev) => {
+        const next = typeof value === 'function' ? value(prev) : value;
+        groupsRef.current = next;
+        return next;
+      });
+    },
+    []
+  );
+
+  const loadNotes = useCallback(
+    async (query?: string) => {
+      try {
+        setIsLoading(true);
+        if (query) {
+          const userNotes = await noteService.searchNotes(query);
+          setNotes(userNotes);
+          return userNotes;
+        }
+        const [userNotes, userGroups] = await Promise.all([
+          noteService.getNotes(),
+          noteGroupService.getNoteGroups(),
+        ]);
+        setNotes(userNotes);
+        setGroups(userGroups);
+        return userNotes;
+      } catch (error) {
+        console.error('Failed to load notes:', error);
+        showToast({
+          title: t('failedToLoad'),
+          description:
+            error instanceof Error ? error.message : 'An error occurred',
+          variant: 'destructive',
+        });
+        return [];
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [setNotes, setGroups]
+  );
 
   useEffect(() => {
     if (initializedRef.current) return;
@@ -252,6 +306,139 @@ export default function NotesPage() {
     setNoteToDelete(null);
   };
 
+  const handleUpdateNotes = useCallback(
+    async (nextNotes: Note[], sections: (number | null)[]) => {
+      const snapshot = notesRef.current;
+      setNotes(nextNotes);
+      if (sections.length === 0) return;
+
+      const describeSection = (source: Note[], groupId: number | null) =>
+        JSON.stringify(
+          sortSectionNotes(
+            source.filter((note) => note.groupId === groupId)
+          ).map((note) => [note.id, note.groupId, note.position])
+        );
+
+      const changed = sections.some(
+        (groupId) =>
+          describeSection(snapshot, groupId) !==
+          describeSection(nextNotes, groupId)
+      );
+      if (!changed) return;
+
+      const items = sections.flatMap((groupId) =>
+        sortSectionNotes(
+          nextNotes.filter((note) => note.groupId === groupId)
+        ).map((note, position) => ({ id: note.id, groupId, position }))
+      );
+
+      try {
+        await noteService.reorderNotes(items);
+      } catch (error) {
+        setNotes(snapshot);
+        showToast({
+          title: t('failedToSave'),
+          description:
+            error instanceof Error ? error.message : 'An error occurred',
+          variant: 'destructive',
+        });
+      }
+    },
+    [setNotes, t]
+  );
+
+  const handleUpdateGroups = useCallback(
+    async (nextGroups: NoteGroup[]) => {
+      const snapshot = groupsRef.current;
+      setGroups(nextGroups);
+      const describeOrder = (source: NoteGroup[]) =>
+        JSON.stringify(sortGroups(source).map((group) => group.id));
+      if (describeOrder(snapshot) === describeOrder(nextGroups)) return;
+
+      try {
+        await noteGroupService.reorderNoteGroups(
+          sortGroups(nextGroups).map((group, position) => ({
+            id: group.id,
+            position,
+          }))
+        );
+      } catch (error) {
+        setGroups(snapshot);
+        showToast({
+          title: t('failedToSave'),
+          description:
+            error instanceof Error ? error.message : 'An error occurred',
+          variant: 'destructive',
+        });
+      }
+    },
+    [setGroups, t]
+  );
+
+  const handleRenameGroup = useCallback(
+    async (groupId: number, name: string) => {
+      const snapshot = groupsRef.current;
+      setGroups((prev) =>
+        prev.map((group) => (group.id === groupId ? { ...group, name } : group))
+      );
+      try {
+        await noteGroupService.updateNoteGroup(groupId, { name });
+      } catch (error) {
+        setGroups(snapshot);
+        showToast({
+          title: t('failedToSave'),
+          description:
+            error instanceof Error ? error.message : 'An error occurred',
+          variant: 'destructive',
+        });
+      }
+    },
+    [setGroups, t]
+  );
+
+  const openDeleteGroupModal = (group: NoteGroup) => {
+    setGroupToDelete(group);
+    setDeleteGroupModalOpen(true);
+  };
+
+  const handleDeleteGroup = async () => {
+    if (!groupToDelete) return;
+
+    try {
+      setIsDeletingGroup(true);
+      await noteGroupService.deleteNoteGroup(groupToDelete.id);
+      setDeleteGroupModalOpen(false);
+      const [userNotes, userGroups] = await Promise.all([
+        searchQuery
+          ? noteService.searchNotes(searchQuery)
+          : noteService.getNotes(),
+        noteGroupService.getNoteGroups(),
+      ]);
+      setNotes(userNotes);
+      setGroups(userGroups);
+      showToast({ title: t('groupDeleted') });
+    } catch (error) {
+      showToast({
+        title: t('failedToDeleteGroup'),
+        description:
+          error instanceof Error ? error.message : 'An error occurred',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeletingGroup(false);
+      setGroupToDelete(null);
+    }
+  };
+
+  const handleGroupCreated = (group: NoteGroup) => {
+    setCreateGroupOpen(false);
+    // The backend places new groups first (position 0); shift existing ones down.
+    setGroups((prev) => [
+      group,
+      ...prev.map((g) => ({ ...g, position: g.position + 1 })),
+    ]);
+  };
+
   const formatDate = (dateString: string): string => {
     return new Intl.DateTimeFormat(undefined, {
       month: 'short',
@@ -291,73 +478,39 @@ export default function NotesPage() {
                     className="pl-9"
                   />
                 </div>
+                <Button
+                  onClick={() => setCreateGroupOpen(true)}
+                  variant="outline"
+                  className="w-full"
+                  size="sm"
+                >
+                  <FolderPlus className="h-4 w-4 mr-2" />
+                  {t('addGroup')}
+                </Button>
                 <Button onClick={handleCreateNote} className="w-full" size="sm">
                   <Plus className="h-4 w-4 mr-2" />
                   {t('newNote')}
                 </Button>
               </div>
 
-              <div className="flex-1 overflow-y-auto">
-                {isLoading ? (
-                  <div className="p-4 text-center text-muted-foreground">
-                    {t('loading')}
-                  </div>
-                ) : notes.length === 0 ? (
-                  <div className="p-4 text-center text-muted-foreground">
-                    {searchQuery ? t('noNotesFound') : t('noNotesYet')}
-                  </div>
-                ) : (
-                  <ul className="divide-y divide-border">
-                    {notes.map((note) => (
-                      <li key={note.id}>
-                        <button
-                          onClick={() => handleSelectNote(note)}
-                          className={cn(
-                            'w-full text-left p-3 transition-colors cursor-pointer',
-                            selectedNote?.id === note.id
-                              ? 'bg-primary/10'
-                              : 'hover:bg-muted/50'
-                          )}
-                        >
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex-1 min-w-0">
-                              <p className="font-medium text-foreground truncate">
-                                {note.title || t('untitled')}
-                              </p>
-                              <p className="text-sm text-muted-foreground truncate mt-0.5">
-                                {note.content.slice(0, 50) || t('noContent')}
-                              </p>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {formatDate(note.editedAt)}
-                              </p>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleSelectNote(note);
-                                  setIsEditing(true);
-                                }}
-                                className="p-1 text-muted-foreground hover:text-foreground transition-colors"
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </button>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  openDeleteModal(note);
-                                }}
-                                className="p-1 text-muted-foreground hover:text-destructive transition-colors"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </button>
-                            </div>
-                          </div>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                )}
+              <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+                <NotesSidebar
+                  notes={notes}
+                  groups={groups}
+                  selectedNote={selectedNote}
+                  searchQuery={searchQuery}
+                  isLoading={isLoading}
+                  onSelectNote={handleSelectNote}
+                  onEditNote={(note) => {
+                    handleSelectNote(note);
+                    setIsEditing(true);
+                  }}
+                  onDeleteNote={openDeleteModal}
+                  onUpdateNotes={handleUpdateNotes}
+                  onUpdateGroups={handleUpdateGroups}
+                  onRenameGroup={handleRenameGroup}
+                  onOpenDeleteGroup={openDeleteGroupModal}
+                />
               </div>
             </aside>
 
@@ -462,6 +615,42 @@ export default function NotesPage() {
           )
         }
       />
+
+      <CreateGroupModal
+        open={createGroupOpen}
+        onOpenChange={setCreateGroupOpen}
+        onGroupCreated={handleGroupCreated}
+      />
+
+      <Dialog
+        open={deleteGroupModalOpen}
+        onOpenChange={setDeleteGroupModalOpen}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t('deleteGroupConfirmTitle')}</DialogTitle>
+            <DialogDescription>
+              {t('deleteGroupConfirmMessage')}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="flex-row justify-end gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteGroupModalOpen(false)}
+              disabled={isDeletingGroup}
+            >
+              {tCommon('cancel')}
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteGroup}
+              disabled={isDeletingGroup}
+            >
+              {isDeletingGroup ? tCommon('deleting') : t('deleteGroup')}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </AuthGuard>
   );
 }

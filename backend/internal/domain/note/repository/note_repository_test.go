@@ -17,6 +17,7 @@ import (
 	"testing"
 
 	"life-tracker-backend/internal/config"
+	ngmodel "life-tracker-backend/internal/domain/note-group/model"
 	"life-tracker-backend/internal/domain/note/dto"
 	"life-tracker-backend/internal/domain/note/model"
 
@@ -57,13 +58,13 @@ func setupTestDatabase(t *testing.T) {
 	require.NoError(t, err)
 	sqlDB.SetMaxOpenConns(1)
 
-	require.NoError(t, db.AutoMigrate(&model.Note{}))
+	require.NoError(t, db.AutoMigrate(&model.Note{}, &ngmodel.NoteGroup{}))
 	testDB = db
 }
 
 func cleanDatabase(t *testing.T) {
 	t.Helper()
-	require.NoError(t, testDB.Exec("TRUNCATE TABLE notes RESTART IDENTITY CASCADE;").Error)
+	require.NoError(t, testDB.Exec("TRUNCATE TABLE note_groups, notes RESTART IDENTITY CASCADE;").Error)
 }
 
 func getTestRepository(t *testing.T) *NoteRepository {
@@ -211,6 +212,59 @@ func TestFindByUserID(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.Empty(t, notes)
+	})
+}
+
+// TestReorder verifies bulk position + group assignment updates, and that
+// notes not owned by the requesting user are left untouched.
+func TestReorder(t *testing.T) {
+	repo := getTestRepository(t)
+
+	userID := uint(204)
+	noteA := &model.Note{UserID: userID, Title: "A"}
+	noteB := &model.Note{UserID: userID, Title: "B", Position: 5}
+	noteOther := &model.Note{UserID: 999, Title: "Other User Note"}
+	for _, n := range []*model.Note{noteA, noteB, noteOther} {
+		require.NoError(t, testDB.Create(n).Error)
+	}
+
+	groupID := uint(1)
+	require.NoError(t, testDB.Exec(
+		`INSERT INTO note_groups (id, user_id, name, position) VALUES (1, ?, 'Work', 0)`,
+		userID).Error)
+
+	t.Run("applies_positions_and_group_assignment", func(t *testing.T) {
+		items := []dto.NotePositionItem{
+			{ID: noteA.ID, GroupID: &groupID, Position: 1},
+			{ID: noteB.ID, Position: 0},
+		}
+
+		err := repo.Reorder(userID, items)
+
+		assert.NoError(t, err)
+
+		var updatedA, updatedB model.Note
+		require.NoError(t, testDB.First(&updatedA, noteA.ID).Error)
+		require.NotNil(t, updatedA.GroupID)
+		assert.Equal(t, groupID, *updatedA.GroupID)
+		assert.Equal(t, 1, updatedA.Position)
+
+		require.NoError(t, testDB.First(&updatedB, noteB.ID).Error)
+		assert.Nil(t, updatedB.GroupID)
+		assert.Equal(t, 0, updatedB.Position)
+	})
+
+	t.Run("foreign_note_is_ignored", func(t *testing.T) {
+		items := []dto.NotePositionItem{
+			{ID: noteOther.ID, Position: 42},
+		}
+
+		err := repo.Reorder(userID, items)
+
+		assert.NoError(t, err)
+		var untouched model.Note
+		require.NoError(t, testDB.First(&untouched, noteOther.ID).Error)
+		assert.Equal(t, 0, untouched.Position)
 	})
 }
 

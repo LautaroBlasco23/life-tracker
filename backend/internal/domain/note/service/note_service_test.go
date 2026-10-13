@@ -17,6 +17,7 @@ import (
 	"testing"
 
 	"life-tracker-backend/internal/config"
+	ngmodel "life-tracker-backend/internal/domain/note-group/model"
 	"life-tracker-backend/internal/domain/note/dto"
 	"life-tracker-backend/internal/domain/note/model"
 
@@ -57,13 +58,13 @@ func setupTestDatabase(t *testing.T) {
 	require.NoError(t, err)
 	sqlDB.SetMaxOpenConns(1)
 
-	require.NoError(t, db.AutoMigrate(&model.Note{}))
+	require.NoError(t, db.AutoMigrate(&model.Note{}, &ngmodel.NoteGroup{}))
 	testDB = db
 }
 
 func cleanDatabase(t *testing.T) {
 	t.Helper()
-	require.NoError(t, testDB.Exec("TRUNCATE TABLE notes RESTART IDENTITY CASCADE;").Error)
+	require.NoError(t, testDB.Exec("TRUNCATE TABLE note_groups, notes RESTART IDENTITY CASCADE;").Error)
 }
 
 func getTestService(t *testing.T) *NoteService {
@@ -280,5 +281,82 @@ func TestDeleteNote(t *testing.T) {
 		resp, getErr := svc.GetNote(note.ID, userID)
 		assert.NoError(t, getErr)
 		assert.NotNil(t, resp)
+	})
+}
+
+// TestReorderNotes verifies bulk reordering plus group-ownership validation:
+// reorder items pointing at another user's group are rejected entirely.
+func TestReorderNotes(t *testing.T) {
+	svc := getTestService(t)
+
+	userID := uint(104)
+	note := &model.Note{UserID: userID, Title: "Reorder Me"}
+	require.NoError(t, testDB.Create(note).Error)
+
+	require.NoError(t, testDB.Exec(
+		`INSERT INTO note_groups (id, user_id, name, position) VALUES (1, ?, 'Personal', 0)`,
+		userID).Error)
+	require.NoError(t, testDB.Exec(
+		`INSERT INTO note_groups (id, user_id, name, position) VALUES (2, 999, 'Foreign', 0)`).Error)
+
+	t.Run("reorders_and_assigns_group", func(t *testing.T) {
+		groupID := uint(1)
+		err := svc.ReorderNotes(userID, &dto.ReorderNotesRequest{
+			Items: []dto.NotePositionItem{
+				{ID: note.ID, GroupID: &groupID, Position: 3},
+			},
+		})
+		assert.NoError(t, err)
+
+		updated, getErr := svc.GetNote(note.ID, userID)
+		assert.NoError(t, getErr)
+		require.NotNil(t, updated.GroupID)
+		assert.Equal(t, groupID, *updated.GroupID)
+		assert.Equal(t, 3, updated.Position)
+	})
+
+	t.Run("duplicate_group_ids_across_items_are_validated_once", func(t *testing.T) {
+		// The UI reindexes a whole group section per move, so every note in
+		// that section shares the same groupId. Duplicates must not trip up
+		// the ownership check (regression for 400 "Note group not found").
+		noteB := &model.Note{UserID: userID, Title: "Reorder Me Too"}
+		noteC := &model.Note{UserID: userID, Title: "Reorder Me Three"}
+		require.NoError(t, testDB.Create(noteB).Error)
+		require.NoError(t, testDB.Create(noteC).Error)
+
+		groupID := uint(1)
+		err := svc.ReorderNotes(userID, &dto.ReorderNotesRequest{
+			Items: []dto.NotePositionItem{
+				{ID: note.ID, GroupID: &groupID, Position: 0},
+				{ID: noteB.ID, GroupID: &groupID, Position: 1},
+				{ID: noteC.ID, GroupID: &groupID, Position: 2},
+			},
+		})
+		assert.NoError(t, err)
+
+		updatedB, getErr := svc.GetNote(noteB.ID, userID)
+		assert.NoError(t, getErr)
+		require.NotNil(t, updatedB.GroupID)
+		assert.Equal(t, groupID, *updatedB.GroupID)
+	})
+
+	t.Run("foreign_group_is_rejected", func(t *testing.T) {
+		foreignGroupID := uint(2)
+		err := svc.ReorderNotes(userID, &dto.ReorderNotesRequest{
+			Items: []dto.NotePositionItem{
+				{ID: note.ID, GroupID: &foreignGroupID, Position: 0},
+			},
+		})
+		assert.ErrorIs(t, err, ErrGroupNotFound)
+	})
+
+	t.Run("nonexistent_group_is_rejected", func(t *testing.T) {
+		ghostGroupID := uint(777)
+		err := svc.ReorderNotes(userID, &dto.ReorderNotesRequest{
+			Items: []dto.NotePositionItem{
+				{ID: note.ID, GroupID: &ghostGroupID, Position: 0},
+			},
+		})
+		assert.ErrorIs(t, err, ErrGroupNotFound)
 	})
 }
