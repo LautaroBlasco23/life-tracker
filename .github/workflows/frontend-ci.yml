@@ -154,8 +154,8 @@ jobs:
           docker rm -f fe-smoke >/dev/null
 
   # Static export build: validates `next build` (output: 'export' -> out/).
-  # A floci S3 deploy smoke test is intentionally skipped here (optional per
-  # refactor plan Phase 7); the backend job already exercises floci end-to-end.
+  # A deploy smoke test is intentionally skipped here; the e2e job already
+  # exercises the full container lane end-to-end.
   build-export:
     runs-on: ubuntu-latest
 

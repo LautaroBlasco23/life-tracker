@@ -1,9 +1,0 @@
-# floci-generated env file (machine-specific endpoints/IPs)
-.floci.env
-bootstrap
-
-# Terraform (state and tfvars contain secrets)
-.terraform/
-*.tfstate
-*.tfstate.*
-*.tfvars

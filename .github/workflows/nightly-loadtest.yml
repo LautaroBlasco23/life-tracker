@@ -7,10 +7,10 @@
 # non-zero and fails this job. No Prometheus dashboards are needed in CI.
 #
 # Options chosen and why:
-#   - .env: the load-test compose stack (infra/docker-compose.loadtest.yml
-#     override) pins its own DB credentials and volumes, but the base
-#     docker-compose.yml still lists `env_file: ../.env`; `make setup`
-#     creates it from .env.example when missing (idempotent).
+#   - .env: the load-test stack pins its own DB credentials and volumes (the
+#     `loadtest` profile services in the root docker-compose.yml), but the
+#     base `api`/`grafana` services read root `.env`; `make setup` creates it
+#     from .env.example when missing (idempotent).
 #   - REMOTE_WRITE=0: the loadtest Makefile defaults k6 remote-write output
 #     to ON (streaming to :9090). No Prometheus is *required* here, so we
 #     disable the stream to keep the runs self-sufficient. NOTE: the `run`
@@ -42,8 +42,9 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      # Base compose has `env_file: ../.env`. Creates .env from .env.example
-      # only when missing — never overwrites a local one.
+      # Base compose reads root `.env` (api `env_file`, grafana password
+      # guard). Creates .env from .env.example only when missing — never
+      # overwrites a local one.
       - name: Ensure .env exists
         run: make setup
 

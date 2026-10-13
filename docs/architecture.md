@@ -1,22 +1,27 @@
-# Architecture (AWS-shaped, emulated locally with floci)
+# Architecture (plain Docker containers)
 
-The application is architected against AWS managed services rather than bare Docker containers: the API runs as a **Lambda function behind API Gateway v2**, data lives in **RDS PostgreSQL** and **DocumentDB**, user images and the frontend artifact live in **S3**, and the JWT signing key comes from **Secrets Manager**. Locally, **floci** (an AWS emulator, `floci/floci:1.6.0-compat`) stands in for AWS so the exact same deployment path runs on a developer machine.
+The application is a single docker compose stack defined at the repo root in
+[`docker-compose.yml`](../docker-compose.yml): the Go API, PostgreSQL, MongoDB,
+and an nginx container serving the Next.js static export. Deployment is plain
+`docker compose up -d` — no cloud provider, no emulator, no orchestration layer.
 
-floci runs as a container with the **Docker socket mounted**, which lets it spawn *real* containers for the data services and the Lambda — not mocks. Everything floci creates shares the emulator's docker network (`infra_golang_api_network`). This is also why the API cannot run as a host process: the provisioned databases are only reachable from inside that network (see `infra/scripts/migrate.sh`).
+## Services
 
-## Service mapping
-
-| AWS service | Local equivalent | Role |
+| Service | Container | Role |
 |---|---|---|
-| AWS Lambda | Go binary (`bootstrap`, runtime `provided.al2`, `APP_RUNTIME=serverless`) uploaded by `floci-deploy` | The REST API (Gin) |
-| API Gateway v2 | HTTP API pinned as `lifetracker-api`, stage `dev`, route `ANY /{proxy+}` | Public entrypoint for `/api/*` |
-| RDS PostgreSQL | Real `postgres:16-alpine` container (`lifetracker-postgres`) spawned by floci | Relational data: users, activities, notes, time, routines, social |
-| DocumentDB | Real `mongo:7.0` container (`lifetracker-docdb`) spawned by floci | Document data: activity records, transactions, payments, screen time |
-| S3 | Buckets `lifetracker-images` (user images) and `lifetracker-web` (frontend artifact) | Object storage |
-| Secrets Manager | Secret `life-tracker/jwt-secret` | JWT signing key |
-| CloudFront | nginx container `lifetracker-web` on :3000 | Serves the static frontend export |
+| `api` | `golang_api_server` (:8080) | The REST API (Gin, prod-built image from `backend/Dockerfile`); runs its embedded migrations on every (re)start |
+| `web` | `lifetracker-web` (:3000) | nginx serving the static Next.js export from a named volume; proxies `/api/*` to the api container on the same origin |
+| `postgres` | `golang_api_postgres` (:5432, loopback) | Relational data: users, activities, notes, time, routines, social |
+| `mongodb` | `golang_api_mongodb` (:27017, loopback) | Document data: activity records, transactions, payments, screen time |
 
-> floci's CloudFront data-plane has parity gaps, so the local stand-in for CloudFront is an nginx container. The S3 `lifetracker-web` bucket remains the deploy artifact: CI asserts the export is produced and `deploy-frontend.sh` syncs it there.
+Compose *profiles* (never started by a plain `docker compose up -d`):
+
+- `observability` — node-exporter, Prometheus (:9090), Grafana (:3001), Loki (:3100), Promtail. Prometheus scrapes the API's `/metrics` endpoint and node-exporter; Promtail ships container logs into Loki.
+- `loadtest` — `loadtest-api` + `loadtest-postgres` + `loadtest-mongodb`: the same API and databases with pinned credentials and their own volumes, so the load-test lane works regardless of `.env` and never touches dev DB data (see [`loadtest.md`](./loadtest.md)).
+
+Test databases reuse the same `postgres`/`mongodb` definitions with different env values (`backend/.env.test`: :5433/:27018, `_test` volumes, separate network) — see the `db-test-*` make targets.
+
+The compose project name is pinned to `infra` in the compose file, which keeps the historical volume/network names (`infra_postgres_data`, `infra_golang_api_network`, …) — no data migration when the stack moved from `infra/` to the repo root.
 
 ## Request flow
 
@@ -26,22 +31,23 @@ Browser
   ▼  http://localhost:3000
 nginx (lifetracker-web) ── serves the Next.js static export
   │
-  └─ /api/*  →  floci API Gateway        (same-origin proxy, no CORS preflights)
-                 │
-                 ▼  /execute-api/lifetracker-api/dev/api/*
-              Lambda (Gin API, APP_RUNTIME=serverless)
+  └─ /api/*  →  api:8080/api/*   (same-origin proxy, no CORS preflights)
                  │
                  ▼
-              RDS PostgreSQL + DocumentDB + S3 + Secrets Manager
-              (all on the emulator network)
+              PostgreSQL + MongoDB
+              (on the compose network)
+
+Mobile app / Chrome extension
+  └─ direct to http://<host>:8080/api  (bypass nginx)
 ```
 
-The nginx proxy keeps API calls same-origin because floci's gateway does not answer CORS preflights — cross-origin browser calls would fail. Migrations run at provision time (not per Lambda cold start) via `infra/scripts/migrate.sh`, which executes the migrate binary inside a container on the emulator network.
+The nginx proxy keeps API calls same-origin for the browser. The Next.js export uses root-relative asset paths (`/_next/...`), so it must be served at the domain root — nginx on :3000 does exactly that, with the runtime API URL injected via `/env-config.js` (see [`frontend.md`](./frontend.md)).
 
-## Provisioning & deployment
+## Deployment & migrations
 
-- `infra/scripts/provision.sh` — idempotent. Creates the S3 buckets, Secrets Manager secret, RDS instance, and DocumentDB cluster, then writes `infra/.floci.env` (machine-specific endpoints; gitignored).
-- `infra/scripts/deploy-lambda.sh` — runs migrations, builds the Go Lambda, and creates/updates the function plus the API Gateway route.
-- `infra/scripts/deploy-frontend.sh` — `next build` (static export), bakes the runtime `env-config.js`, syncs to S3, and copies the output into the nginx volume.
+- `docker compose up -d --build` (or `make dev-container`) — build + start everything.
+- `scripts/deploy-frontend.sh` — `next build` (static export), bakes the runtime `env-config.js`, and copies the output into the nginx volume. The build output lives in a named volume rather than a host bind mount because `next build` deletes and recreates `out/`, which breaks host bind mounts under Docker Desktop's WSL integration.
+- `scripts/migrate.sh` — executes the migrate binary inside a container attached to the compose network (host-side tools cannot always reach bridge IPs, e.g. Docker Desktop WSL2). The API container also runs its embedded migrations on every start, so this is the explicit standalone equivalent.
+- `nginx/nginx.tls.conf.example` — template for host-side TLS termination (certbot) when deploying beyond localhost; the in-stack nginx stays plain HTTP.
 
-`make dev-emulator` (repo root) runs all three against the current source, so re-running it is the "restart with the latest code" command.
+_Diagrams authored in Excalidraw._

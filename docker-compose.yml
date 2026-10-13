@@ -1,0 +1,337 @@
+# Root compose stack: api + postgres + mongodb + web (nginx static export).
+#
+# Project name is pinned below: `docker compose` derives it from the directory
+# by default, which would rename every volume/network (`infra_postgres_data`
+# -> `life-tracker_postgres_data`) and orphan the existing dev data. Pinning
+# keeps the old names, so no data migration is needed.
+#
+# Profiles — never started by a plain `docker compose up -d`:
+#   observability  node-exporter, prometheus, grafana, loki, promtail
+#                  (make dev-full / monitoring-up enable it)
+#   loadtest       self-contained pinned-credential stack with its OWN volumes
+#                  and explicit service names (loadtest-*), so it works
+#                  regardless of .env and never touches dev DB data
+#                  (make -C loadtest stack-up enables it)
+#
+# Test databases reuse the same postgres/mongodb definitions: their names,
+# ports, volumes and network are env-parameterized, so
+# `docker compose --env-file backend/.env.test up -d postgres mongodb`
+# yields isolated test DBs (:5433/:27018) — see the db-test-* make targets.
+name: infra
+
+services:
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: golang_api_server
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    # .env keeps localhost hosts (host-run backend needs them); override
+    # with compose service names for the container network.
+    environment:
+      DB_HOST: postgres
+      MONGO_URI: "" # empty -> config falls back to building from MONGO_HOST
+      MONGO_HOST: mongodb
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+    healthcheck:
+      # GET, not --spider (HEAD): the /health route only answers GET, so
+      # --spider's HEAD request 404s and the container reports unhealthy
+      # while actually serving fine.
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - golang_api_network
+
+  web:
+    # nginx serves the Next.js static export on :3000 and proxies /api to the
+    # api container on the same origin (no CORS preflights; the API runs its
+    # own migrations at startup). The build output lives in a named volume
+    # (populated by scripts/deploy-frontend.sh via docker cp) rather than a
+    # host bind mount: `next build` deletes and recreates out/, which breaks
+    # host bind mounts under Docker Desktop's WSL integration.
+    image: nginx:alpine
+    container_name: lifetracker-web
+    restart: unless-stopped
+    ports:
+      - "3000:80"
+    volumes:
+      - web_data:/usr/share/nginx/html
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - golang_api_network
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: ${POSTGRES_CONTAINER_NAME:-golang_api_postgres}
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      # Bound to loopback only: dev DBs must not be reachable from other hosts.
+      # (Pass DB_PORT as "host:container" to override, e.g. tests.)
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
+    volumes:
+      - ${POSTGRES_VOLUME_NAME:-postgres_data}:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -d ${DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - ${NETWORK_NAME:-golang_api_network}
+
+  mongodb:
+    image: mongo:7.0
+    container_name: ${MONGO_CONTAINER_NAME:-golang_api_mongodb}
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
+      MONGO_INITDB_DATABASE: ${MONGO_DATABASE}
+    ports:
+      # Bound to loopback only: dev DBs must not be reachable from other hosts.
+      # (Pass MONGO_PORT as "host:container" to override, e.g. tests.)
+      - "127.0.0.1:${MONGO_PORT:-27017}:27017"
+    volumes:
+      - ${MONGO_DATA_VOLUME_NAME:-mongodb_data}:/data/db
+      - ${MONGO_CONFIG_VOLUME_NAME:-mongodb_config}:/data/configdb
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - ${NETWORK_NAME:-golang_api_network}
+
+  # --- observability profile ---
+
+  node-exporter:
+    profiles: ["observability"]
+    image: prom/node-exporter:latest
+    container_name: golang_api_node_exporter
+    restart: unless-stopped
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - "--path.rootfs=/rootfs"
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    networks:
+      - golang_api_network
+
+  prometheus:
+    profiles: ["observability"]
+    image: prom/prometheus:latest
+    container_name: golang_api_prometheus
+    restart: unless-stopped
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=30d"
+      # accept k6 remote-write (live load-test metrics)
+      - "--web.enable-remote-write-receiver"
+      # native histograms for k6 trend metrics (k6 Prometheus dashboards)
+      - "--enable-feature=native-histograms"
+      - "--web.console.libraries=/usr/share/prometheus/console_libraries"
+      - "--web.console.templates=/usr/share/prometheus/consoles"
+    volumes:
+      - ./backend/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    ports:
+      # Loopback only: Prometheus accepts unauthenticated remote-write (k6) and
+      # metric queries. Reach it remotely via SSH tunnel / tailscale.
+      - "127.0.0.1:9090:9090"
+    depends_on:
+      - node-exporter
+    networks:
+      - golang_api_network
+
+  grafana:
+    profiles: ["observability"]
+    image: grafana/grafana:latest
+    container_name: golang_api_grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      # No insecure fallback: an unset password must fail loudly at startup,
+      # not yield admin/admin.
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD is required (set it in .env)}
+      - GF_SERVER_DOMAIN=localhost
+      - GF_SERVER_ROOT_URL=http://localhost:3001/
+      - GF_SERVER_SERVE_FROM_SUB_PATH=false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./backend/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+    ports:
+      # Loopback only: reach it remotely via SSH tunnel / tailscale.
+      - "127.0.0.1:3001:3000"
+    depends_on:
+      - prometheus
+      - loki
+    networks:
+      - golang_api_network
+
+  loki:
+    profiles: ["observability"]
+    image: grafana/loki:3.3.2
+    container_name: golang_api_loki
+    restart: unless-stopped
+    command:
+      - "-config.file=/etc/loki.yml"
+    volumes:
+      - ./backend/monitoring/loki.yml:/etc/loki/loki.yml:ro
+      - loki_data:/loki
+    ports:
+      # Loopback only: Loki accepts unauthenticated pushes and queries.
+      - "127.0.0.1:3100:3100"
+    networks:
+      - golang_api_network
+
+  promtail:
+    profiles: ["observability"]
+    image: grafana/promtail:3.3.2
+    container_name: golang_api_promtail
+    restart: unless-stopped
+    command:
+      - "-config.file=/etc/promtail/promtail.yml"
+    volumes:
+      - ./backend/monitoring/promtail.yml:/etc/promtail/promtail.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      # :ro is intent-signalling only (socket API access is all-or-nothing);
+      # the real mitigation is that this stack is not exposed to the network.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - loki
+    networks:
+      - golang_api_network
+
+  # --- loadtest profile (pinned credentials, own volumes, explicit names) ---
+
+  loadtest-api:
+    profiles: ["loadtest"]
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: loadtest_api_server
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+      GIN_MODE: release
+      APP_RUNTIME: ""
+      DB_HOST: loadtest-postgres
+      DB_PORT: "5432"
+      DB_USER: postgres
+      DB_PASSWORD: password
+      DB_NAME: golang_api
+      DB_SSLMODE: disable
+      MONGO_URI: ""
+      MONGO_HOST: loadtest-mongodb
+      MONGO_PORT: "27017"
+      MONGO_USER: admin
+      MONGO_PASSWORD: password
+      MONGO_DATABASE: life_tracker
+      JWT_SECRET: loadtest-secret-change-me
+      JWT_EXPIRY: 24h
+      JWT_REFRESH_EXPIRY: 168h
+      AWS_ENDPOINT_URL: ""
+    depends_on:
+      loadtest-postgres:
+        condition: service_healthy
+      loadtest-mongodb:
+        condition: service_healthy
+    healthcheck:
+      # base healthcheck semantics: GET (see api above)
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - golang_api_network
+
+  loadtest-postgres:
+    profiles: ["loadtest"]
+    image: postgres:16-alpine
+    container_name: loadtest_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: golang_api
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    volumes:
+      - loadtest_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d golang_api"]
+    networks:
+      - golang_api_network
+
+  loadtest-mongodb:
+    profiles: ["loadtest"]
+    image: mongo:7.0
+    container_name: loadtest_mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+      MONGO_INITDB_DATABASE: life_tracker
+    volumes:
+      - loadtest_mongodb_data:/data/db
+      - loadtest_mongodb_config:/data/configdb
+    healthcheck:
+      test: ["CMD", "mongosh", "-u", "admin", "-p", "password", "--eval", "db.adminCommand('ping')"]
+    networks:
+      - golang_api_network
+
+volumes:
+  postgres_data:
+    driver: local
+  postgres_test_data:
+    driver: local
+  mongodb_data:
+    driver: local
+  mongodb_config:
+    driver: local
+  mongodb_test_data:
+    driver: local
+  mongodb_test_config:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  loki_data:
+    driver: local
+  loadtest_postgres_data:
+    driver: local
+  loadtest_mongodb_data:
+    driver: local
+  loadtest_mongodb_config:
+    driver: local
+  web_data:
+    name: lifetracker-web-data
+
+networks:
+  golang_api_network:
+    driver: bridge
+  golang_api_test_network:
+    driver: bridge

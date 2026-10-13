@@ -99,7 +99,7 @@ help:
 	@echo "  Stack targets:"
 	@echo "    stack-up       - start self-contained load-test stack (api + DBs +"
 	@echo "                     monitoring; own volumes, independent of .env)"
-	@echo "    stack-down     - stop it (dev stack and floci are untouched)"
+	@echo "    stack-down     - stop it (dev stack is untouched)"
 	@echo "    monitoring-up  - start Prometheus + Grafana only (needs API/DBs running)"
 	@echo "    fe-up          - nginx frontend with /api -> direct API (load-test lane)"
 	@echo "    fe-down        - stop frontend"
@@ -188,23 +188,24 @@ tap:
 # --- stack orchestration ---
 
 # Self-contained load-test stack: api + postgres + mongodb + monitoring.
-# Uses docker-compose.loadtest.yml (pinned credentials, own volumes), so it
-# does NOT depend on .env and does not touch dev DB data or floci.
-LTC := docker compose -f ../infra/docker-compose.yml -f ../infra/docker-compose.loadtest.yml
+# Uses the loadtest profile services of the root docker-compose.yml (pinned
+# credentials, own volumes), so it does NOT depend on .env and does not touch
+# dev DB data.
+LTC := docker compose -f ../docker-compose.yml
 
 stack-up:
-	$(LTC) up -d api postgres mongodb node-exporter prometheus grafana
+	$(LTC) up -d loadtest-api loadtest-postgres loadtest-mongodb node-exporter prometheus grafana
 
 stack-down:
-	$(LTC) stop api postgres mongodb node-exporter prometheus grafana
+	$(LTC) stop loadtest-api loadtest-postgres loadtest-mongodb node-exporter prometheus grafana
 
 monitoring-up:
 	$(MAKE) -C .. monitoring-up
 
-# nginx frontend proxying /api directly to the compose API (not floci).
+# nginx frontend proxying /api to the compose api container.
 # Requires the static export in the web volume (run `make deploy-frontend` once from the repo root).
 fe-up:
-	docker compose -f ../infra/docker-compose.frontend.yml -f ../infra/docker-compose.frontend.override.yml up -d
+	$(LTC) up -d web
 
 fe-down:
-	docker compose -f ../infra/docker-compose.frontend.yml -f ../infra/docker-compose.frontend.override.yml stop
+	$(LTC) stop web

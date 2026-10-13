@@ -1,4 +1,6 @@
 # Production TLS termination example for the life-tracker API + web frontend.
+# (Host-side nginx, not the web container: terminate HTTPS on the host and
+# proxy to the compose-published ports.)
 #
 # This file is a TEMPLATE, not a running config: copy it to
 # /etc/nginx/conf.d/lifetracker.conf (or mount it into the web container),

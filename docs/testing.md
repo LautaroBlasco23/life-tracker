@@ -6,12 +6,10 @@ The Go test suite (testify + httptest) runs against isolated Docker databases. F
 
 | Command | What it does |
 |---|---|
-| `make test` | Starts test DBs (`docker-compose.db.yml`), runs `gotestsum -race`, stops DBs |
+| `make test` | Starts test DBs (`docker-compose.yml` with `backend/.env.test`), runs `gotestsum -race`, stops DBs |
 | `make test-only` | Runs the suite against already-running test DBs |
 | `make code-check` | Format + lint (`golangci-lint`) |
 | `make db-test-up` / `make db-test-down` | Manage the test databases manually |
-
-`make test-floci` runs the suite against the floci-provisioned services instead of the compose test DBs (the path CI uses). `make test-floci-coverage` is the same suite with `-coverprofile` + printed total (what CI runs).
 
 Coverage is report-only for now — no threshold yet; a ratchet (fail PR if the total drops) is planned once suites mature. Baseline (Oct 2026): **49.1% of statements** across 805 tests. Prefer the existing conventions: controller tests use `httptest` + `testify`; repository tests hit the real test DBs (mocking GORM is worse than the isolation the compose DBs give); service logic is table-driven.
 
@@ -19,8 +17,8 @@ Coverage is report-only for now — no threshold yet; a ratchet (fail PR if the 
 
 `backend/tests/e2e/` exercises the **production router** (real route registry, real JWT auth middleware, full middleware chain) against the real test DBs — unlike the controller tests, which build their own routers with inline auth fakes.
 
-- Run locally: `make test-e2e` (compose test DBs) or `make test-e2e-floci` (CI path).
-- Runs in CI inside the backend `test` job, before the Lambda deploy.
+- Run locally and in CI: `make test-e2e` (compose test DBs).
+- Runs in CI inside the backend `test` job.
 - Excluded from the default suite by the `//go:build e2e` tag, so `make test` stays fast.
 - Scope (deliberately small): health, register → login → refresh (real JWT issuance), anonymous call to a protected route → 401, `/users/me` + `/activities/today`, activity + note create/list lifecycle with the issued token.
 - Data strategy: unique usernames per run (`e2e_<timestamp>`), no truncation — coexists with the unit suite on the same DBs.
@@ -90,7 +88,7 @@ PR CI is dependency-aware: each workflow's `paths:` filter triggers only the sui
 
 - `frontend-ci.yml` → prettier, `npm test` (vitest), **coverage report (artifact + job summary)**, `tsc --noEmit`, and the **`e2e` job** (Playwright essential suite on the full-stack container lane). Triggers on `frontend/**` + `packages/shared/**`.
 - `mobile-ci.yml` → type-check, `npm test` (jest-expo), shared package tests (vitest), expo export. Triggers on `apps/mobile/**` + `packages/shared/**` — so a shared-package change exercises both JS consumers.
-- `backend-ci.yml` → golangci-lint, floci integration suite **with coverage** (summary + artifact), **essential E2E suite** (build tag `e2e`), Lambda deploy + `/health` smoke, and the **`api-perf-smoke` job** (k6 `smoke.js` against the deployed floci gateway; thresholds fail the PR). Triggers on `backend/**`, `infra/**`, `Makefile`.
+- `backend-ci.yml` → golangci-lint, integration suite **with coverage** against the compose test DBs (summary + artifact), **essential E2E suite** (build tag `e2e`), and the **`api-perf-smoke` job** (k6 `smoke.js` against the load-test stack's API; thresholds fail the PR). Triggers on `backend/**`, the compose/nginx/scripts files, `Makefile`.
 - `chrome-extension-ci.yml` → `npm ci` + vitest (unit + manifest sanity) + `node --check` parse of the extension scripts. Triggers on `chrome-extension/**`.
 - `nightly-loadtest.yml` → full k6 suite on a daily cron (`0 3 * * *`) + manual dispatch (`REMOTE_WRITE=0`, reports artifact). Heavy lanes are nightly-only; PRs get the smoke lane only.
 - `release.yml` / `pr-title.yml` unchanged (release-please + Conventional Commits enforcement).
@@ -106,7 +104,6 @@ Stress tests live in [`loadtest/`](../loadtest/) — k6 scenarios that fire hund
 | Backend direct | compose `api` container | `http://localhost:8080` |
 | Full stack | nginx frontend proxy (`make loadtest-fe-up`) | `http://localhost:3000` |
 | Static assets | nginx static export (frontend serving) | `http://localhost:3000` |
-| floci gateway (optional) | emulated Lambda | `http://localhost:4566/execute-api/lifetracker-api/dev` |
 
 **One command — the full suite**:
 
@@ -144,6 +141,6 @@ make loadtest-tap                      # raw API responses in the terminal
 make loadtest-tap TAP_PATH=/api/notes TAP_INTERVAL=2   # time | status | latency | body
 ```
 
-Notes: disable live streaming with `REMOTE_WRITE=0`; the floci/Lambda path is not scraped by Prometheus (separate docker network), so dashboards cover the compose lane. The load-test stack is self-contained (`infra/docker-compose.loadtest.yml` — pinned credentials, its own volumes), so it works regardless of `.env` and never touches dev DB data or floci. Prometheus runs with remote-write receiver + native histograms enabled (`infra/docker-compose.yml`), and app metrics are scraped every 5s (`backend/monitoring/prometheus.yml`). Dashboards are provisioned automatically from `backend/monitoring/grafana/provisioning/dashboards/`.
+Notes: disable live streaming with `REMOTE_WRITE=0`. The load-test stack is self-contained (the `loadtest` profile services in `docker-compose.yml` — pinned credentials, their own volumes), so it works regardless of `.env` and never touches dev DB data. Prometheus runs with remote-write receiver + native histograms enabled (`docker-compose.yml`), and app metrics are scraped every 5s (`backend/monitoring/prometheus.yml`). Dashboards are provisioned automatically from `backend/monitoring/grafana/provisioning/dashboards/`.
 
-**In CI**: PRs touching the backend run only `smoke.js` (one user, seconds, thresholds gate the PR) against the floci-deployed gateway — see the `api-perf-smoke` job in `backend-ci.yml`. The full suite runs nightly via `nightly-loadtest.yml` (cron `0 3 * * *`, also manual via workflow_dispatch; results artifact in `loadtest/reports/`). Heavy lanes are deliberately kept out of PRs.
+**In CI**: PRs touching the backend run only `smoke.js` (one user, seconds, thresholds gate the PR) against the load-test stack's API — see the `api-perf-smoke` job in `backend-ci.yml`. The full suite runs nightly via `nightly-loadtest.yml` (cron `0 3 * * *`, also manual via workflow_dispatch; results artifact in `loadtest/reports/`). Heavy lanes are deliberately kept out of PRs.
