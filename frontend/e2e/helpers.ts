@@ -87,34 +87,6 @@ export async function registerUser(
 }
 
 /**
- * Navigate with a bounded connection-refused retry.
- *
- * Rationale: the CI lane showed a ~3s window in which Chromium alone received
- * net::ERR_CONNECTION_REFUSED on the static-export origin (node-side requests
- * through the same listener kept succeeding and no container restarted).
- * Playwright's test-level retries are immediate, so every attempt lands
- * inside the same window. Five attempts with a 1.5s backoff cover ~6s; any
- * other failure (timeout, 404, assertion) still surfaces as-is.
- */
-export async function gotoWithRetry(
-  page: Page,
-  url: string,
-  options?: Parameters<Page['goto']>[1]
-): Promise<ReturnType<Page['goto']>> {
-  for (let attempt = 1; ; attempt++) {
-    try {
-      return await page.goto(url, options);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      if (!message.includes('ERR_CONNECTION_REFUSED') || attempt >= 5) {
-        throw err;
-      }
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-    }
-  }
-}
-
-/**
  * Seed the three localStorage keys the shared auth-service reads, before any
  * app script runs. Survives reloads (addInitScript runs per navigation).
  */

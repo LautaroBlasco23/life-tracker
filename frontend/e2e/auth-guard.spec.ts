@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { registerUser, seedAuth, gotoWithRetry } from './helpers';
+import { registerUser, seedAuth } from './helpers';
 
 /**
  * Auth guard: the single client-side gate in front of every page
@@ -9,7 +9,7 @@ test.describe('auth guard', () => {
   test('unauthenticated visit to a protected page lands on /login', async ({
     page,
   }) => {
-    await gotoWithRetry(page, '/');
+    await page.goto('/');
 
     // app/page.tsx redirects by auth state; guard pushes /login when empty.
     await expect(page).toHaveURL(/\/login/);
@@ -26,7 +26,7 @@ test.describe('auth guard', () => {
     const user = await registerUser(request);
     await seedAuth(page, user);
 
-    await gotoWithRetry(page, '/');
+    await page.goto('/');
     await page.waitForURL(/\/activities/);
 
     // Authenticated app shell: the sidebar (role=complementary) only renders

@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { registerUser, gotoWithRetry } from './helpers';
+import { registerUser } from './helpers';
 
 /**
  * Real login through the UI (frontend/app/login/page.tsx), against the
@@ -16,7 +16,7 @@ test('UI login with helper-created user reaches the authenticated shell', async 
 }) => {
   const user = await registerUser(request);
 
-  await gotoWithRetry(page, '/login');
+  await page.goto('/login');
   await page.getByLabel(/username or email/i).fill(user.username);
   await page.getByLabel('Password', { exact: true }).fill(user.password);
   await page.getByRole('button', { name: 'Sign in' }).click();
