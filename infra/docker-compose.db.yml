@@ -11,7 +11,9 @@ services:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "${DB_PORT:-5432}:5432"
+      # Bound to loopback only: dev DBs must not be reachable from other hosts.
+      # (Pass DB_PORT as "host:container" to override, e.g. tests.)
+      - "127.0.0.1:${DB_PORT:-5432}:5432"
     volumes:
       - ${POSTGRES_VOLUME_NAME:-postgres_data}:/var/lib/postgresql/data
     healthcheck:
@@ -32,7 +34,9 @@ services:
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_PASSWORD}
       MONGO_INITDB_DATABASE: ${MONGO_DATABASE}
     ports:
-      - "${MONGO_PORT:-27017}:27017"
+      # Bound to loopback only: dev DBs must not be reachable from other hosts.
+      # (Pass MONGO_PORT as "host:container" to override, e.g. tests.)
+      - "127.0.0.1:${MONGO_PORT:-27017}:27017"
     volumes:
       - ${MONGO_DATA_VOLUME_NAME:-mongodb_data}:/data/db
       - ${MONGO_CONFIG_VOLUME_NAME:-mongodb_config}:/data/configdb
