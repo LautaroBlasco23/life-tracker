@@ -16,6 +16,10 @@
     "test:e2e": "playwright test",
     "test:coverage": "vitest run --coverage"
   },
+  "overrides": {
+    "postcss": "$postcss",
+    "postcss-selector-parser": "^7.1.6"
+  },
   "lint-staged": {
     "*.{js,jsx,ts,tsx,css,md,json}": "prettier --write"
   },
@@ -90,7 +94,7 @@
     "husky": "^9.1.7",
     "jsdom": "^30.1.2",
     "lint-staged": "^16.2.3",
-    "postcss": "^8.5",
+    "postcss": "^8.5.23",
     "prettier": "^3.6.2",
     "tailwindcss": "^4.1.9",
     "tw-animate-css": "1.3.3",
