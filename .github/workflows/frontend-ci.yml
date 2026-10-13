@@ -10,11 +10,10 @@ on:
       - "packages/shared/**"
       - ".github/workflows/frontend-ci.yml"
   pull_request:
+    # No paths filter: every PR must report this workflow's required checks
+    # (the merge ruleset blocks on unreported contexts — a path-filtered
+    # workflow would leave them "waiting for status to be reported").
     branches: [main]
-    paths:
-      - "frontend/**"
-      - "packages/shared/**"
-      - ".github/workflows/frontend-ci.yml"
 
 env:
   DOCKER_IMAGE: lautaroblasco1998/lifetracker-frontend

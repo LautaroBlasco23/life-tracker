@@ -11,11 +11,7 @@ on:
       - "Makefile"
       - ".github/workflows/backend-ci.yml"
   pull_request:
-    paths:
-      - "backend/**"
-      - "infra/**"
-      - "Makefile"
-      - ".github/workflows/backend-ci.yml"
+    branches: ["main"]
 
 env:
   IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/lifetracker-backend

@@ -5,8 +5,8 @@ on:
     branches: [main]
     paths: ["apps/mobile/**", "packages/shared/**", "scripts/**", ".github/workflows/mobile-ci.yml"]
   pull_request:
+    # No paths filter — see frontend-ci.yml.
     branches: [main]
-    paths: ["apps/mobile/**", "packages/shared/**", "scripts/**", ".github/workflows/mobile-ci.yml"]
 
 jobs:
   type-check-and-export:
