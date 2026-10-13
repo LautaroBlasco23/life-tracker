@@ -2,12 +2,16 @@ services:
   # AWS emulator — only started by the emulator/full lanes (make dev-emulator,
   # make up). Plain `make dev` runs the API as a container instead.
   floci:
-    image: floci/floci:1.6.0-compat
+    image: floci/floci:1.6.0-compat@sha256:15ba10dace4a29d94f0e36c03dc3c2ec5bfc4364a1cf9c67f9def4e530ae2c2c
     container_name: floci
     restart: unless-stopped
     profiles: ["emulator"]
     ports:
-      - "4566:4566"
+      # Loopback only: floci mounts the host docker socket as root, so it is
+      # effectively host-root — never expose it beyond the machine. The Android
+      # emulator still reaches it via 10.0.2.2; physical devices would need a
+      # temporary override (not recommended).
+      - "127.0.0.1:4566:4566"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - floci_data:/app/data
@@ -137,7 +141,9 @@ services:
       - ../backend/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     ports:
-      - "9090:9090"
+      # Loopback only: Prometheus accepts unauthenticated remote-write (k6) and
+      # metric queries. Reach it remotely via SSH tunnel / tailscale.
+      - "127.0.0.1:9090:9090"
     depends_on:
       - node-exporter
     networks:
@@ -160,7 +166,8 @@ services:
       - grafana_data:/var/lib/grafana
       - ../backend/monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
     ports:
-      - "3001:3000"
+      # Loopback only: reach it remotely via SSH tunnel / tailscale.
+      - "127.0.0.1:3001:3000"
     depends_on:
       - prometheus
       - loki
@@ -178,7 +185,8 @@ services:
       - ../backend/monitoring/loki.yml:/etc/loki/loki.yml:ro
       - loki_data:/loki
     ports:
-      - "3100:3100"
+      # Loopback only: Loki accepts unauthenticated pushes and queries.
+      - "127.0.0.1:3100:3100"
     networks:
       - golang_api_network
 
@@ -192,7 +200,9 @@ services:
     volumes:
       - ../backend/monitoring/promtail.yml:/etc/promtail/promtail.yml:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
-      - /var/run/docker.sock:/var/run/docker.sock
+      # :ro is intent-signalling only (socket API access is all-or-nothing);
+      # the real mitigation is that this stack is not exposed to the network.
+      - /var/run/docker.sock:/var/run/docker.sock:ro
     depends_on:
       - loki
     networks:

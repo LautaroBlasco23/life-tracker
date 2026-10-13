@@ -215,10 +215,10 @@ func TestHealthEndpoint(t *testing.T) {
 	require.Equal(t, http.StatusOK, rec.Code, "body: %s", rec.Body.String())
 	assert.Equal(t, "ok", res["status"])
 
-	dbs, _ := res["databases"].(map[string]any)
-	require.NotNil(t, dbs, "health must report database status")
-	assert.Equal(t, "ok", dbs["postgresql"], "body: %s", rec.Body.String())
-	assert.Equal(t, "ok", dbs["mongodb"], "body: %s", rec.Body.String())
+	// Component status is deliberately NOT part of the public body (it saved
+	// attackers reconnaissance); degraded connectivity is logged server-side.
+	assert.Nil(t, res["databases"], "health must not disclose database status")
+	assert.NotContains(t, rec.Body.String(), "mongodb", "body: %s", rec.Body.String())
 }
 
 func TestRegisterLoginRefresh(t *testing.T) {

@@ -21,8 +21,14 @@ func initializePostgreSQL(cfg *config.Config, runMigrations bool) (*gorm.DB, err
 		cfg.DBHost, cfg.DBUser, cfg.DBPassword, cfg.DBName, cfg.DBPort, cfg.DBSSLMode,
 	)
 
+	// SQL logging: bound values (emails, token hashes, user text) must not end
+	// up in prod logs, so Info-level SQL tracing is dev-only.
+	logLevel := logger.Warn
+	if cfg.Environment == "dev" {
+		logLevel = logger.Info
+	}
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info),
+		Logger: logger.Default.LogMode(logLevel),
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to PostgreSQL: %w", err)

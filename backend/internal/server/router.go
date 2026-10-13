@@ -57,11 +57,14 @@ func NewRouter(cfg *config.Config, dbs *database.Connections, imageClient *image
 	r.Use(middleware.RequestLoggerMiddleware())
 	r.Use(middleware.RecoveryMiddleware())
 	r.Use(middleware.SecurityHeadersMiddleware())
+	r.Use(middleware.BodySizeLimitMiddleware(cfg.MaxBodyBytes))
 	r.Use(middleware.CORSMiddleware(cfg.CORSAllowedOrigins))
 	r.Use(middleware.TimezoneMiddleware())
 	r.Use(middleware.PrometheusMiddleware())
 
-	// Health check endpoint with database status
+	// Health check endpoint. Database component status is logged, never
+	// returned: a public endpoint disclosing which dependency is down saves an
+	// attacker reconnaissance.
 	r.GET("/health", func(c *gin.Context) {
 		// Test PostgreSQL connection
 		sqlDB, err := dbs.PostgreSQL.DB()
@@ -76,13 +79,14 @@ func NewRouter(cfg *config.Config, dbs *database.Connections, imageClient *image
 			mongoStatus = "error"
 		}
 
+		if postgresStatus != "ok" || mongoStatus != "ok" {
+			slog.Warn("health check: degraded database connectivity",
+				"postgresql", postgresStatus, "mongodb", mongoStatus)
+		}
+
 		c.JSON(http.StatusOK, gin.H{
 			"status":    "ok",
 			"timestamp": time.Now().Unix(),
-			"databases": gin.H{
-				"postgresql": postgresStatus,
-				"mongodb":    mongoStatus,
-			},
 		})
 	})
 

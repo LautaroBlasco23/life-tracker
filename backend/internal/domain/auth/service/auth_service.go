@@ -112,7 +112,6 @@ func (s *AuthService) Register(req *dto.RegisterRequest) (*dto.TokenResponse, ui
 	slog.Info("user registered",
 		"event", "USER_CREATED",
 		"user_id", user.ID,
-		"email", req.Email,
 		"username", auth.Username,
 	)
 

@@ -1,0 +1,29 @@
+# Secret scanning: block anything that looks like a committed credential.
+# Runs on every PR and every push to main (full history on the first run).
+#
+# backend/.env.test is allowlisted in .gitleaks.toml (tracked test fixtures
+# with throwaway values only — keep real credentials out of it regardless).
+name: Secret scan (gitleaks)
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+# Least privilege: detection only, no write scopes needed.
+permissions:
+  contents: read
+
+jobs:
+  gitleaks:
+    name: Detect secrets
+    runs-on: ubuntu-latest
+    steps:
+      # fetch-depth: 0 — scan the full history, not just the merge commit.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+
+      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

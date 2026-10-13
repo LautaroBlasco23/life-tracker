@@ -27,6 +27,10 @@ variable "aws_region"    { default = "us-east-1" }
 variable "db_password"   { sensitive = true }
 variable "docdb_password" { sensitive = true }
 variable "jwt_secret"    { sensitive = true }   # provision.sh: generated once, reused
+variable "cors_allowed_origins" {
+  description = "Explicit origin allowlist for the API. \"*\" is dev-only; set e.g. https://app.example.com before a real deployment."
+  default     = "*"
+}
 
 # --- S3: user images + frontend artifact ---
 resource "aws_s3_bucket" "images" {
@@ -99,7 +103,7 @@ resource "aws_lambda_function" "api" {
       S3_BUCKET           = aws_s3_bucket.images.bucket
       S3_PUBLIC_URL       = aws_s3_bucket.images.bucket_regional_domain_name
       SECRETS_JWT_NAME    = aws_secretsmanager_secret.jwt.name
-      CORS_ALLOWED_ORIGINS = "*"
+      CORS_ALLOWED_ORIGINS = var.cors_allowed_origins
     }
   }
 }
@@ -150,7 +154,8 @@ resource "aws_cloudfront_distribution" "web" {
   }
   default_cache_behavior {
     target_origin_id       = "lifetracker-web-origin"
-    viewer_protocol_policy = "allow-all"
+    # HTTP -> HTTPS redirect (works with the default CloudFront certificate).
+    viewer_protocol_policy = "redirect-to-https"
     allowed_methods        = ["GET", "HEAD"]
     cached_methods         = ["GET", "HEAD"]
     forwarded_values {

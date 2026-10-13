@@ -46,8 +46,11 @@ if [ ! -f "${STAGE_DIR}/index.html" ]; then
 fi
 
 echo "==> Generating runtime config (${STAGE_DIR}/env-config.js)"
+# The value is embedded in a single-quoted JS string: escape single quotes so a
+# crafted API_URL can't break out of it.
+API_URL_ESCAPED=$(printf '%s' "${API_URL}" | sed "s/'/'\\\\''/g")
 cat >"${STAGE_DIR}/env-config.js" <<EOF
-window.__ENV__ = { NEXT_PUBLIC_API_URL: '${API_URL}' };
+window.__ENV__ = { NEXT_PUBLIC_API_URL: '${API_URL_ESCAPED}' };
 EOF
 
 if [ "${DEPLOY_S3}" = "1" ]; then
@@ -107,7 +110,7 @@ else
   },
   "DefaultCacheBehavior": {
     "TargetOriginId": "lifetracker-web-origin",
-    "ViewerProtocolPolicy": "allow-all",
+    "ViewerProtocolPolicy": "redirect-to-https",
     "AllowedMethods": {
       "Quantity": 2,
       "Items": ["GET", "HEAD"]
