@@ -6,8 +6,10 @@ type LoginRequest struct {
 }
 
 type RegisterRequest struct {
-	Email     string `json:"email" binding:"required,email"`
-	Password  string `json:"password" binding:"required,min=8"`
+	Email string `json:"email" binding:"required,email"`
+	// max=72: bcrypt silently truncates beyond 72 bytes; bound the input so
+	// the stored hash always corresponds to the password the user typed.
+	Password  string `json:"password" binding:"required,min=8,max=72"`
 	FirstName string `json:"firstName" binding:"required,min=2,max=50"`
 	LastName  string `json:"lastName" binding:"required,min=2,max=50"`
 	Username  string `json:"username" binding:"required,min=3,max=30"`
@@ -26,7 +28,8 @@ type RefreshRequest struct {
 
 type UpdatePasswordRequest struct {
 	CurrentPassword string `json:"currentPassword" binding:"required"`
-	NewPassword     string `json:"newPassword" binding:"required,min=8"`
+	// max=72: mirror RegisterRequest (bcrypt 72-byte truncation).
+	NewPassword string `json:"newPassword" binding:"required,min=8,max=72"`
 }
 
 type UpdateEmailRequest struct {

@@ -5,6 +5,8 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -40,6 +42,11 @@ type Config struct {
 	AppRuntime     string
 
 	CORSAllowedOrigins string
+
+	// MaxBodyBytes caps every request body (http.MaxBytesReader). Defaults
+	// above the 32 MB import cap so multipart overhead is covered; stricter
+	// per-endpoint caps still apply on top of it.
+	MaxBodyBytes int64
 }
 
 // insecureSecrets are placeholder/known-weak secret values that must never
@@ -73,6 +80,23 @@ func (c *Config) Validate() error {
 
 	if c.DBPassword == "" || c.DBPassword == "password" {
 		return fmt.Errorf("DB_PASSWORD is not set (or is the insecure default): set a real password in .env")
+	}
+
+	// The Mongo credential fallback builds mongodb://admin:password@... when
+	// MONGO_URI/MONGO_PASSWORD are unset. Real deployments must not run on it;
+	// dev lanes (fresh `make setup` from .env.example) legitimately still do.
+	if strings.Contains(c.MongoURI, ":password@") {
+		if c.Environment == "production" {
+			return fmt.Errorf("MONGO credentials are unset (falling back to the insecure default): set MONGO_URI or MONGO_PASSWORD in .env")
+		}
+		slog.Warn("MONGO credentials are unset or the insecure default; set MONGO_URI or MONGO_PASSWORD in .env")
+	}
+
+	// Wildcard CORS means any website can drive the API from a browser. The
+	// header-based auth scheme limits the damage, but a real deployment must
+	// declare its origins.
+	if c.Environment == "production" && c.CORSAllowedOrigins == "*" {
+		return fmt.Errorf("CORS_ALLOWED_ORIGINS must list explicit origins in production; \"*\" is only for local dev")
 	}
 
 	return nil
@@ -128,7 +152,7 @@ func Load() *Config {
 	return &Config{
 		Environment: env,
 		Port:        getEnv("PORT", "8080"),
-		GinMode:     getEnv("GIN_MODE", "debug"),
+		GinMode:     getEnv("GIN_MODE", "release"),
 
 		// PostgreSQL
 		DBHost:     getEnv("DB_HOST", "localhost"),
@@ -156,7 +180,25 @@ func Load() *Config {
 		AppRuntime:     getEnv("APP_RUNTIME", ""),
 
 		CORSAllowedOrigins: getEnv("CORS_ALLOWED_ORIGINS", "*"),
+
+		MaxBodyBytes: maxBodyBytesFromEnv(),
 	}
+}
+
+// defaultMaxBodyBytes covers the 32 MB import cap plus multipart overhead.
+const defaultMaxBodyBytes int64 = 40 << 20
+
+func maxBodyBytesFromEnv() int64 {
+	raw := getEnv("MAX_BODY_BYTES", "")
+	if raw == "" {
+		return defaultMaxBodyBytes
+	}
+	v, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil || v <= 0 {
+		slog.Warn("invalid MAX_BODY_BYTES, using default", "value", raw, "default", defaultMaxBodyBytes)
+		return defaultMaxBodyBytes
+	}
+	return v
 }
 
 func findEnvFile(filename string) string {

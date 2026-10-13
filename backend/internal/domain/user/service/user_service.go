@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"mime/multipart"
 	"path/filepath"
 	"regexp"
@@ -227,7 +228,7 @@ func (s *UserService) UploadProfileImage(ctx context.Context, userID uint, email
 	defer func() {
 		err = src.Close()
 		if err != nil {
-			fmt.Println(err)
+			slog.Warn("failed to close uploaded file", "error", err)
 		}
 	}()
 
@@ -261,7 +262,7 @@ func (s *UserService) UploadProfileImage(ctx context.Context, userID uint, email
 
 	if oldImageID != "" {
 		if err = s.imageClient.DeleteImage(ctx, oldImageID, fmt.Sprintf("%d", userID)); err != nil {
-			fmt.Printf("warning: failed to delete old profile image %s: %v\n", oldImageID, err)
+			slog.Warn("failed to delete old profile image", "image_id", oldImageID, "error", err)
 		}
 	}
 
