@@ -241,20 +241,22 @@ jobs:
       - name: Wait for frontend
         run: curl --retry 30 --retry-connrefused --retry-delay 2 -fsS http://localhost:3000/env-config.js
 
-      # The lane produces no api logs otherwise — without this, an api
-      # crash-loop is invisible (health check just times out).
-      - name: Diagnose lane (on failure)
-        if: failure()
-        run: |
-          docker ps -a
-          docker logs golang_api_server --tail 100 || true
-          docker logs lifetracker-web --tail 50 || true
-
       - name: Run essential E2E
         working-directory: frontend
         env:
           PLAYWRIGHT_BASE_URL: http://localhost:3000
         run: npm run test:e2e
+
+      # The lane produces no logs otherwise — without this, a container
+      # crash-loop or restart is invisible (a failed step just times out).
+      # Must stay BELOW the e2e run: it only fires on prior-step failure.
+      - name: Diagnose lane (on failure)
+        if: failure()
+        run: |
+          docker ps -a
+          docker inspect -f '{{.Name}} restarts={{.RestartCount}} status={{.State.Status}}' golang_api_server lifetracker-web || true
+          docker logs golang_api_server --tail 100 || true
+          docker logs lifetracker-web --tail 50 || true
 
       - name: Upload Playwright report
         if: failure()
