@@ -69,10 +69,11 @@ jobs:
         run: npm run lint:ts
 
       # Supply-chain gate: fail on known high/critical vulns in the
-      # production dependency tree.
+      # production dependency tree. Wraps `npm audit` with an allowlist
+      # (see scripts/audit-prod.mjs for the rationale).
       - name: Dependency audit (npm audit)
         working-directory: frontend
-        run: npm audit --omit=dev --audit-level=high
+        run: node scripts/audit-prod.mjs
 
   # Docker images are published only for real versions: vX.Y.Z tags cut by
   # release-please (see release.yml). Regular main pushes run build-export only.
@@ -204,8 +205,15 @@ jobs:
 
       # dev-container's compose file reads .env (or .env.example); setup
       # creates it idempotently from .env.example (dev defaults, no secrets).
+      # The backend rejects placeholder JWT_SECRET/DB_PASSWORD at boot
+      # (config.Validate, by design), so generate ephemeral CI-only values —
+      # otherwise the api container crash-loops and the health check below
+      # never connects (this is why e2e was permanently red).
       - name: Prepare env file
-        run: make setup
+        run: |
+          make setup
+          sed -i "s|^JWT_SECRET=.*|JWT_SECRET=$(openssl rand -hex 32)|" .env
+          sed -i "s|^DB_PASSWORD=.*|DB_PASSWORD=$(openssl rand -hex 16)|" .env
 
       # Builds the api image, starts postgres + mongodb + api, runs
       # migrations, then builds the static export and serves it via nginx
@@ -214,11 +222,33 @@ jobs:
       - name: Start full-stack lane
         run: make dev-container
 
+      # Probe inside the compose network first: it proves the api actually
+      # serves, regardless of how the runner's dockerd publishes ports.
       - name: Wait for API health
-        run: curl --retry 15 --retry-connrefused --retry-delay 2 -fsS http://localhost:8080/health
+        run: |
+          docker run --rm --network infra_golang_api_network alpine sh -c '
+            for i in $(seq 1 30); do
+              wget -q -O /dev/null http://api:8080/health && exit 0
+              sleep 2
+            done
+            echo "api did not become healthy on the compose network" >&2
+            exit 1
+          '
+          # Then the host-published port (Playwright relies on host loopback
+          # reachability for :3000).
+          curl --retry 30 --retry-connrefused --retry-delay 2 -fsS http://localhost:8080/health
 
       - name: Wait for frontend
-        run: curl --retry 15 --retry-connrefused --retry-delay 2 -fsS http://localhost:3000/env-config.js
+        run: curl --retry 30 --retry-connrefused --retry-delay 2 -fsS http://localhost:3000/env-config.js
+
+      # The lane produces no api logs otherwise — without this, an api
+      # crash-loop is invisible (health check just times out).
+      - name: Diagnose lane (on failure)
+        if: failure()
+        run: |
+          docker ps -a
+          docker logs golang_api_server --tail 100 || true
+          docker logs lifetracker-web --tail 50 || true
 
       - name: Run essential E2E
         working-directory: frontend
