@@ -45,7 +45,47 @@ set +a
 # Lambda containers share the docker network with floci; reach floci via the
 # IP that the provisioned RDS endpoint resolved to (guaranteed reachable).
 FLOCI_IP="${DB_HOST%%:*}"
-FLOCI_INTERNAL_URL="http://${FLOCI_IP}:4566"
+# exported: the Lambda environment JSON below is rendered by python3 from
+# os.environ, so every value it reads must be exported.
+export FLOCI_INTERNAL_URL="http://${FLOCI_IP}:4566"
+
+# Build the Lambda environment as a JSON file instead of a CLI argument:
+# secrets passed as --environment Variables={...} are visible to `ps` and land
+# in shell history. The JSON is generated with python3 (proper escaping), then
+# copied into the floci container where the aws CLI reads it via file://.
+echo "==> Rendering Lambda environment (secrets stay off the command line)"
+ENV_JSON_HOST="$(mktemp /tmp/lifetracker-lambda-env.XXXXXX.json)"
+trap 'rm -f "${ENV_JSON_HOST}" /tmp/lifetracker-lambda-env.zip /tmp/lifetracker-lambda.zip' EXIT
+python3 - "${ENV_JSON_HOST}" <<'PY'
+import json, os, sys
+
+env = {
+    "ENVIRONMENT": "dev",
+    "APP_RUNTIME": "serverless",
+    "DB_HOST": os.environ["DB_HOST"],
+    "DB_PORT": os.environ["DB_PORT"],
+    "DB_USER": os.environ["DB_USER"],
+    "DB_PASSWORD": os.environ["DB_PASSWORD"],
+    "DB_NAME": os.environ["DB_NAME"],
+    "DB_SSLMODE": os.environ["DB_SSLMODE"],
+    "MONGO_URI": os.environ["MONGO_URI"],
+    "MONGO_DATABASE": os.environ["MONGO_DATABASE"],
+    "JWT_SECRET": os.environ["JWT_SECRET"],
+    "JWT_EXPIRY": os.environ["JWT_EXPIRY"],
+    "JWT_REFRESH_EXPIRY": os.environ["JWT_REFRESH_EXPIRY"],
+    "AWS_ENDPOINT_URL": os.environ["FLOCI_INTERNAL_URL"],
+    "AWS_REGION": os.environ["AWS_REGION"],
+    "AWS_ACCESS_KEY_ID": os.environ["AWS_ACCESS_KEY_ID"],
+    "AWS_SECRET_ACCESS_KEY": os.environ["AWS_SECRET_ACCESS_KEY"],
+    "S3_BUCKET": os.environ["S3_BUCKET"],
+    "S3_PUBLIC_URL": os.environ["S3_PUBLIC_URL"],
+    "SECRETS_JWT_NAME": os.environ["SECRETS_JWT_NAME"],
+    "CORS_ALLOWED_ORIGINS": os.environ.get("CORS_ALLOWED_ORIGINS", "*"),
+}
+with open(sys.argv[1], "w") as f:
+    json.dump({"Variables": env}, f)
+PY
+docker cp "${ENV_JSON_HOST}" "${FLOCI_CONTAINER}:/tmp/lifetracker-lambda-env.json" >/dev/null
 
 echo "==> Running migrations (provision-time, not per cold start)"
 bash "${SCRIPT_DIR}/migrate.sh"
@@ -60,13 +100,12 @@ PY
 docker cp /tmp/lifetracker-lambda.zip "${FLOCI_CONTAINER}:/tmp/lifetracker-lambda.zip"
 echo "  binary built and uploaded"
 
-LAMBDA_ENV="Variables={ENVIRONMENT=dev,APP_RUNTIME=serverless,DB_HOST=${DB_HOST},DB_PORT=${DB_PORT},DB_USER=${DB_USER},DB_PASSWORD=${DB_PASSWORD},DB_NAME=${DB_NAME},DB_SSLMODE=${DB_SSLMODE},MONGO_URI=${MONGO_URI},MONGO_DATABASE=${MONGO_DATABASE},JWT_SECRET=${JWT_SECRET},JWT_EXPIRY=${JWT_EXPIRY},JWT_REFRESH_EXPIRY=${JWT_REFRESH_EXPIRY},AWS_ENDPOINT_URL=${FLOCI_INTERNAL_URL},AWS_REGION=${AWS_REGION},AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID},AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY},S3_BUCKET=${S3_BUCKET},S3_PUBLIC_URL=${S3_PUBLIC_URL},SECRETS_JWT_NAME=${SECRETS_JWT_NAME},CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-*}}"
-
 echo "==> Lambda function"
+LAMBDA_ENV_ARGS=(--environment "file:///tmp/lifetracker-lambda-env.json" --timeout 60 --memory-size 512)
 if aws_cmd lambda get-function --function-name "${FUNCTION_NAME}" >/dev/null 2>&1; then
   aws_cmd lambda update-function-code --function-name "${FUNCTION_NAME}" --zip-file fileb:///tmp/lifetracker-lambda.zip >/dev/null
   aws_cmd lambda update-function-configuration --function-name "${FUNCTION_NAME}" \
-    --timeout 60 --memory-size 512 --environment "${LAMBDA_ENV}" >/dev/null
+    "${LAMBDA_ENV_ARGS[@]}" >/dev/null
   echo "  function updated"
 else
   aws_cmd lambda create-function \
@@ -75,10 +114,10 @@ else
     --handler bootstrap \
     --role "${ROLE}" \
     --zip-file fileb:///tmp/lifetracker-lambda.zip \
-    --timeout 60 --memory-size 512 \
-    --environment "${LAMBDA_ENV}" >/dev/null
+    "${LAMBDA_ENV_ARGS[@]}" >/dev/null
   echo "  function created"
 fi
+docker exec "${FLOCI_CONTAINER}" rm -f /tmp/lifetracker-lambda-env.json >/dev/null 2>&1 || true
 
 echo "==> API Gateway v2"
 # Pin a stable API id so the invocation URL survives redeploys.
