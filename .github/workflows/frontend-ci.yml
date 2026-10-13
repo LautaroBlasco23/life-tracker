@@ -249,6 +249,7 @@ jobs:
         env:
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:3000
         run: |
+          sudo apt-get install -y -q tcpdump > /dev/null
           (
             for i in $(seq 1 360); do
               ss -tln | grep -qE ':(3000)\b' || echo "$(date -u +%T) :3000 MISSING"
@@ -256,14 +257,22 @@ jobs:
             done
           ) > /tmp/port3000-sample.log 2>&1 &
           SAMPLER_PID=$!
+          sudo tcpdump -i any -n "tcp port 3000" -c 8000 -w /tmp/p3000.pcap &
+          TCPDUMP_PID=$!
           npm run test:e2e
           TEST_RC=$?
           kill "$SAMPLER_PID" 2>/dev/null || true
+          sudo kill "$TCPDUMP_PID" 2>/dev/null || true
           if [ -s /tmp/port3000-sample.log ]; then
             echo "=== :3000 listener gaps during e2e ===" >&2
             cat /tmp/port3000-sample.log >&2
           fi
+          echo "=== packet capture (:3000, first 200 + last 100 packets) ===" >&2
+          sudo tcpdump -r /tmp/p3000.pcap -n 2>/dev/null > /tmp/p3000.txt || true
+          head -200 /tmp/p3000.txt >&2
+          tail -100 /tmp/p3000.txt >&2
           exit "$TEST_RC"
+
 
       # The lane produces no logs otherwise — without this, a container
       # crash-loop or restart is invisible (a failed step just times out).
