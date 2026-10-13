@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { gotoWithRetry } from './helpers';
 
 /**
  * Deploy-lane canary, from the browser context (not curl): validates the
@@ -20,7 +21,7 @@ test('env-config exposes the API URL and the app shell renders', async ({
   expect(await env.text()).toContain('NEXT_PUBLIC_API_URL');
 
   // First paint: title from app/layout.tsx metadata + the app root renders.
-  await page.goto('/');
+  await gotoWithRetry(page, '/');
   await expect(page).toHaveTitle(/LifeTracker/i);
   await expect(page.locator('body')).toBeVisible();
 });

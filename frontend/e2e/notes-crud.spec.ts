@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { registerUser, seedAuth } from './helpers';
+import { registerUser, seedAuth, gotoWithRetry } from './helpers';
 
 /**
  * Notes: minimal real CRUD through the UI using a seeded session.
@@ -17,7 +17,7 @@ test('create + edit a note via the UI and see it in the list', async ({
   const user = await registerUser(request);
   await seedAuth(page, user);
 
-  await page.goto('/notes/');
+  await gotoWithRetry(page, '/notes/');
   await expect(page.getByRole('heading', { name: 'Notes' })).toBeVisible();
 
   // Create: becomes "Untitled", selected, editor in edit mode.
