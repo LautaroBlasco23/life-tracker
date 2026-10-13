@@ -27,6 +27,7 @@ import (
 	"testing"
 
 	"life-tracker-backend/internal/config"
+	ngmodel "life-tracker-backend/internal/domain/note-group/model"
 	"life-tracker-backend/internal/domain/note/dto"
 	"life-tracker-backend/internal/domain/note/model"
 	"life-tracker-backend/internal/domain/note/service"
@@ -59,7 +60,7 @@ func setupTestRouter(t *testing.T) (*gin.Engine, *service.NoteService, func()) {
 	require.NoError(t, err, "Failed to connect to PostgreSQL")
 
 	db.Exec("DROP TABLE IF EXISTS notes CASCADE")
-	require.NoError(t, db.AutoMigrate(&model.Note{}))
+	require.NoError(t, db.AutoMigrate(&model.Note{}, &ngmodel.NoteGroup{}))
 
 	noteService := service.NewNoteService(db)
 	noteController := NewNoteController(noteService)

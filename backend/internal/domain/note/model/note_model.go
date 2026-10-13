@@ -14,6 +14,8 @@ type Note struct {
 	DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
 	Title     string         `json:"title" gorm:"not null;size:255"`
 	Content   string         `json:"content" gorm:"type:text"`
+	GroupID   *uint          `json:"-" gorm:"index"`
+	Position  int            `json:"-" gorm:"not null;default:0"`
 	ID        uint           `json:"id" gorm:"primaryKey"`
 	UserID    uint           `json:"userId" gorm:"not null;index"`
 }
@@ -24,6 +26,8 @@ func (n *Note) ToResponse() *dto.NoteResponse {
 		UserID:    n.UserID,
 		Title:     n.Title,
 		Content:   n.Content,
+		GroupID:   n.GroupID,
+		Position:  n.Position,
 		CreatedAt: n.CreatedAt,
 		EditedAt:  n.UpdatedAt,
 	}

@@ -3,6 +3,7 @@ import type {
   CreateNoteRequest,
   UpdateNoteRequest,
   NoteFilter,
+  ReorderNotesRequestItem,
 } from '../types/note';
 import { authService } from './auth-service';
 import { getConfig } from '../lib/config';
@@ -109,6 +110,20 @@ class NoteService {
 
     if (!response.ok) {
       throw new Error('Failed to delete note');
+    }
+  }
+
+  async reorderNotes(items: ReorderNotesRequestItem[]): Promise<void> {
+    const response = await authService.makeAuthenticatedRequest(
+      `${this.baseUrl}/notes/reorder`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ items }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to reorder notes');
     }
   }
 }

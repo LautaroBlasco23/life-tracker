@@ -11,7 +11,10 @@ import (
 	"gorm.io/gorm"
 )
 
-var ErrNoteNotFound = errors.New("note not found")
+var (
+	ErrNoteNotFound  = errors.New("note not found")
+	ErrGroupNotFound = repository.ErrGroupNotFound
+)
 
 type NoteService struct {
 	repo *repository.NoteRepository
@@ -108,4 +111,21 @@ func (s *NoteService) DeleteNote(id, userID uint) error {
 	monitoring.ActiveNotes.Dec()
 
 	return nil
+}
+
+// ReorderNotes applies position and group changes for the user's notes.
+// Group IDs are validated against the requesting user before persisting.
+func (s *NoteService) ReorderNotes(userID uint, req *dto.ReorderNotesRequest) error {
+	groupIDs := make([]uint, 0, len(req.Items))
+	for _, item := range req.Items {
+		if item.GroupID != nil {
+			groupIDs = append(groupIDs, *item.GroupID)
+		}
+	}
+
+	if err := s.repo.ValidateGroupIDs(userID, groupIDs); err != nil {
+		return err
+	}
+
+	return s.repo.Reorder(userID, req.Items)
 }

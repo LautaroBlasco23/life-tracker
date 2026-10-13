@@ -23,6 +23,7 @@ import (
 	authRoutes "life-tracker-backend/internal/domain/auth/routes"
 	dataRoutes "life-tracker-backend/internal/domain/data/routes"
 	financeRoutes "life-tracker-backend/internal/domain/finance/routes"
+	noteGroupRoutes "life-tracker-backend/internal/domain/note-group/routes"
 	noteRoutes "life-tracker-backend/internal/domain/note/routes"
 	reminderRoutes "life-tracker-backend/internal/domain/reminder/routes"
 	routineRoutes "life-tracker-backend/internal/domain/routine/routes"
@@ -109,6 +110,7 @@ func NewRouter(cfg *config.Config, dbs *database.Connections, imageClient *image
 			screenTimeRoutes.RegisterScreenTimeRoutes(protected, dbs.MongoDB)
 			timeRoutes.RegisterTimeRoutes(protected, dbs.PostgreSQL)
 			noteRoutes.RegisterNoteRoutes(protected, dbs.PostgreSQL)
+			noteGroupRoutes.RegisterNoteGroupRoutes(protected, dbs.PostgreSQL)
 			routineRoutes.RegisterRoutineRoutes(protected, dbs.PostgreSQL, dbs.MongoDB)
 			reminderRoutes.RegisterReminderRoutes(protected, dbs.PostgreSQL)
 		}
