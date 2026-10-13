@@ -50,24 +50,45 @@ async function renderStats(token) {
   const apiBase = await getApiBase();
   const today = new Date().toISOString().split("T")[0];
 
+  // Stats are rendered via DOM APIs (textContent), never innerHTML: server
+  // values (domain) could otherwise inject markup into this privileged page.
   try {
     const res = await fetch(`${apiBase}/screen-time/stats?from=${today}&to=${today}`, {
       headers: { Authorization: `Bearer ${token}` },
     });
     const json = await res.json();
     const statsEl = document.getElementById("stats");
+    statsEl.textContent = "";
 
     if (!json.data || json.data.length === 0) {
-      statsEl.innerHTML = "<p style='font-size:13px;color:#666'>No visits today.</p>";
+      appendEmptyMessage(statsEl, "No visits today.", { fontSize: "13px", color: "#666" });
       return;
     }
-    statsEl.innerHTML = json.data
-      .map((s) => `<div class="stat-row"><span>${s.domain}</span><strong>${s.count}</strong></div>`)
-      .join("");
+    for (const s of json.data) {
+      const row = document.createElement("div");
+      row.className = "stat-row";
+      const label = document.createElement("span");
+      label.textContent = s.domain;
+      const count = document.createElement("strong");
+      count.textContent = s.count;
+      row.append(label, count);
+      statsEl.appendChild(row);
+    }
   } catch {
-    document.getElementById("stats").innerHTML =
-      "<p style='font-size:12px;color:#c62828'>Failed to load stats.</p>";
+    document.getElementById("stats").textContent = "";
+    appendEmptyMessage(document.getElementById("stats"), "Failed to load stats.", {
+      fontSize: "12px",
+      color: "#c62828",
+    });
   }
+}
+
+function appendEmptyMessage(container, text, opts) {
+  const p = document.createElement("p");
+  p.style.fontSize = opts?.fontSize || "13px";
+  p.style.color = opts?.color || "#666";
+  p.textContent = text;
+  container.appendChild(p);
 }
 
 async function renderTrackBanner() {
@@ -87,16 +108,25 @@ async function renderTrackBanner() {
 
   const domain = hostname.replace(/^www\./, "");
   const banner = document.getElementById("track-banner");
-  banner.innerHTML = `
-    <div class="track-banner">
-      <span>Not tracking <strong>${domain}</strong></span>
-      <button id="track-current-btn">+ Track</button>
-    </div>`;
+  banner.textContent = "";
 
-  document.getElementById("track-current-btn").addEventListener("click", async () => {
+  const box = document.createElement("div");
+  box.className = "track-banner";
+  const label = document.createElement("span");
+  const strong = document.createElement("strong");
+  strong.textContent = domain;
+  label.textContent = "Not tracking ";
+  label.appendChild(strong);
+  const btn = document.createElement("button");
+  btn.id = "track-current-btn";
+  btn.textContent = "+ Track";
+  box.append(label, btn);
+  banner.appendChild(box);
+
+  btn.addEventListener("click", async () => {
     const updated = [...domains, domain];
     await chrome.storage.local.set({ trackedDomains: updated });
-    banner.innerHTML = "";
+    banner.textContent = "";
     renderDomainsList();
   });
 }
@@ -104,28 +134,34 @@ async function renderTrackBanner() {
 async function renderDomainsList() {
   const domains = await getTrackedDomains();
   const listEl = document.getElementById("domains-list");
+  listEl.textContent = "";
 
   if (domains.length === 0) {
-    listEl.innerHTML = "<p style='font-size:12px;color:#666'>No domains tracked yet.</p>";
+    appendEmptyMessage(listEl, "No domains tracked yet.", { fontSize: "12px", color: "#666" });
     return;
   }
 
-  listEl.innerHTML = domains
-    .map(
-      (d) => `<div class="domain-row">
-        <span>${d}</span>
-        <button class="remove-btn" data-domain="${d}" title="Remove">✕</button>
-      </div>`
-    )
-    .join("");
-
-  listEl.querySelectorAll(".remove-btn").forEach((btn) => {
-    btn.addEventListener("click", async () => {
-      const updated = domains.filter((d) => d !== btn.dataset.domain);
+  // textContent + createElement only: stored domains are user-entered and
+  // never sanitized for HTML, so they must not pass through innerHTML.
+  for (const d of domains) {
+    const row = document.createElement("div");
+    row.className = "domain-row";
+    const label = document.createElement("span");
+    label.textContent = d;
+    const remove = document.createElement("button");
+    remove.className = "remove-btn";
+    remove.textContent = "✕";
+    remove.title = "Remove";
+    remove.dataset.domain = d;
+    remove.addEventListener("click", async () => {
+      const current = await getTrackedDomains();
+      const updated = current.filter((x) => x !== remove.dataset.domain);
       await chrome.storage.local.set({ trackedDomains: updated });
       renderDomainsList();
     });
-  });
+    row.append(label, remove);
+    listEl.appendChild(row);
+  }
 }
 
 function setupTabs() {
