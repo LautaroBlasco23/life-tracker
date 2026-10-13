@@ -8,8 +8,12 @@ on:
     types: [opened, edited, reopened, synchronize]
 
 permissions:
-  pull-requests: write
+  pull-requests: read
   checks: write
+  # wip: true makes the action POST a commit status (statuses API), which
+  # needs `statuses: write` — `pull-requests: *` doesn't cover it; without
+  # it the check fails with "Resource not accessible by integration".
+  statuses: write
 
 jobs:
   lint:
