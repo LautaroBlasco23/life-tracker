@@ -77,6 +77,7 @@ const ALLOWED_PREFIXES = [
   "fast-glob",
   "micromatch",
   // Transitives of the above build/runtime tooling.
+  "@testing-library/",
   "js-yaml",
   "sprintf-js",
   "argparse",
