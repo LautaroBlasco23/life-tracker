@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.4](https://github.com/LautaroBlasco23/life-tracker/compare/v1.1.3...v1.1.4) (2026-10-14)
+
+
+### Miscellaneous Chores
+
+* **deps:** bump docker/login-action from 3.7.0 to 4.6.0 ([#39](https://github.com/LautaroBlasco23/life-tracker/issues/39)) ([b7f1a48](https://github.com/LautaroBlasco23/life-tracker/commit/b7f1a481ae68e7dae4a19491d5dfdbb9cf99d776))
+* **deps:** bump the npm-minor-patch group across 1 directory with 39 updates ([#48](https://github.com/LautaroBlasco23/life-tracker/issues/48)) ([ed793a2](https://github.com/LautaroBlasco23/life-tracker/commit/ed793a2d8a2eb8a0f3b3f4aaec423cd71f4bfe0c))
+
 ## [1.1.3](https://github.com/LautaroBlasco23/life-tracker/compare/v1.1.2...v1.1.3) (2026-10-14)
 
 
