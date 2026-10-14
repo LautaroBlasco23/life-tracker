@@ -6,7 +6,7 @@ RUN go mod download
 COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main cmd/main/main.go
 
-FROM alpine:3.22
+FROM alpine:3.24
 RUN apk --no-cache add ca-certificates tzdata wget
 
 RUN addgroup -g 1001 -S appgroup && \
