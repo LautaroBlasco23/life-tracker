@@ -241,7 +241,9 @@ services:
       DB_HOST: loadtest-postgres
       DB_PORT: "5432"
       DB_USER: postgres
-      DB_PASSWORD: password
+      # Pinned self-contained creds: not the app's insecure-secret literal
+      # ("password"), which config.Validate() rejects at startup.
+      DB_PASSWORD: loadtest-db-password
       DB_NAME: golang_api
       DB_SSLMODE: disable
       MONGO_URI: ""
@@ -277,7 +279,7 @@ services:
     environment:
       POSTGRES_DB: golang_api
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: password
+      POSTGRES_PASSWORD: loadtest-db-password
     volumes:
       - loadtest_postgres_data:/var/lib/postgresql/data
     healthcheck:
