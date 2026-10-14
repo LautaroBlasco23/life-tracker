@@ -26,8 +26,10 @@ import {
 import { FilterSidebar } from '@/components/ui/filterModal/filterSidebar';
 import { useTranslations } from '@shared/contexts/language-context';
 
-export interface TransactionFilter
-  extends Record<string, string | number | undefined> {
+export interface TransactionFilter extends Record<
+  string,
+  string | number | undefined
+> {
   month?: number;
   year?: number;
   category?: string;

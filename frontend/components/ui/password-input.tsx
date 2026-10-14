@@ -6,8 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-interface PasswordInputProps
-  extends Omit<React.ComponentProps<typeof Input>, 'type'> {}
+interface PasswordInputProps extends Omit<
+  React.ComponentProps<typeof Input>,
+  'type'
+> {}
 
 export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
   ({ className, ...props }, ref) => {
