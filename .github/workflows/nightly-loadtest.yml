@@ -40,7 +40,7 @@ jobs:
     timeout-minutes: 120
 
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       # Base compose reads root `.env` (api `env_file`, grafana password
       # guard). Creates .env from .env.example only when missing — never
