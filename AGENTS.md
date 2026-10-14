@@ -1,7 +1,7 @@
 # AGENTS.md — Life Tracker
 
 Monorepo for a personal life-tracking app: web frontend, Android (Expo) mobile
-app, Go backend API, Chrome extension, shared packages, and infra.
+app, Go backend API, Chrome extension, shared packages, and deployment.
 
 ## Repository layout
 
@@ -16,7 +16,9 @@ app, Go backend API, Chrome extension, shared packages, and infra.
   (incl. `theme-colors.ts`, `activity-templates.ts`), i18n (`messages/{en,es}.json`,
   `language-context.tsx`). No build step; consumed from source.
 - `chrome-extension/` — Manifest V3 screen-time extension (plain JS).
-- `infra/` — all docker-compose files, scripts, terraform, nginx.
+- Root `docker-compose.yml` — the single compose file (api + databases + web;
+  observability and load-test stacks are profiles), with `nginx/` configs and
+  deploy/migrate `scripts/`.
 - `loadtest/` — k6 suite (own Makefile).
 - `docs/` — per-area documentation (`frontend.md`, `mobile.md`, `backend.md`,
   `architecture.md`, `ci-cd.md`, `testing.md`, …).
@@ -42,7 +44,7 @@ app, Go backend API, Chrome extension, shared packages, and infra.
 - Feature-specific context: [`docs/frontend.md`](docs/frontend.md),
   [`docs/mobile.md`](docs/mobile.md), [`docs/backend.md`](docs/backend.md),
   [`backend/CLAUDE.md`](backend/CLAUDE.md).
-- Run modes (`make dev` / `dev-container` / `dev-emulator` / `dev-full` — one at
+- Run modes (`make dev` / `dev-container` / `dev-full` — one at
   a time, `make stop` between switches): [`docs/getting-started.md`](docs/getting-started.md),
   [`docs/deployment-modes.md`](docs/deployment-modes.md).
 

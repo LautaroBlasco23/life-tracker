@@ -4,8 +4,8 @@ GitHub Actions workflows live in `.github/workflows/` at the **repository root**
 
 ## `backend-ci.yml`
 
-- **`test` job**: runs on pushes/PRs touching `backend/**` (plus `infra/**`, `Makefile`). Starts the floci AWS emulator (Docker socket required), provisions S3/RDS/DocumentDB/Secrets Manager via `infra/scripts/provision.sh`, runs the integration test suite against the floci services (`make test-floci-coverage` — same suite with a coverage profile; the total goes to the job summary and `coverage.out` is uploaded as an artifact), then runs the **essential E2E suite** (`make test-e2e-floci` — production router + real JWT middleware), then deploys the API as a Lambda behind API Gateway v2 (`make floci-deploy`) and smoke-tests `/health` through the gateway. Go 1.25.
-- **`api-perf-smoke` job**: after `test`, runs the k6 `smoke.js` lane (one fresh user, seconds) against the deployed floci gateway. k6 thresholds (p95, error rate) fail the PR on breach. Heavy load-test lanes run nightly instead — see `nightly-loadtest.yml`.
+- **`test` job**: runs on pushes/PRs touching `backend/**` (plus the compose/nginx/scripts files, `Makefile`). Runs the integration test suite against the compose test DBs (`make test-coverage` — same suite with a coverage profile; the total goes to the job summary and `coverage.out` is uploaded as an artifact), then runs the **essential E2E suite** (`make test-e2e` — production router + real JWT middleware). Go 1.26.
+- **`api-perf-smoke` job**: after `test`, boots the self-contained load-test stack (`make loadtest-stack-up`) and runs the k6 `smoke.js` lane (one fresh user, seconds) against the compose API on `:8080`. k6 thresholds (p95, error rate) fail the PR on breach. Heavy load-test lanes run nightly instead — see `nightly-loadtest.yml`.
 - **`build-push` job**: runs **only on `vX.Y.Z` tags** — builds and pushes the backend image to Docker Hub (`*DOCKERHUB_USERNAME*/lifetracker-backend`) tagged `X.Y.Z`, `X.Y` and `latest`, and uploads Postman endpoint collections as an artifact.
 
 ## `frontend-ci.yml`

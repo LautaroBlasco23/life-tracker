@@ -11,7 +11,6 @@ rhythms. k6 runs inside Docker — no local install needed.
 | A — backend direct | compose `api` container | `http://localhost:8080` | Go app + Postgres + Mongo, no proxy noise |
 | B — full stack | nginx frontend proxy | `http://localhost:3000` | nginx static serving + `/api` proxy + backend (run `make loadtest-fe-up`) |
 | C — static assets | nginx static export | `http://localhost:3000` | pure frontend serving capacity (`static.js`) |
-| D — floci gateway (optional) | emulated Lambda | `http://localhost:4566/execute-api/lifetracker-api/dev` | production-shaped path; throughput is capped by the emulator, numbers are not app-true |
 
 All scenario scripts take `LOADTEST_BASE_URL`, so one script runs against any lane.
 
@@ -39,9 +38,9 @@ provision, cleanup, stack-*, monitoring-up, fe-*) — see `make loadtest-help` o
 
 ## Step-by-step (manual control)
 
-The load-test stack is **self-contained** (`../infra/docker-compose.loadtest.yml`):
-pinned DB credentials and its own volumes, so it works regardless of
-`.env` and never touches dev DB data or the floci stack.
+The load-test stack is **self-contained** (the `loadtest` profile services in
+`../docker-compose.yml`): pinned DB credentials and its own volumes, so it
+works regardless of `.env` and never touches dev DB data.
 
 ```bash
 make loadtest-stack-up                 # api + postgres + mongodb + prometheus + grafana + node-exporter
@@ -116,12 +115,9 @@ Mechanics:
   (`K6_PROMETHEUS_RW_SERVER_URL`, push every 1s, trend metrics as native
   histograms). Disable with `REMOTE_WRITE=0`.
 - Prometheus must run with `--web.enable-remote-write-receiver` and
-  `--enable-feature=native-histograms` — already set in `../infra/docker-compose.yml`.
+  `--enable-feature=native-histograms` — already set in `../docker-compose.yml`.
 - App metrics (`lifetracker_http_*`, `lifetracker_db_connections_active`, ...)
   are scraped every 5s (`../backend/monitoring/prometheus.yml`).
-
-> The floci/Lambda path is NOT scraped — live dashboards cover the compose lane
-> (`make loadtest-stack-up`), which is the lane the scenarios target by default.
 
 ## Reports & monitoring
 
@@ -150,5 +146,5 @@ reset of the load-test stack (fresh DBs):
 
 ```bash
 make loadtest-stack-down
-docker compose -f infra/docker-compose.yml -f infra/docker-compose.loadtest.yml down -v
+docker compose -f ../docker-compose.yml --profile loadtest down -v
 ```

@@ -7,7 +7,9 @@ on:
       - "v*"
     paths:
       - "backend/**"
-      - "infra/**"
+      - "docker-compose.yml"
+      - "nginx/**"
+      - "scripts/**"
       - "Makefile"
       - ".github/workflows/backend-ci.yml"
   pull_request:
@@ -53,29 +55,12 @@ jobs:
           go install golang.org/x/vuln/cmd/govulncheck@v1.9.0
           govulncheck ./...
 
-      - name: Start floci
-        run: |
-          docker network create golang_api_network 2>/dev/null || true
-          docker run -d --name floci \
-            --network golang_api_network \
-            -p 4566:4566 \
-            -v /var/run/docker.sock:/var/run/docker.sock \
-            -u root \
-            -e FLOCI_HOSTNAME=floci \
-            -e FLOCI_STORAGE_MODE=memory \
-            floci/floci:1.6.0-compat@sha256:15ba10dace4a29d94f0e36c03dc3c2ec5bfc4364a1cf9c67f9def4e530ae2c2c
-
-      - name: Provision AWS services on floci
-        timeout-minutes: 10
-        run: make -C .. floci-provision
-
-      # Coverage variant of the floci suite (report-only): runs the same
-      # integration tests with -coverprofile and prints the total. Depends on
-      # the Makefile target `test-floci-coverage` (added alongside this change).
-      # Running the suite here WITH coverage avoids running the full floci
-      # suite twice — total wall time is the single run.
-      - name: Run tests against floci (with coverage)
-        run: make -C .. test-floci-coverage
+      # Integration suite against the compose test DBs (backend/.env.test:
+      # :5433/:27018, isolated volumes/network — see the db-test-* make
+      # targets). Coverage variant (report-only): runs the same tests with
+      # -coverprofile and prints the total.
+      - name: Run tests (with coverage)
+        run: make -C .. test-coverage
 
       # Report-only coverage gate: publish the total to the run summary and
       # keep the raw profile as a short-lived artifact. Thresholds (if any)
@@ -94,36 +79,22 @@ jobs:
           path: backend/coverage.out
           retention-days: 7
 
-      # Essential E2E suite (Go build tag `e2e`, backend/tests/e2e). Runs AFTER
-      # the integration suite and BEFORE the Lambda deploy: the tests connect
-      # to the floci-provisioned RDS/DocumentDB directly via the floci env
-      # (see .floci.env), which the host can reach — no deploy needed.
+      # Essential E2E suite (Go build tag `e2e`, backend/tests/e2e). Runs
+      # against the same compose test DBs.
       - name: Essential E2E suite (build tag e2e)
-        run: make -C .. test-e2e-floci
+        run: make -C .. test-e2e
 
-      - name: Deploy Lambda + API Gateway
-        run: make -C .. floci-deploy
-
-      - name: Smoke test Lambda endpoint
-        run: |
-          # floci quirk: use the stage-qualified execute-api path
-          curl -sf "http://localhost:4566/execute-api/lifetracker-api/dev/health" \
-            | grep -q '"status":"ok"'
-
-  # k6 smoke lane against the floci-deployed gateway (no Lambda deploy of the
-  # load-test stack, no Prometheus). smoke.js registers its own fresh,
-  # uniquely-named user (LOADTEST_PREFIX defaults to smoke<timestamp>) so no
-  # user pool provisioning is needed, and sets no K6_PROMETHEUS_* envvars, so
-  # remote-write output is never attempted. Thresholds (p95<5000ms,
-  # failure rate<0.1) make k6 exit non-zero on breach, gating the PR.
-  # Heavier k6 lanes (read/write/auth/mixed/features) run nightly instead —
-  # see nightly-loadtest.yml.
+  # k6 smoke lane against the load-test stack's compose API (no Prometheus
+  # required: REMOTE_WRITE=0). smoke.js registers its own fresh, uniquely-named
+  # user (LOADTEST_PREFIX defaults to smoke<timestamp>) so no user pool
+  # provisioning is needed. Thresholds (p95<5000ms, failure rate<0.1) make k6
+  # exit non-zero on breach, gating the PR. Heavier k6 lanes (read/write/auth/
+  # mixed/features) run nightly instead — see nightly-loadtest.yml.
   api-perf-smoke:
     needs: test
     runs-on: ubuntu-latest
     # Same default as the test job: its `make -C ..` recipes resolve to the
-    # repo root. Without it, make runs from the checkout parent dir and fails
-    # with "No rule to make target 'floci-provision'".
+    # repo root.
     defaults:
       run:
         working-directory: backend
@@ -131,46 +102,40 @@ jobs:
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - name: Start floci
-        run: |
-          docker network create golang_api_network 2>/dev/null || true
-          docker run -d --name floci \
-            --network golang_api_network \
-            -p 4566:4566 \
-            -v /var/run/docker.sock:/var/run/docker.sock \
-            -u root \
-            -e FLOCI_HOSTNAME=floci \
-            -e FLOCI_STORAGE_MODE=memory \
-            floci/floci:1.6.0-compat@sha256:15ba10dace4a29d94f0e36c03dc3c2ec5bfc4364a1cf9c67f9def4e530ae2c2c
+      # Self-contained stack: loadtest-api + pinned-credential DBs (own
+      # volumes) + node-exporter/prometheus/grafana. Independent of .env —
+      # except the Grafana admin password guard, so ensure .env exists
+      # (idempotent; creates it from .env.example when missing).
+      - name: Ensure .env exists
+        run: make -C .. setup
 
-      - name: Provision AWS services on floci
-        timeout-minutes: 10
-        run: make -C .. floci-provision
+      - name: Start load-test stack
+        run: make -C .. loadtest-stack-up
 
-      - name: Deploy Lambda + API Gateway
-        run: make -C .. floci-deploy
-
-      # Wait for the gateway to actually serve; the deploy script can return
-      # before the route is fully wired, which would make the smoke flaky.
-      - name: Wait for gateway /health
+      # Wait for the API to actually serve; the container start can return
+      # before the service is up, which would make the smoke flaky.
+      - name: Wait for API /health
         run: |
           for i in $(seq 1 30); do
-            curl -sf "http://localhost:4566/execute-api/lifetracker-api/dev/health" \
-              | grep -q '"status":"ok"' && exit 0
+            curl -sf "http://localhost:8080/health" | grep -q '"status":"ok"' && exit 0
             sleep 2
           done
-          echo "gateway /health not ready" >&2
+          echo "api /health not ready" >&2
           exit 1
 
-      # --network host: k6 in the container targets localhost:4566 (the floci
+      # --network host: k6 in the container targets localhost:8080 (the api
       # port published to the host). No docker.sock mount needed — the smoke
-      # lane only makes HTTP requests to the deployed gateway.
-      - name: Run k6 smoke against floci gateway
+      # lane only makes HTTP requests to the deployed api.
+      - name: Run k6 smoke against the api
         run: |
           docker run --rm --network host \
             -v ${{ github.workspace }}/loadtest:/scripts -w /scripts \
-            -e LOADTEST_BASE_URL=http://localhost:4566/execute-api/lifetracker-api/dev \
+            -e LOADTEST_BASE_URL=http://localhost:8080 \
             grafana/k6:2.3.0@sha256:9c2dee7f8ed74d317e4027c06a10f169b625638189de8d4555d0b3486a5aeb34 run smoke.js
+
+      - name: Stop load-test stack
+        if: always()
+        run: make -C .. loadtest-stack-down
 
   # Docker image is published only for real versions: vX.Y.Z tags cut by
   # release-please (see release.yml). Tags: X.Y.Z, X.Y and latest.

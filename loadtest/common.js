@@ -3,7 +3,6 @@
 // Base URL is configurable so the same scripts can target:
 //   - the direct backend:    http://localhost:8080  (compose `api` container)
 //   - the full stack (nginx):http://localhost:3000  (frontend proxy -> api)
-//   - the floci gateway:     http://localhost:4566/execute-api/lifetracker-api/dev
 //
 // Set LOADTEST_BASE_URL to override (see README.md).
 

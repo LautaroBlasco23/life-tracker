@@ -1,38 +1,24 @@
 # Root Makefile — the single entry point for the life-tracker repo.
 #
-# Everything lives here now (infra/, backend/ and frontend/ Makefiles were
-# merged into this file). `make` / `make help` shows the main commands only;
-# `make components` lists the backend/frontend/databases/infra commands.
+# Deployment is plain docker compose at the repo root (docker-compose.yml +
+# nginx/ + scripts/); `make` / `make help` shows the main commands only;
+# `make components` lists the backend/frontend/databases/docker commands.
 #
-# The run modes (see infra/docker-compose*.yml + infra/scripts/ for the
-# details; floci = local AWS emulator). One mode at a time; stop before
-# switching (ports and compose project names overlap):
+# The run modes (see docker-compose.yml + scripts/ for the details). One mode
+# at a time; stop before switching (ports overlap):
 #   make dev           - fast lane: air hot-reload on the host (:8080) +
 #                        compose postgres + mongodb + `next dev` (:3000).
 #                        No app containers; fastest feedback loop.
 #   make dev-container - container mode: API as a plain container (:8080) +
-#                        postgres + mongodb + frontend on :3000. No floci.
-#                        Prod-built image + static export; parity check.
-#   make dev-emulator  - AWS-emulated mode: floci + the API deployed as a
-#                        Lambda behind API Gateway v2 + frontend on :3000.
-#                        This is the pre-deploy test of the real AWS path.
+#                        postgres + mongodb + frontend on :3000. Prod-built
+#                        image + static export; parity check.
 #   make dev-full      - container mode + observability (Prometheus, Grafana,
 #                        Loki, Promtail, node-exporter).
 #
-# Why the API is deployed as a Lambda rather than run on the host in emulator
-# mode: the floci-provisioned RDS/DocumentDB containers live on the emulator's
-# docker network and are unreachable from the host (see infra/scripts/migrate.sh),
-# so anything that talks to them must run inside that network. The repo's
-# mechanism for that is `floci-deploy` (Lambda behind API Gateway v2), which is
-# also what the frontend's nginx proxy targets (/api -> gateway). Re-running
-# `make dev-emulator` redeploys the Lambda, so it doubles as the "restart the
-# API" command in that mode.
-#
-# Recipe convention: compose and scripts run inside `cd infra` (their relative
-# paths assume it); backend tooling runs inside `cd backend`. `-p infra` pins
-# the compose project name so container/network names can't drift.
-
-INFRA := $(abspath infra)
+# Recipe convention: backend tooling runs inside `cd backend`; compose and
+# scripts run from the repo root. The compose project name is pinned to
+# `infra` inside docker-compose.yml (keeps the historical volume/network
+# names, so no dev-data migration).
 
 # Host-run Go tooling (air, gotestsum, ...) is installed via `make
 # install-tools` into GOPATH/bin, which is often not on PATH — expose it to
@@ -48,32 +34,25 @@ GREEN := \033[1;32m
 DIM   := \033[2m
 RST   := \033[0m
 
-# Env file for infra commands: root .env when present, else .env.example (dev
-# defaults). Absolute so it survives the `cd infra` compose wrappers; consumed
-# via --env-file (variable substitution) and by scripts/migrate.sh.
+# Env file for docker commands: root .env when present, else .env.example (dev
+# defaults). Absolute so it survives recipe shells; consumed via --env-file
+# (variable substitution) and by scripts/migrate.sh.
 ENV_FILE := $(if $(wildcard $(CURDIR)/.env),$(CURDIR)/.env,$(CURDIR)/.env.example)
 
-# Compose wrappers (executed inside infra/).
-DC  := cd infra && docker compose -p infra -f docker-compose.yml
-DB  := cd infra && docker compose -p infra -f docker-compose.db.yml
-FE  := cd infra && docker compose -p infra -f docker-compose.frontend.yml
-# Frontend with nginx proxying /api -> the api container (:8080) instead of the
-# floci gateway — used by the container-mode lanes (dev / dev-full).
-FEO := cd infra && docker compose -p infra -f docker-compose.frontend.yml -f docker-compose.frontend.override.yml
+# Compose wrapper (project name pinned in docker-compose.yml).
+COMPOSE := docker compose -f docker-compose.yml
 
-.PHONY: help components dev dev-container dev-emulator dev-full stop test test-only test-coverage \
+.PHONY: help components dev dev-container dev-full stop test test-only test-coverage \
 	test-js test-shared test-frontend test-mobile loadtest loadtest-% \
-	test-e2e test-e2e-floci test-floci-coverage \
+	test-e2e \
 	loadtest-stack-up loadtest-stack-down \
 	backend-dev backend-start setup install-tools code-check hooks \
-	floci-dev migrate-floci test-floci \
 	fe-run-dev fe-build-dev fe-logs-dev fe-shell-dev fe-clean \
 	fe-docker-up fe-docker-down fe-docker-restart \
 	db-up db-down db-remove db-test-up db-test-down db-test-remove \
-	floci-up floci-provision floci-status floci-down floci-deploy \
-	frontend-up frontend-down frontend-build \
+	frontend-up frontend-down \
 	mobile mobile-rebuild mobile-logs mobile-stop \
-	monitoring-up monitoring-down dev-migrate up down build deploy-frontend
+	monitoring-up monitoring-down dev-migrate deploy-frontend
 
 .DEFAULT_GOAL := help
 
@@ -84,7 +63,6 @@ help:
 	@printf "$(GREEN)  RUN$(RST) — one mode at a time; stop before switching\n"
 	@printf "    make dev            fast lane: air (api :8080) · next dev (web :3000) · compose db\n"
 	@printf "    make dev-container  container mode: API :8080 · postgres · mongo · web :3000\n"
-	@printf "    make dev-emulator   AWS path: floci + Lambda + API Gateway · web :3000\n"
 	@printf "    make dev-full       container mode + observability: Prometheus :9090 · Grafana :3001\n"
 	@printf "    make mobile         mobile dev loop: emulator + API + Metro · [R] rebuilds native app\n"
 	@printf "\n"
@@ -101,7 +79,7 @@ help:
 	@printf "\n"
 	@printf "$(DIM)  ── component-level ──────────────────────────────────────────────$(RST)\n"
 	@printf "\n"
-	@printf "    Components: 🧠 backend · 🖥️  frontend · 🗄️  databases · 🐳 infra\n"
+	@printf "    Components: 🧠 backend · 🖥️  frontend · 🗄️  databases · 🐳 docker\n"
 	@printf "    Run $(GREEN)%s$(RST) to see the full list\n" "make components"
 
 components:
@@ -113,10 +91,6 @@ components:
 	@printf "    make %-18s %s\n" "code-check"       "gofumpt + golangci-lint (with --fix)"
 	@printf "    make %-18s %s\n" "install-tools"    "gofumpt, golangci-lint, air, gotestsum"
 	@printf "    make %-18s %s\n" "hooks"            "install git hooks (backend/.githooks)"
-	@printf "    make %-18s %s\n" "floci-dev"        "run the API on the host against floci services (air)"
-	@printf "    make %-18s %s\n" "migrate-floci"    "run DB migrations against floci services"
-	@printf "    make %-18s %s\n" "test-floci"       "test suite against floci RDS + DocumentDB"
-	@printf "    make %-18s %s\n" "test-e2e-floci"   "essential E2E suite against floci test DBs"
 	@printf "\n"
 	@printf "$(GREEN)  🖥️  Frontend only$(RST)\n"
 	@printf "    make %-18s %s\n" "fe-run-dev"       "dev container with hot reload on :3000"
@@ -128,7 +102,7 @@ components:
 	@printf "    make %-18s %s\n" "fe-docker-restart" "fe-docker-down + fe-docker-up"
 	@printf "    make %-18s %s\n" "fe-clean"         "remove containers + images + docker prune"
 	@printf "\n"
-	@printf "$(GREEN)  🗄️  Databases (legacy compose file; the run modes manage their own)$(RST)\n"
+	@printf "$(GREEN)  🗄️  Databases (the run modes manage their own)$(RST)\n"
 	@printf "    make %-18s %s\n" "db-up"            "start dev databases"
 	@printf "    make %-18s %s\n" "db-down"          "stop dev databases"
 	@printf "    make %-18s %s\n" "db-remove"        "remove dev databases and volumes"
@@ -136,19 +110,12 @@ components:
 	@printf "    make %-18s %s\n" "db-test-down"     "stop test databases"
 	@printf "    make %-18s %s\n" "db-test-remove"   "remove test databases and volumes"
 	@printf "\n"
-	@printf "$(GREEN)  🐳 Infra$(RST)\n"
-	@printf "    make %-18s %s\n" "floci-up"         "start floci emulator (:4566)"
-	@printf "    make %-18s %s\n" "floci-provision"  "provision S3, RDS, DocumentDB, Secrets (idempotent)"
-	@printf "    make %-18s %s\n" "floci-status"     "floci health + provisioned resources"
-	@printf "    make %-18s %s\n" "floci-down"       "stop floci"
-	@printf "    make %-18s %s\n" "floci-deploy"     "build + deploy the API as a Lambda (API GW v2)"
-	@printf "    make %-18s %s\n" "frontend-up"      "serve static export at :3000 (nginx; = CloudFront stand-in)"
+	@printf "$(GREEN)  🐳 Docker$(RST)\n"
+	@printf "    make %-18s %s\n" "frontend-up"      "serve static export at :3000 (nginx; /api -> api:8080)"
 	@printf "    make %-18s %s\n" "frontend-down"    "stop the frontend container"
-	@printf "    make %-18s %s\n" "frontend-build"   "build the frontend image"
-	@printf "    make %-18s %s\n" "deploy-frontend"  "build static export, sync to S3, serve at :3000"
+	@printf "    make %-18s %s\n" "deploy-frontend"  "build static export, copy into the web volume"
 	@printf "    make %-18s %s\n" "monitoring-up"    "Prometheus, Grafana, Loki, Promtail, node-exporter"
 	@printf "    make %-18s %s\n" "monitoring-down"  "stop the monitoring stack"
-	@printf "    make %-18s %s\n" "up / down / build" "legacy full stack (every profile)"
 	@printf "\n"
 	@printf "$(GREEN)  📱 Mobile (emulator on Windows, build in WSL)$(RST)\n"
 	@printf "    make %-18s %s\n" "mobile" "one command dev loop: emulator + build + API + Metro + launch"
@@ -188,38 +155,20 @@ dev: setup db-up
 	cd backend && air -c .air.toml; \
 	status=$$?; kill -- -$$fe_pid 2>/dev/null; exit $$status
 
-# Container mode: api + databases + frontend, no floci, no observability.
+# Container mode: api + databases + frontend, no observability.
 dev-container:
 	@echo "==> container mode: api + postgres + mongodb + frontend"
 	@echo "==> env file: $(notdir $(ENV_FILE))"
 	@[ -f "$(ENV_FILE)" ] || (echo ".env/.env.example not found — run 'make setup'"; exit 1)
-	$(DC) --env-file $(ENV_FILE) up -d --build
+	$(COMPOSE) --env-file $(ENV_FILE) up -d --build
 	@echo "==> migrations"
 	@$(MAKE) --no-print-directory dev-migrate
 	@echo "==> frontend (nginx /api -> api:8080)"
-	$(FEO) --env-file $(ENV_FILE) up -d web
-	cd infra && DEPLOY_S3=0 bash scripts/deploy-frontend.sh
+	bash scripts/deploy-frontend.sh
 	@echo ""
 	@echo "Container mode ready:"
 	@echo "  API:      http://localhost:8080/api"
 	@echo "  Frontend: http://localhost:3000  (proxies /api to :8080)"
-
-# AWS-emulated mode: floci + API as Lambda behind API Gateway v2.
-dev-emulator:
-	@echo "==> AWS-emulated mode: floci + Lambda + frontend"
-	@echo "==> floci emulator"
-	@$(MAKE) --no-print-directory floci-up
-	@echo "==> provisioning floci services (idempotent)"
-	@$(MAKE) --no-print-directory floci-provision
-	@echo "==> backend API (migrate + Lambda deploy, idempotent)"
-	@$(MAKE) --no-print-directory floci-deploy
-	@echo "==> frontend (build + deploy current source to web container + S3)"
-	@$(MAKE) --no-print-directory deploy-frontend
-	@echo ""
-	@echo "AWS-emulated mode ready:"
-	@echo "  API:      http://localhost:3000/api  (same-origin via nginx proxy)"
-	@echo "  Gateway:  http://localhost:4566/execute-api/lifetracker-api/dev/health"
-	@echo "  Frontend: http://localhost:3000"
 
 # Container mode + observability (Prometheus, Grafana, Loki, Promtail,
 # node-exporter). Prometheus scrapes api:8080; Grafana on :3001.
@@ -227,12 +176,11 @@ dev-full:
 	@echo "==> container mode + observability"
 	@echo "==> env file: $(notdir $(ENV_FILE))"
 	@[ -f "$(ENV_FILE)" ] || (echo ".env/.env.example not found — run 'make setup'"; exit 1)
-	$(DC) --env-file $(ENV_FILE) --profile observability up -d --build
+	$(COMPOSE) --env-file $(ENV_FILE) --profile observability up -d --build
 	@echo "==> migrations"
 	@$(MAKE) --no-print-directory dev-migrate
 	@echo "==> frontend (nginx /api -> api:8080)"
-	$(FEO) --env-file $(ENV_FILE) up -d web
-	cd infra && DEPLOY_S3=0 bash scripts/deploy-frontend.sh
+	bash scripts/deploy-frontend.sh
 	@echo ""
 	@echo "Container mode + observability ready:"
 	@echo "  API:         http://localhost:8080/api"
@@ -241,11 +189,11 @@ dev-full:
 	@echo "  Grafana:     http://localhost:3001  (admin/admin by default)"
 	@echo "  Loki:        http://localhost:3100"
 
-# Stops whichever mode is up: compose down ignores profiles and removes every
-# running service of the project, including the frontend container.
+# Stops whichever mode is up: compose down ignores profiles only when they are
+# passed — pass them all explicitly so every service of the project (including
+# observability + loadtest) is removed, plus the running web container.
 stop:
-	$(DC) --profile emulator --profile observability down
-	$(FE) down
+	$(COMPOSE) --profile observability --profile loadtest down
 	@# `make dev`'s frontend runs on the host, not in compose — compose down
 	@# can't stop it. Kill any next dev / next-server belonging to this repo
 	@# (next-server retitles its cmdline, so match it via /proc cwd instead).
@@ -254,55 +202,11 @@ stop:
 		[ "$$(readlink /proc/$$pid/cwd 2>/dev/null)" = "$(CURDIR)/frontend" ] && kill "$$pid" 2>/dev/null; \
 	done; true
 
-# Migrations for the container-mode lanes: same in-network pattern as the floci
-# path (migrate.sh defaults), but against the compose network and the root .env.
+# Migrations for the container-mode lanes (runs inside a container attached to
+# the compose network; the API container also runs its embedded migrations on
+# every start, so this is an explicit standalone equivalent).
 dev-migrate:
-	cd infra && CONTAINER_MODE=1 ENV_FILE='$(ENV_FILE)' NETWORK=infra_golang_api_network bash scripts/migrate.sh
-
-# --- Full stack (legacy) ---
-
-# Every profile: container API + floci + observability.
-up:
-	@[ -f "$(ENV_FILE)" ] || (echo ".env/.env.example not found — run 'make setup'"; exit 1)
-	$(DC) --env-file $(ENV_FILE) --profile emulator --profile observability up -d
-
-down:
-	$(DC) down
-
-build:
-	@[ -f "$(ENV_FILE)" ] || (echo ".env/.env.example not found — run 'make setup'"; exit 1)
-	$(DC) --env-file $(ENV_FILE) build api
-
-# --- AWS (floci) path ---
-
-floci-up:
-	$(DC) --profile emulator up -d floci
-	@echo "Waiting for floci health..."
-	@until docker exec floci curl -sf http://localhost:4566/_localstack/health >/dev/null 2>&1; do sleep 2; done
-	@echo "✓ floci is ready at http://localhost:4566"
-
-floci-provision:
-	cd infra && bash scripts/provision.sh
-
-floci-status:
-	@docker exec floci curl -s http://localhost:4566/_localstack/health | python3 -m json.tool 2>/dev/null | head -15
-	@echo "--- S3 buckets ---"
-	@docker exec floci aws --endpoint-url http://localhost:4566 s3 ls 2>/dev/null
-	@echo "--- RDS instances ---"
-	@docker exec floci aws --endpoint-url http://localhost:4566 rds describe-db-instances --query 'DBInstances[].[DBInstanceIdentifier,Endpoint.Address,Endpoint.Port,DBInstanceStatus]' --output table 2>/dev/null
-	@echo "--- DocumentDB clusters ---"
-	@docker exec floci aws --endpoint-url http://localhost:4566 docdb describe-db-clusters --query 'DBClusters[].[DBClusterIdentifier,Endpoint,Port]' --output table 2>/dev/null
-	@echo "--- Secrets ---"
-	@docker exec floci aws --endpoint-url http://localhost:4566 secretsmanager list-secrets --query 'SecretList[].Name' --output text 2>/dev/null
-
-floci-down:
-	$(DC) stop floci
-
-floci-deploy:
-	cd infra && bash scripts/deploy-lambda.sh
-
-deploy-frontend: frontend-up
-	cd infra && bash scripts/deploy-frontend.sh
+	ENV_FILE='$(ENV_FILE)' bash scripts/migrate.sh
 
 # --- Backend ---
 
@@ -337,32 +241,6 @@ backend-dev: hooks db-up
 	# config.Load() walks up from backend/ and picks up the root .env.
 	cd backend && air -c .air.toml
 
-floci-dev: floci-up floci-provision
-	$(CHECK_AIR)
-	@set -a; . "$(INFRA)/.floci.env"; set +a; \
-	cd backend && air -c .air.toml
-
-migrate-floci:
-	@[ -f "$(INFRA)/.floci.env" ] || (echo ".floci.env not found — run 'make floci-provision' first"; exit 1)
-	cd infra && bash scripts/migrate.sh
-
-test-floci:
-	@[ -f "$(INFRA)/.floci.env" ] || (echo ".floci.env not found — run 'make floci-provision' first"; exit 1)
-	@echo "Note: tests truncate tables in the provisioned test DB (provision.sh creates it)."
-	@set -a; . "$(INFRA)/.floci.env"; set +a; \
-	export DB_NAME="$${DB_NAME}_test" MONGO_DATABASE="$${MONGO_DATABASE}_test"; \
-	cd backend && ENVIRONMENT=test gotestsum --format=short-verbose -- -race -p 1 ./...
-
-# Same suite as test-floci plus a coverage profile (report-only; the CI gate
-# ratchets from the baseline instead of an invented threshold).
-test-floci-coverage:
-	@[ -f "$(INFRA)/.floci.env" ] || (echo ".floci.env not found — run 'make floci-provision' first"; exit 1)
-	@echo "Note: tests truncate tables in the provisioned test DB (provision.sh creates it)."
-	@set -a; . "$(INFRA)/.floci.env"; set +a; \
-	export DB_NAME="$${DB_NAME}_test" MONGO_DATABASE="$${MONGO_DATABASE}_test"; \
-	cd backend && ENVIRONMENT=test gotestsum --format=short-verbose -- -race -p 1 -coverprofile=./coverage.out ./...; \
-	go tool cover -func=./coverage.out | tail -1
-
 # Essential E2E: production router + real JWT auth middleware against the
 # compose test DBs. Guarded by the `e2e` build tag, so the regular suite
 # (`make test`) stays fast. Does not truncate shared tables — uses unique
@@ -372,14 +250,6 @@ test-e2e: db-test-up
 	TEST_EXIT=$$?; \
 	$(MAKE) -C $(CURDIR) db-test-down; \
 	exit $$TEST_EXIT
-
-# E2E variant against the floci-provisioned test DBs (the CI path). Same env
-# dance as test-floci so the tests resolve the emulated RDS/DocumentDB.
-test-e2e-floci:
-	@[ -f "$(INFRA)/.floci.env" ] || (echo ".floci.env not found — run 'make floci-provision' first"; exit 1)
-	@set -a; . "$(INFRA)/.floci.env"; set +a; \
-	export DB_NAME="$${DB_NAME}_test" MONGO_DATABASE="$${MONGO_DATABASE}_test"; \
-	cd backend && ENVIRONMENT=test gotestsum --format=short-verbose -- -race -tags=e2e ./tests/e2e/...
 
 # --- Tests ---
 
@@ -477,49 +347,58 @@ fe-logs-dev:
 fe-shell-dev:
 	docker exec -it nextjs-app-dev /bin/sh
 
-# --- Legacy databases (docker-compose.db.yml, rollback path) ---
+# --- Databases (postgres + mongodb via the root compose file) ---
+# Dev and test DBs are the same services with different env files (.env vs
+# backend/.env.test): separate containers, ports (:5432/:27017 vs
+# :5433/:27018), volumes and network (see docker-compose.yml).
 
 db-up:
 	@[ -f "$(ENV_FILE)" ] || (echo ".env/.env.example not found — run 'make setup'"; exit 1)
-	$(DB) --env-file $(ENV_FILE) up -d
+	$(COMPOSE) --env-file $(ENV_FILE) up -d postgres mongodb
 
 db-down:
-	$(DB) --env-file $(ENV_FILE) stop
+	$(COMPOSE) --env-file $(ENV_FILE) stop postgres mongodb
 
 db-remove:
-	$(DB) --env-file $(ENV_FILE) down -v
+	$(COMPOSE) --env-file $(ENV_FILE) rm -sf postgres mongodb
+	docker volume rm -f infra_postgres_data infra_mongodb_data infra_mongodb_config
+
+# db-test-* commands layer .env.example (covers the grafana password guard)
+# under backend/.env.test (wins for every DB/substitution variable).
 
 db-test-up:
-	@cd infra && [ -f ../backend/.env.test ] || (echo "../backend/.env.test not found"; exit 1)
-	$(DB) --env-file ../backend/.env.test up -d
+	@[ -f backend/.env.test ] || (echo "backend/.env.test not found"; exit 1)
+	$(COMPOSE) --env-file .env.example --env-file backend/.env.test up -d postgres mongodb
 
 db-test-down:
-	@cd infra && [ -f ../backend/.env.test ] || (echo "../backend/.env.test not found"; exit 1)
-	$(DB) --env-file ../backend/.env.test stop
+	@[ -f backend/.env.test ] || (echo "backend/.env.test not found"; exit 1)
+	$(COMPOSE) --env-file .env.example --env-file backend/.env.test stop postgres mongodb
 
 db-test-remove:
-	@cd infra && [ -f ../backend/.env.test ] || (echo "../backend/.env.test not found"; exit 1)
-	$(DB) --env-file ../backend/.env.test down -v
+	@[ -f backend/.env.test ] || (echo "backend/.env.test not found"; exit 1)
+	$(COMPOSE) --env-file .env.example --env-file backend/.env.test rm -sf postgres mongodb
+	docker volume rm -f infra_postgres_test_data infra_mongodb_test_data infra_mongodb_test_config
 
 # --- Monitoring ---
 
 monitoring-up:
-	$(DC) --profile observability up -d node-exporter prometheus grafana loki promtail
+	$(COMPOSE) --env-file $(ENV_FILE) --profile observability up -d node-exporter prometheus grafana loki promtail
 
 monitoring-down:
-	$(DC) stop node-exporter prometheus grafana loki promtail
+	$(COMPOSE) --env-file $(ENV_FILE) stop node-exporter prometheus grafana loki promtail
 
 # --- Frontend container (nginx; part of the compose stack) ---
 
 frontend-up:
-	$(FE) up -d web
+	$(COMPOSE) --env-file $(ENV_FILE) up -d web
 	@echo "App running at http://localhost:3000"
 
 frontend-down:
-	$(FE) stop web
+	$(COMPOSE) --env-file $(ENV_FILE) stop web
 
-frontend-build:
-	$(FE) build
+# Build the static export and copy it into the running web container.
+deploy-frontend: frontend-up
+	bash scripts/deploy-frontend.sh
 
 # --- Android (emulator on Windows, build in WSL) ---
 #
