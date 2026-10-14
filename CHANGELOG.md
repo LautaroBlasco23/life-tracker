@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.2](https://github.com/LautaroBlasco23/life-tracker/compare/v1.1.1...v1.1.2) (2026-10-14)
+
+
+### Miscellaneous Chores
+
+* **frontend:** remove stale pnpm-lock.yaml failing prettier CI ([#33](https://github.com/LautaroBlasco23/life-tracker/issues/33)) ([cb64863](https://github.com/LautaroBlasco23/life-tracker/commit/cb648634f139d8a43edf69a55088e974a7c088b3))
+
 ## [1.1.1](https://github.com/LautaroBlasco23/life-tracker/compare/v1.1.0...v1.1.1) (2026-10-14)
 
 
