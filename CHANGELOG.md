@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.1](https://github.com/LautaroBlasco23/life-tracker/compare/v1.1.0...v1.1.1) (2026-10-14)
+
+
+### Code Refactoring
+
+* deploy via root docker-compose.yml, remove infra/ and AWS-floci path ([#26](https://github.com/LautaroBlasco23/life-tracker/issues/26)) ([2306478](https://github.com/LautaroBlasco23/life-tracker/commit/2306478eec186cef5aab829741621568d819fd89))
+
 ## [1.1.0](https://github.com/LautaroBlasco23/life-tracker/compare/v1.0.0...v1.1.0) (2026-10-13)
 
 
