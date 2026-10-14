@@ -105,6 +105,7 @@ jobs:
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest
 
       - name: Build and push
         uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
@@ -133,7 +134,9 @@ jobs:
         run: |
           IMAGE="lautaroblasco1998/lifetracker-frontend:latest"
           docker pull "$IMAGE"
-          docker run -d --name fe-smoke "$IMAGE"
+          # serve on :3000 inside the container (EXPOSE 3000); publish it so
+          # curl can reach it from the runner
+          docker run -d -p 3000:3000 --name fe-smoke "$IMAGE"
           sleep 2
 
           curl --retry 5 --retry-connrefused -fsS http://localhost:3000/ >/dev/null

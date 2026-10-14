@@ -17,7 +17,11 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
-      - uses: google-github-actions/release-please-action@e4dc86ba9405554aeba3c6bb2d169500e7d3b4ee # v4
+      - uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
         with:
+          # GITHUB_TOKEN-created tags/releases never trigger other workflows
+          # (tag-push Docker builds would silently not run). Use a PAT stored
+          # in RELEASE_PAT when present; falls back to GITHUB_TOKEN otherwise.
+          token: ${{ secrets.RELEASE_PAT || github.token }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
