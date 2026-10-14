@@ -149,9 +149,10 @@ jobs:
           curl -fsS http://localhost:3000/env-config.js \
             | grep -q "NEXT_PUBLIC_API_URL: '/api'"
 
-          # /api proxy upstream rendered from GATEWAY_UPSTREAM
+          # /api proxy upstream rendered from GATEWAY_UPSTREAM (indirected via
+          # the nginx variable so boot survives a down gateway)
           docker exec fe-smoke \
-            grep -q "proxy_pass http://api-gateway:8080;" \
+            grep -q 'gateway_upstream api-gateway:8080;' \
             /etc/nginx/conf.d/default.conf
 
           docker rm -f fe-smoke >/dev/null
