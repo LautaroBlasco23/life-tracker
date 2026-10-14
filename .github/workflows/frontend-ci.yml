@@ -134,7 +134,9 @@ jobs:
         run: |
           IMAGE="lautaroblasco1998/lifetracker-frontend:latest"
           docker pull "$IMAGE"
-          docker run -d --name fe-smoke "$IMAGE"
+          # serve on :3000 inside the container (EXPOSE 3000); publish it so
+          # curl can reach it from the runner
+          docker run -d -p 3000:3000 --name fe-smoke "$IMAGE"
           sleep 2
 
           curl --retry 5 --retry-connrefused -fsS http://localhost:3000/ >/dev/null
