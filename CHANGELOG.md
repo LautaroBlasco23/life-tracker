@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.1.5](https://github.com/LautaroBlasco23/life-tracker/compare/v1.1.4...v1.1.5) (2026-10-15)
+
+
+### Miscellaneous Chores
+
+* **deps:** bump docker/metadata-action from 5.10.0 to 6.2.0 ([#41](https://github.com/LautaroBlasco23/life-tracker/issues/41)) ([29f3b98](https://github.com/LautaroBlasco23/life-tracker/commit/29f3b98368e23cd68ae2ab68868ad013476e9ecc))
+
 ## [1.1.4](https://github.com/LautaroBlasco23/life-tracker/compare/v1.1.3...v1.1.4) (2026-10-14)
 
 
