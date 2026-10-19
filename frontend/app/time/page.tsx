@@ -52,14 +52,12 @@ const CATEGORY_COLORS: Record<
   string,
   { accentColor: string; iconColor: string }
 > = {
-  Work: { accentColor: 'border-violet-400', iconColor: 'text-violet-500' },
-  Personal: {
-    accentColor: 'border-emerald-400',
-    iconColor: 'text-emerald-500',
-  },
-  Health: { accentColor: 'border-rose-400', iconColor: 'text-rose-500' },
-  Learning: { accentColor: 'border-amber-400', iconColor: 'text-amber-500' },
-  default: { accentColor: 'border-sky-400', iconColor: 'text-sky-500' },
+  // Mirrors the mobile mapping (apps/mobile/app/(app)/time.tsx): tokens only.
+  Work: { accentColor: 'border-secondary', iconColor: 'text-secondary' },
+  Personal: { accentColor: 'border-success', iconColor: 'text-success' },
+  Health: { accentColor: 'border-danger', iconColor: 'text-danger' },
+  Learning: { accentColor: 'border-warning', iconColor: 'text-warning' },
+  default: { accentColor: 'border-primary', iconColor: 'text-primary' },
 };
 
 const MONTH_NAMES = [
@@ -549,14 +547,14 @@ export default function TimePage() {
           </Card>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <Card className="bg-surface border-secondary/30 shadow-[inset_0_0_20px_rgba(97,218,251,0.05)]">
+            <Card className="bg-surface border-border">
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">
                       {t('totalTime')}
                     </p>
-                    <p className="text-2xl font-bold text-muted-foreground">
+                    <p className="text-2xl font-semibold text-foreground tabular-nums">
                       {formatTotalTime(stats.totalMinutes)}
                     </p>
                   </div>
@@ -566,14 +564,14 @@ export default function TimePage() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="bg-surface border-secondary/30 shadow-[inset_0_0_20px_rgba(97,218,251,0.05)]">
+            <Card className="bg-surface border-border">
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">
                       {t('entries')}
                     </p>
-                    <p className="text-2xl font-bold text-muted-foreground">
+                    <p className="text-2xl font-semibold text-foreground tabular-nums">
                       {stats.recordCount}
                     </p>
                   </div>
@@ -583,14 +581,14 @@ export default function TimePage() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="bg-surface border-secondary/30 shadow-[inset_0_0_20px_rgba(97,218,251,0.05)]">
+            <Card className="bg-surface border-border">
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">
                       {t('topCategory')}
                     </p>
-                    <p className="text-2xl font-bold text-muted-foreground">
+                    <p className="text-2xl font-semibold text-foreground">
                       {stats.topCategory ?? 'N/A'}
                     </p>
                     {stats.topCategory && (

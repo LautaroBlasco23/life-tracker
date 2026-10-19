@@ -209,9 +209,7 @@ export function PaymentModal({
               <span className="text-muted-foreground">{t('totalPaid')}</span>
               <span
                 className={`font-semibold ${
-                  isIncome
-                    ? 'text-green-600 dark:text-green-400'
-                    : 'text-red-600 dark:text-red-400'
+                  isIncome ? 'text-success' : 'text-danger'
                 }`}
               >
                 ${formatCurrency(totalPaid)}
@@ -289,9 +287,7 @@ export function PaymentModal({
                           </div>
                           <span
                             className={`font-medium ${
-                              isIncome
-                                ? 'text-green-600 dark:text-green-400'
-                                : 'text-red-600 dark:text-red-400'
+                              isIncome ? 'text-success' : 'text-danger'
                             }`}
                           >
                             ${formatCurrency(payment.amount)}

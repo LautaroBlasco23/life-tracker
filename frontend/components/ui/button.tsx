@@ -9,22 +9,20 @@ const buttonVariants = cva(
     variants: {
       variant: {
         default:
-          'bg-surface border border-primary text-primary shadow-[inset_0_0_20px_rgba(97,218,251,0.05)] hover:bg-primary hover:text-primary-foreground',
+          'bg-primary text-primary-foreground shadow-xs hover:bg-primary/90',
         destructive:
-          'bg-destructive text-white shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60',
+          'bg-destructive text-destructive-foreground shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60',
         outline:
-          'bg-surface border border-border text-muted-foreground shadow-[inset_0_0_20px_rgba(97,218,251,0.03)] hover:border-primary/50 hover:text-primary hover:shadow-[inset_0_0_20px_rgba(97,218,251,0.08)]',
-        secondary:
-          'bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80',
-        ghost:
-          'hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50',
+          'border border-border bg-surface text-foreground hover:bg-accent hover:text-accent-foreground',
+        secondary: 'bg-muted text-foreground shadow-xs hover:bg-muted/80',
+        ghost: 'hover:bg-accent hover:text-accent-foreground',
         link: 'text-primary underline-offset-4 hover:underline',
       },
       size: {
-        default: 'h-9 px-4 py-2 has-[>svg]:px-3',
-        sm: 'h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5',
-        lg: 'h-10 rounded-md px-6 has-[>svg]:px-4',
-        icon: 'size-9',
+        default: 'h-10 px-4 py-2 has-[>svg]:px-3',
+        sm: 'h-9 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5',
+        lg: 'h-11 rounded-md px-6 has-[>svg]:px-4',
+        icon: 'size-10',
       },
     },
     defaultVariants: {

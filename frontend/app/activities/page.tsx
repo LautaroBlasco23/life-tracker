@@ -103,8 +103,8 @@ export default function ActivitiesPage() {
       label: t('morning'),
       icon: Sun,
       description: t('startYourDay'),
-      accentColor: 'border-amber-400',
-      iconColor: 'text-amber-500',
+      accentColor: 'border-secondary',
+      iconColor: 'text-secondary',
     },
     afternoon: {
       label: t('afternoon'),
@@ -752,11 +752,11 @@ export default function ActivitiesPage() {
           )}
 
           {viewMode === 'today' && globalStreak && globalStreak.current > 0 && (
-            <Card className="mb-6 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20 border-orange-200 dark:border-orange-900/50">
+            <Card className="mb-6 bg-secondary/10 border-secondary/40">
               <CardContent className="p-4 flex items-center gap-4 flex-wrap">
                 <div className="flex items-center gap-3">
                   <Flame
-                    className="h-6 w-6 text-orange-500"
+                    className="h-6 w-6 text-secondary"
                     fill="currentColor"
                   />
                   <div>

@@ -58,8 +58,8 @@ export function FixedTransactionCard({
   const cardClasses = isPaidThisPeriod
     ? `bg-muted/30 border-2 ${
         isIncome
-          ? 'border-green-500/50 bg-green-500/10'
-          : 'border-red-500/50 bg-red-500/10'
+          ? 'border-success/50 bg-success/10'
+          : 'border-danger/50 bg-danger/10'
       }`
     : 'bg-muted/30 hover:shadow-md cursor-pointer hover:scale-[1.02] hover:bg-muted/50 transition-all duration-200';
 
@@ -73,9 +73,9 @@ export function FixedTransactionCard({
                 <h3
                   className={`font-medium text-base ${
                     isPaidThisPeriod && isIncome
-                      ? 'text-green-600 dark:text-green-400'
+                      ? 'text-success'
                       : isPaidThisPeriod
-                        ? 'text-red-600 dark:text-red-400'
+                        ? 'text-danger'
                         : 'text-foreground'
                   }`}
                 >
@@ -95,8 +95,8 @@ export function FixedTransactionCard({
                     variant="default"
                     className={`shrink-0 ${
                       isIncome
-                        ? 'bg-green-500/20 text-green-700 dark:text-green-300 border-green-500/50'
-                        : 'bg-red-500/20 text-red-700 dark:text-red-300 border-red-500/50'
+                        ? 'bg-success/15 text-success border-success/50'
+                        : 'bg-danger/15 text-danger border-danger/50'
                     }`}
                   >
                     <Check className="h-3 w-3 mr-1" />
@@ -127,9 +127,7 @@ export function FixedTransactionCard({
                     </span>
                     <span
                       className={`font-semibold text-base sm:text-sm ${
-                        isIncome
-                          ? 'text-green-600 dark:text-green-400'
-                          : 'text-red-600 dark:text-red-400'
+                        isIncome ? 'text-success' : 'text-danger'
                       }`}
                     >
                       {isIncome ? '+' : '-'}$

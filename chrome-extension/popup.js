@@ -61,7 +61,7 @@ async function renderStats(token) {
     statsEl.textContent = "";
 
     if (!json.data || json.data.length === 0) {
-      appendEmptyMessage(statsEl, "No visits today.", { fontSize: "13px", color: "#666" });
+      appendEmptyMessage(statsEl, "No visits today.", { fontSize: "13px", color: "#6A6C61" });
       return;
     }
     for (const s of json.data) {
@@ -78,7 +78,7 @@ async function renderStats(token) {
     document.getElementById("stats").textContent = "";
     appendEmptyMessage(document.getElementById("stats"), "Failed to load stats.", {
       fontSize: "12px",
-      color: "#c62828",
+      color: "#B54D45",
     });
   }
 }
@@ -86,7 +86,7 @@ async function renderStats(token) {
 function appendEmptyMessage(container, text, opts) {
   const p = document.createElement("p");
   p.style.fontSize = opts?.fontSize || "13px";
-  p.style.color = opts?.color || "#666";
+  p.style.color = opts?.color || "#6A6C61";
   p.textContent = text;
   container.appendChild(p);
 }
@@ -137,7 +137,7 @@ async function renderDomainsList() {
   listEl.textContent = "";
 
   if (domains.length === 0) {
-    appendEmptyMessage(listEl, "No domains tracked yet.", { fontSize: "12px", color: "#666" });
+    appendEmptyMessage(listEl, "No domains tracked yet.", { fontSize: "12px", color: "#6A6C61" });
     return;
   }
 

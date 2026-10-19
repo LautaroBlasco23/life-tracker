@@ -15,7 +15,7 @@ function renderToggle() {
 }
 
 describe('ThemeToggle', () => {
-  it('starts in dark mode showing the moon icon', () => {
+  it('starts on the system preference showing the sun icon', () => {
     renderToggle();
     expect(screen.getByRole('button', { name: /toggle theme/i })).toBeVisible();
   });
@@ -24,11 +24,14 @@ describe('ThemeToggle', () => {
     const user = userEvent.setup();
     renderToggle();
 
-    await user.click(screen.getByRole('button'));
-    // After toggling dark -> light, localStorage reflects the new mode.
-    expect(localStorage.getItem('theme')).toBe('light');
-
+    // Default preference is 'system' (resolved light in the test env);
+    // first click toggles light -> dark.
     await user.click(screen.getByRole('button'));
     expect(localStorage.getItem('theme')).toBe('dark');
+    expect(document.documentElement.classList.contains('dark')).toBe(true);
+
+    await user.click(screen.getByRole('button'));
+    expect(localStorage.getItem('theme')).toBe('light');
+    expect(document.documentElement.classList.contains('dark')).toBe(false);
   });
 });

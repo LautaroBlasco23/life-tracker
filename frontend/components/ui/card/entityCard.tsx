@@ -106,7 +106,7 @@ export function EntityCard({
       <Card
         className={`bg-muted/30 transition-all duration-200 ${
           isCompleted
-            ? 'border-green-500/50 bg-green-500/10'
+            ? 'border-success/50 bg-success/10'
             : isClickable
               ? 'hover:shadow-md cursor-pointer hover:scale-[1.02] hover:bg-muted/50'
               : 'hover:shadow-md'
@@ -120,7 +120,7 @@ export function EntityCard({
                 <CardTitle
                   className={`text-base sm:text-lg font-medium ${
                     isCompleted
-                      ? 'text-green-600 dark:text-green-400'
+                      ? 'text-success'
                       : 'text-foreground'
                   } break-words`}
                 >
@@ -129,7 +129,7 @@ export function EntityCard({
                 {isCompleted && progress && (
                   <Badge
                     variant="default"
-                    className="bg-green-500/20 text-green-700 dark:text-green-300 border-green-500/50 shrink-0"
+                    className="bg-success/15 text-success border-success/50 shrink-0"
                   >
                     {progress.completedLabel ?? 'Complete'}
                   </Badge>
