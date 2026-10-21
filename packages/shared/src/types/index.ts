@@ -6,3 +6,4 @@ export * from './auth';
 export * from './routine';
 export * from './reminder';
 export * from './note';
+export * from './calendar';

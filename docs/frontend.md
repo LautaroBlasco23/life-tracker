@@ -32,6 +32,14 @@ Developed initially with Vercel V0. Built with Next.js and TypeScript.
   - Unified create/edit form defaults to a normal activity; the checkbox
     switches it to reminder mode
 
+- **Time Tracking** (`/time`, two tabs)
+  - Records: live timer sessions and manual entries, per-category totals,
+    period + month/year/category filters
+  - Calendar: week grid (Monday start) for scheduled blocks. Click an empty
+    slot to create an event, click an event to edit or delete it; overlapping
+    events render side by side, and the current time is marked. Screens below
+    `md` show a single-day agenda with a day picker.
+
 - **Finance Management**
   - Personal finance tracking interface
   - Backend integration in progress

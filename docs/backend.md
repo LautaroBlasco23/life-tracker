@@ -182,6 +182,22 @@ Simple CRUD + filtering (title/content search).
 
 CRUD with filter support, plus `GET /stats` aggregating total time per category.
 
+### Calendar — `domain/calendar`
+
+**Schema** (`calendar_events` table): `id`, `userId`, `title` (max 255),
+`description`, `category` (max 100), `start_at`, `end_at`.
+
+Scheduled time blocks for the week calendar (the `Calendar` tab of the web
+Time page). Unlike `time_records` — logged facts with only a duration — events
+carry an explicit start and end and may be in the future.
+
+Rules:
+
+- `end_at` must be after `start_at`; an event may not exceed 24 hours.
+- `GET` with a range keeps events that **overlap** `[from, to)`, so a block
+  crossing midnight or a week boundary appears in both views.
+- `from` and `to` are RFC3339 instants and must be sent together.
+
 ### Routine — `domain/routine`
 
 **Schemas** (`routines` + join table `routine_activities`)
@@ -315,6 +331,16 @@ All routes are mounted under the `/api` prefix. "Public" routes need no token; "
 | GET | /time-records/:id | Protected | Get record |
 | PUT | /time-records/:id | Protected | Update record |
 | DELETE | /time-records/:id | Protected | Delete record |
+
+### Calendar — `/api/calendar-events`
+
+| Method | Path | Access | Description |
+|---|---|---|---|
+| POST | /calendar-events | Protected | Create event |
+| GET | /calendar-events?from=&to= | Protected | List events overlapping the range |
+| GET | /calendar-events/:id | Protected | Get event |
+| PUT | /calendar-events/:id | Protected | Update event |
+| DELETE | /calendar-events/:id | Protected | Delete event |
 
 ### Routine — `/api/routines`
 

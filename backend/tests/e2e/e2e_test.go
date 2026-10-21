@@ -15,9 +15,9 @@
 //
 //	anonymous-rejection path of the protected route group, and the
 //	minimal authed read/write lifecycle (me, activities/today,
-//	create activity, create note, read note back). Mirrors the k6
-//	smoke script (loadtest/smoke.js) so both layers cover the same
-//	contract.
+//	create activity, create note, read note back, calendar event
+//	create/list/update/delete). Mirrors the k6 smoke script
+//	(loadtest/smoke.js) so both layers cover the same contract.
 //
 // Out of scope: handler-level edge cases (unit suites cover controllers/
 //
@@ -356,6 +356,68 @@ func TestCreateActivityAndNoteLifecycle(t *testing.T) {
 		}
 	}
 	assert.True(t, found, "created activity must appear in today's list")
+}
+
+// TestCalendarEventLifecycle exercises the production router wiring for the
+// calendar domain: create a block, read it back through the week range query,
+// patch it, and delete it.
+func TestCalendarEventLifecycle(t *testing.T) {
+	username, email, password := uniqueUser(t)
+	access, _ := registerUser(t, username, email, password)
+
+	authed := func(method, path string, body any) (*httptest.ResponseRecorder, map[string]any) {
+		return doJSON(t, method, path, access, body)
+	}
+
+	start := time.Date(2030, time.January, 7, 10, 0, 0, 0, time.UTC) // a Monday
+	end := start.Add(2 * time.Hour)
+
+	// 1. Create.
+	rec, res := authed(http.MethodPost, "/api/calendar-events", map[string]any{
+		"title":       "E2E English class",
+		"description": "created by e2e suite",
+		"category":    "Study",
+		"startAt":     start.Format(time.RFC3339),
+		"endAt":       end.Format(time.RFC3339),
+	})
+	require.Equal(t, http.StatusCreated, rec.Code, "body: %s", rec.Body.String())
+
+	created, _ := res["data"].(map[string]any)
+	require.NotNil(t, created, "body: %s", rec.Body.String())
+	eventID, ok := created["id"].(float64)
+	require.True(t, ok)
+	require.NotZero(t, eventID)
+
+	// 2. The range query returns the event by overlap.
+	from := start.AddDate(0, 0, -1).Format(time.RFC3339)
+	to := start.AddDate(0, 0, 7).Format(time.RFC3339)
+	rec, res = authed(http.MethodGet, "/api/calendar-events?from="+from+"&to="+to, nil)
+	require.Equal(t, http.StatusOK, rec.Code, "body: %s", rec.Body.String())
+	items, ok := res["data"].([]any)
+	require.True(t, ok, "list must return an array")
+	require.Len(t, items, 1)
+
+	// 3. A half-open range is rejected instead of silently returning everything.
+	rec, _ = authed(http.MethodGet, "/api/calendar-events?from="+from, nil)
+	require.Equal(t, http.StatusBadRequest, rec.Code)
+
+	path := fmt.Sprintf("/api/calendar-events/%d", int64(eventID))
+
+	// 4. Partial update.
+	rec, res = authed(http.MethodPut, path, map[string]any{
+		"title": "E2E English class (moved)",
+	})
+	require.Equal(t, http.StatusOK, rec.Code, "body: %s", rec.Body.String())
+	updated, _ := res["data"].(map[string]any)
+	require.NotNil(t, updated, "body: %s", rec.Body.String())
+	assert.Equal(t, "E2E English class (moved)", updated["title"])
+
+	// 5. Delete, then confirm it is gone.
+	rec, _ = authed(http.MethodDelete, path, nil)
+	require.Equal(t, http.StatusOK, rec.Code, "body: %s", rec.Body.String())
+
+	rec, _ = authed(http.MethodGet, path, nil)
+	assert.Equal(t, http.StatusNotFound, rec.Code)
 }
 
 func TestCORSPreflightReturns204(t *testing.T) {

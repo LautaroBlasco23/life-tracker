@@ -6,6 +6,7 @@ export * from "./services/note-service";
 export * from "./services/note-group-service";
 export * from "./services/routine-service";
 export * from "./services/time-service";
+export * from "./services/calendar-service";
 export * from "./services/user-service";
 export * from "./services/data-service";
 export * from "./services/finance-service";
