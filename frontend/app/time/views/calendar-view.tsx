@@ -1,9 +1,17 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import type { CalendarEvent } from '@shared/types/calendar';
+import type { CalendarEvent, CalendarEventScope } from '@shared/types/calendar';
 import { calendarService } from '@shared/services/calendar-service';
 import { DeleteModal } from '@/components/ui/card/delete-modal';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { showToast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 import { useTranslations } from '@shared/contexts/language-context';
@@ -46,6 +54,8 @@ export function CalendarView() {
   const [deletingEvent, setDeletingEvent] = useState<CalendarEvent | null>(
     null
   );
+  const [deleteScope, setDeleteScope] =
+    useState<CalendarEventScope>('occurrence');
 
   const goToWeek = (offset: number) => {
     const nextWeek = shiftWeek(weekStart, offset);
@@ -91,13 +101,14 @@ export function CalendarView() {
   const handleRequestDelete = (event: CalendarEvent) => {
     setModalOpen(false);
     setDeletingEvent(event);
+    setDeleteScope('occurrence');
   };
 
   const handleConfirmDelete = async () => {
     if (!deletingEvent) return;
 
     try {
-      await calendarService.deleteEvent(deletingEvent.id);
+      await calendarService.deleteEvent(deletingEvent.id, deleteScope);
       showToast({
         title: t('eventDeleted'),
         description: t('eventDeletedDescription'),
@@ -212,6 +223,31 @@ export function CalendarView() {
                   {formatTimeRange(deletingEvent.startAt, deletingEvent.endAt)}
                 </div>
               </div>
+              {deletingEvent.seriesId ? (
+                <div className="mt-3 space-y-1.5">
+                  <Label htmlFor="delete-scope" className="text-xs">
+                    {t('deleteScope')}
+                  </Label>
+                  <Select
+                    value={deleteScope}
+                    onValueChange={(value) =>
+                      setDeleteScope(value as CalendarEventScope)
+                    }
+                  >
+                    <SelectTrigger id="delete-scope" size="sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="occurrence">
+                        {t('applyToOccurrence')}
+                      </SelectItem>
+                      <SelectItem value="series">
+                        {t('applyToSeries')}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              ) : null}
             </div>
           ) : null
         }

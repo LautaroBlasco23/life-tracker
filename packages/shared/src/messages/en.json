@@ -854,6 +854,18 @@
     "titleRequiredDescription": "Please enter a title for the event.",
     "failedToLoad": "Failed to load calendar",
     "failedToSave": "Failed to save event",
-    "failedToDelete": "Failed to delete event"
+    "failedToDelete": "Failed to delete event",
+    "repeat": "Repeat",
+    "repeatNone": "None",
+    "repeatWeekly": "Weekly",
+    "repeatUntil": "Repeat until",
+    "repeatUntilRequired": "Pick the last date of the series",
+    "repeatUntilBeforeStart": "The last date cannot be before the event date",
+    "repeatLocked": "The repeat rule is set when the event is created",
+    "applyTo": "Apply to",
+    "applyToOccurrence": "This event",
+    "applyToSeries": "The whole series",
+    "deleteScope": "Apply the deletion to",
+    "seriesEvent": "Part of a weekly series"
   }
 }

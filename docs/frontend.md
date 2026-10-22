@@ -39,6 +39,10 @@ Developed initially with Vercel V0. Built with Next.js and TypeScript.
     slot to create an event, click an event to edit or delete it; overlapping
     events render side by side, and the current time is marked. Screens below
     `md` show a single-day agenda with a day picker.
+  - Recurrence: the event form has a `Repeat` select (None / Weekly) and, for
+    a weekly event, the last date the series repeats on (up to 100
+    occurrences). Occurrences of a series are marked with a repeat icon and
+    can be edited or deleted alone or as a whole series.
 
 - **Finance Management**
   - Personal finance tracking interface

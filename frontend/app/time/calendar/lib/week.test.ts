@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   MINUTES_PER_DAY,
+  addDaysToDateValue,
   combineDateAndTime,
   dateAtMinutes,
   formatWeekLabel,
@@ -13,6 +14,7 @@ import {
   snapMinutes,
   timeInputValueAt,
   toDateInputValue,
+  toEndOfDayInstant,
   toTimeInputValue,
 } from './week';
 
@@ -128,6 +130,33 @@ describe('form values', () => {
     expect(Number.isNaN(combineDateAndTime('2026-10-19', '').getTime())).toBe(
       true
     );
+  });
+});
+
+describe('recurrence bounds', () => {
+  it('adds days to a date input value across months', () => {
+    expect(addDaysToDateValue('2026-10-19', 28)).toBe('2026-11-16');
+    expect(addDaysToDateValue('2026-12-30', 7)).toBe('2027-01-06');
+    expect(addDaysToDateValue('2026-10-19', 0)).toBe('2026-10-19');
+  });
+
+  it('returns an empty value for a malformed date', () => {
+    expect(addDaysToDateValue('', 7)).toBe('');
+  });
+
+  it('turns a date input value into the end of that local day', () => {
+    const until = new Date(toEndOfDayInstant('2026-11-16'));
+    expect(until.getFullYear()).toBe(2026);
+    expect(until.getMonth()).toBe(10);
+    expect(until.getDate()).toBe(16);
+    expect(until.getHours()).toBe(23);
+    expect(until.getMinutes()).toBe(59);
+    expect(until.getSeconds()).toBe(59);
+    expect(until.getMilliseconds()).toBe(999);
+  });
+
+  it('returns an empty value for a malformed date', () => {
+    expect(toEndOfDayInstant('')).toBe('');
   });
 });
 

@@ -32,3 +32,19 @@ if (!window.matchMedia) {
 
 // Web env is runtime-injected via /env-config.js in production; in tests the
 // window exists but __ENV__ is absent, which mirrors a first-load browser.
+
+// jsdom implements neither pointer capture nor scrolling, both used by the
+// Radix UI primitives (a Select opens on pointerdown and scrolls the active
+// item into view). Stub them so those components can be driven in tests.
+if (typeof Element.prototype.hasPointerCapture !== 'function') {
+  Element.prototype.hasPointerCapture = () => false;
+}
+if (typeof Element.prototype.setPointerCapture !== 'function') {
+  Element.prototype.setPointerCapture = () => {};
+}
+if (typeof Element.prototype.releasePointerCapture !== 'function') {
+  Element.prototype.releasePointerCapture = () => {};
+}
+if (typeof Element.prototype.scrollIntoView !== 'function') {
+  Element.prototype.scrollIntoView = () => {};
+}

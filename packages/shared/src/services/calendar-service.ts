@@ -1,5 +1,6 @@
 import type {
   CalendarEvent,
+  CalendarEventScope,
   CreateCalendarEventInput,
   GetCalendarEventsParams,
   UpdateCalendarEventInput,
@@ -70,15 +71,22 @@ class CalendarService {
     return result.data;
   }
 
+  /**
+   * Updates an event. `scope` decides whether the change applies to the
+   * occurrence alone or to every occurrence of the series it belongs to.
+   */
   async updateEvent(
     id: number,
-    input: UpdateCalendarEventInput
+    input: UpdateCalendarEventInput,
+    scope?: CalendarEventScope
   ): Promise<CalendarEvent> {
+    const body = scope ? { ...input, scope } : input;
+
     const response = await authService.makeAuthenticatedRequest(
       `${this.baseUrl}/calendar-events/${id}`,
       {
         method: 'PUT',
-        body: JSON.stringify(input),
+        body: JSON.stringify(body),
       }
     );
 
@@ -90,9 +98,15 @@ class CalendarService {
     return result.data;
   }
 
-  async deleteEvent(id: number): Promise<void> {
+  /**
+   * Deletes an event. `scope` decides whether the occurrence alone or every
+   * occurrence of the series it belongs to is removed.
+   */
+  async deleteEvent(id: number, scope?: CalendarEventScope): Promise<void> {
+    const query = scope ? `?scope=${scope}` : '';
+
     const response = await authService.makeAuthenticatedRequest(
-      `${this.baseUrl}/calendar-events/${id}`,
+      `${this.baseUrl}/calendar-events/${id}${query}`,
       {
         method: 'DELETE',
       }

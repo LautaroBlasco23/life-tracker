@@ -320,3 +320,158 @@ func TestCreateEvent_WithoutUser_ReturnsUnauthorized(t *testing.T) {
 	w := doJSON(t, router, http.MethodPost, "/calendar-events", validBody())
 	assert.Equal(t, http.StatusUnauthorized, w.Code)
 }
+
+// --- Weekly recurrence ---
+
+// recurrenceBody returns a create payload with a weekly recurrence. An empty
+// until leaves the bound out of the request.
+func recurrenceBody(until string) map[string]interface{} {
+	recurrence := map[string]interface{}{"rule": "weekly"}
+	if until != "" {
+		recurrence["until"] = until
+	}
+
+	return map[string]interface{}{
+		"title":      "English class",
+		"category":   "Study",
+		"startAt":    "2026-10-19T10:00:00Z",
+		"endAt":      "2026-10-19T12:00:00Z",
+		"recurrence": recurrence,
+	}
+}
+
+func TestCreateEvent_WeeklyRecurrence_CreatesEveryOccurrence(t *testing.T) {
+	router, _, cleanup := setupTestRouter(t)
+	defer cleanup()
+
+	w := doJSON(t, router, http.MethodPost, "/calendar-events", recurrenceBody("2026-11-09T10:00:00Z"))
+	assert.Equal(t, http.StatusCreated, w.Code)
+
+	var resp struct {
+		Data dto.CalendarEventResponse `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	require.NotNil(t, resp.Data.SeriesID)
+	assert.Equal(t, "weekly", *resp.Data.RecurrenceRule)
+	assert.Equal(t, 0, *resp.Data.OccurrenceIndex)
+
+	w = doJSON(t, router, http.MethodGet, "/calendar-events", nil)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var list struct {
+		Count int                         `json:"count"`
+		Data  []dto.CalendarEventResponse `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &list))
+	assert.Equal(t, 4, list.Count)
+	for _, event := range list.Data {
+		require.NotNil(t, event.SeriesID)
+		assert.Equal(t, *resp.Data.SeriesID, *event.SeriesID)
+	}
+}
+
+func TestCreateEvent_RecurrenceWithoutUntil_ReturnsBadRequest(t *testing.T) {
+	router, _, cleanup := setupTestRouter(t)
+	defer cleanup()
+
+	body := recurrenceBody("")
+
+	w := doJSON(t, router, http.MethodPost, "/calendar-events", body)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+
+	var resp map[string]interface{}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Contains(t, resp["error"], "until is required")
+}
+
+func TestCreateEvent_RecurrenceOverTheCap_ReturnsBadRequest(t *testing.T) {
+	router, _, cleanup := setupTestRouter(t)
+	defer cleanup()
+
+	// 101 weekly occurrences exceed the cap of 100.
+	w := doJSON(t, router, http.MethodPost, "/calendar-events", recurrenceBody("2028-10-16T10:00:00Z"))
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+
+	var resp map[string]interface{}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
+	assert.Contains(t, resp["error"], "maximum of 100 occurrences")
+
+	w = doJSON(t, router, http.MethodGet, "/calendar-events", nil)
+	var list struct {
+		Count int `json:"count"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &list))
+	assert.Equal(t, 0, list.Count)
+}
+
+func TestUpdateEvent_SeriesScope_UpdatesEveryOccurrence(t *testing.T) {
+	router, _, cleanup := setupTestRouter(t)
+	defer cleanup()
+
+	w := doJSON(t, router, http.MethodPost, "/calendar-events", recurrenceBody("2026-11-09T10:00:00Z"))
+	require.Equal(t, http.StatusCreated, w.Code)
+
+	var created struct {
+		Data dto.CalendarEventResponse `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &created))
+
+	w = doJSON(t, router, http.MethodPut, fmt.Sprintf("/calendar-events/%d", created.Data.ID), map[string]interface{}{
+		"title": "renamed",
+		"scope": "series",
+	})
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	w = doJSON(t, router, http.MethodGet, "/calendar-events", nil)
+	var list struct {
+		Data []dto.CalendarEventResponse `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &list))
+	require.Len(t, list.Data, 4)
+	for _, event := range list.Data {
+		assert.Equal(t, "renamed", event.Title)
+	}
+}
+
+func TestDeleteEvent_SeriesScope_RemovesEveryOccurrence(t *testing.T) {
+	router, _, cleanup := setupTestRouter(t)
+	defer cleanup()
+
+	w := doJSON(t, router, http.MethodPost, "/calendar-events", recurrenceBody("2026-11-09T10:00:00Z"))
+	require.Equal(t, http.StatusCreated, w.Code)
+
+	var created struct {
+		Data dto.CalendarEventResponse `json:"data"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &created))
+
+	w = doJSON(t, router, http.MethodDelete, fmt.Sprintf("/calendar-events/%d?scope=series", created.Data.ID), nil)
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	w = doJSON(t, router, http.MethodGet, "/calendar-events", nil)
+	var list struct {
+		Count int `json:"count"`
+	}
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &list))
+	assert.Equal(t, 0, list.Count)
+}
+
+func TestDeleteEvent_InvalidScope_ReturnsBadRequest(t *testing.T) {
+	router, db, cleanup := setupTestRouter(t)
+	defer cleanup()
+
+	event := model.CalendarEvent{
+		UserID:   1,
+		Title:    "to delete",
+		Category: "Study",
+		StartAt:  time.Date(2026, time.October, 19, 10, 0, 0, 0, time.UTC),
+		EndAt:    time.Date(2026, time.October, 19, 12, 0, 0, 0, time.UTC),
+	}
+	require.NoError(t, db.Create(&event).Error)
+
+	w := doJSON(t, router, http.MethodDelete, fmt.Sprintf("/calendar-events/%d?scope=everything", event.ID), nil)
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+
+	w = doJSON(t, router, http.MethodGet, fmt.Sprintf("/calendar-events/%d", event.ID), nil)
+	assert.Equal(t, http.StatusOK, w.Code)
+}
