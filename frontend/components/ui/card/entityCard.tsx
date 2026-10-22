@@ -119,9 +119,7 @@ export function EntityCard({
               <div className="flex items-start gap-2 mb-1 flex-wrap">
                 <CardTitle
                   className={`text-base sm:text-lg font-medium ${
-                    isCompleted
-                      ? 'text-success'
-                      : 'text-foreground'
+                    isCompleted ? 'text-success' : 'text-foreground'
                   } break-words`}
                 >
                   {title}
