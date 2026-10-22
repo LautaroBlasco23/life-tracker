@@ -851,6 +851,18 @@
     "titleRequiredDescription": "Ingresá un título para el evento.",
     "failedToLoad": "No se pudo cargar el calendario",
     "failedToSave": "No se pudo guardar el evento",
-    "failedToDelete": "No se pudo eliminar el evento"
+    "failedToDelete": "No se pudo eliminar el evento",
+    "repeat": "Repetir",
+    "repeatNone": "Ninguna",
+    "repeatWeekly": "Semanal",
+    "repeatUntil": "Repetir hasta",
+    "repeatUntilRequired": "Elegí la última fecha de la serie",
+    "repeatUntilBeforeStart": "La fecha final no puede ser anterior a la fecha del evento",
+    "repeatLocked": "La repetición se define al crear el evento",
+    "applyTo": "Aplicar a",
+    "applyToOccurrence": "Este evento",
+    "applyToSeries": "Toda la serie",
+    "deleteScope": "Aplicar el borrado a",
+    "seriesEvent": "Parte de una serie semanal"
   }
 }

@@ -162,6 +162,9 @@ func (c *CalendarController) UpdateEvent(ctx *gin.Context) {
 	})
 }
 
+// DeleteEvent removes an event. The optional `scope` query parameter selects
+// the occurrences to remove: "occurrence" (the default) or "series", which
+// removes every occurrence of the series the event belongs to.
 func (c *CalendarController) DeleteEvent(ctx *gin.Context) {
 	userID, err := getCalendarUserID(ctx)
 	if err != nil {
@@ -175,7 +178,13 @@ func (c *CalendarController) DeleteEvent(ctx *gin.Context) {
 		return
 	}
 
-	if err := c.calendarService.DeleteEvent(userID, uint(eventID)); err != nil {
+	scope := ctx.Query("scope")
+	if scope != "" && scope != dto.ScopeOccurrence && scope != dto.ScopeSeries {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid scope"})
+		return
+	}
+
+	if err := c.calendarService.DeleteEvent(userID, uint(eventID), scope); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

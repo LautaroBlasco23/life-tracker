@@ -1,7 +1,10 @@
 // calendar_event_service_test.go
 //
 // Subject: internal/domain/calendar/service.CalendarService against real PostgreSQL.
-// Scope:   interval validation, CRUD, ownership, and range listing.
+// Scope:   interval validation, CRUD, ownership, range listing, and weekly
+//
+//	recurrence (occurrence generation, series scope on update/delete).
+//
 // Out of scope: overlap SQL correctness → calendar_event_repository_test.go
 //
 //	HTTP contract → calendar_event_controller_test.go
@@ -234,10 +237,301 @@ func TestDeleteEvent(t *testing.T) {
 	created, err := svc.CreateEvent(userID, baseRequest())
 	require.NoError(t, err)
 
-	assert.Error(t, svc.DeleteEvent(uint(61), created.ID))
-	assert.NoError(t, svc.DeleteEvent(userID, created.ID))
+	assert.Error(t, svc.DeleteEvent(uint(61), created.ID, dto.ScopeOccurrence))
+	assert.NoError(t, svc.DeleteEvent(userID, created.ID, dto.ScopeOccurrence))
 
 	resp, err := svc.GetEvent(userID, created.ID)
 	assert.Error(t, err)
 	assert.Nil(t, resp)
+}
+
+// --- Weekly recurrence ---
+
+// weeklyRequest returns a create request for a weekly series ending at until.
+func weeklyRequest(until time.Time) *dto.CreateCalendarEventRequest {
+	req := baseRequest()
+	interval := 1
+	req.Recurrence = &dto.CalendarRecurrenceRequest{
+		Rule:     dto.RecurrenceRuleWeekly,
+		Interval: &interval,
+		Until:    &until,
+	}
+	return req
+}
+
+// monday is the first occurrence used by the recurrence tests.
+func monday() time.Time {
+	return time.Date(2026, time.October, 19, 10, 0, 0, 0, time.UTC)
+}
+
+func TestCreateRecurringEventMaterializesOccurrences(t *testing.T) {
+	svc := getTestService(t)
+	userID := uint(80)
+
+	start := monday()
+	created, err := svc.CreateEvent(userID, weeklyRequest(start.AddDate(0, 0, 21)))
+	require.NoError(t, err)
+	require.NotNil(t, created)
+	require.NotNil(t, created.SeriesID)
+
+	events, err := svc.GetEvents(userID, nil)
+	require.NoError(t, err)
+	require.Len(t, events, 4)
+
+	for i, event := range events {
+		require.NotNil(t, event.SeriesID)
+		assert.Equal(t, *created.SeriesID, *event.SeriesID)
+		require.NotNil(t, event.OccurrenceIndex)
+		assert.Equal(t, i, *event.OccurrenceIndex)
+		require.NotNil(t, event.RecurrenceRule)
+		assert.Equal(t, dto.RecurrenceRuleWeekly, *event.RecurrenceRule)
+		require.NotNil(t, event.RecurrenceInterval)
+		assert.Equal(t, 1, *event.RecurrenceInterval)
+
+		// Same weekday and time of day, one week apart.
+		expected := start.AddDate(0, 0, 7*i)
+		assert.Equal(t, time.Monday, event.StartAt.Weekday())
+		assert.True(t, expected.Equal(event.StartAt), "occurrence %d starts at %s", i, event.StartAt)
+		assert.True(t, expected.Add(2*time.Hour).Equal(event.EndAt), "occurrence %d ends at %s", i, event.EndAt)
+	}
+}
+
+func TestCreateRecurringEventUntilBoundary(t *testing.T) {
+	svc := getTestService(t)
+
+	start := monday()
+	third := start.AddDate(0, 0, 14)
+
+	t.Run("an_occurrence_starting_exactly_at_until_is_included", func(t *testing.T) {
+		userID := uint(81)
+		_, err := svc.CreateEvent(userID, weeklyRequest(third))
+		require.NoError(t, err)
+
+		events, err := svc.GetEvents(userID, nil)
+		require.NoError(t, err)
+		assert.Len(t, events, 3)
+	})
+
+	t.Run("an_occurrence_starting_after_until_is_excluded", func(t *testing.T) {
+		userID := uint(82)
+		_, err := svc.CreateEvent(userID, weeklyRequest(third.Add(-time.Second)))
+		require.NoError(t, err)
+
+		events, err := svc.GetEvents(userID, nil)
+		require.NoError(t, err)
+		assert.Len(t, events, 2)
+	})
+}
+
+func TestCreateRecurringEventRejectsInvalidRules(t *testing.T) {
+	svc := getTestService(t)
+	userID := uint(82)
+
+	start := monday()
+	zero := 0
+	huge := 53
+	beforeStart := start.Add(-time.Hour)
+
+	tests := []struct {
+		name       string
+		recurrence *dto.CalendarRecurrenceRequest
+		wantErr    string
+	}{
+		{
+			name: "missing_until",
+			recurrence: &dto.CalendarRecurrenceRequest{
+				Rule: dto.RecurrenceRuleWeekly,
+			},
+			wantErr: "until is required",
+		},
+		{
+			name: "unsupported_rule",
+			recurrence: &dto.CalendarRecurrenceRequest{
+				Rule:  "daily",
+				Until: &start,
+			},
+			wantErr: "unsupported recurrence rule",
+		},
+		{
+			name: "until_before_start",
+			recurrence: &dto.CalendarRecurrenceRequest{
+				Rule:  dto.RecurrenceRuleWeekly,
+				Until: &beforeStart,
+			},
+			wantErr: "until must not be before",
+		},
+		{
+			name: "interval_below_one",
+			recurrence: &dto.CalendarRecurrenceRequest{
+				Rule:     dto.RecurrenceRuleWeekly,
+				Interval: &zero,
+				Until:    &start,
+			},
+			wantErr: "interval must be between 1 and 52 weeks",
+		},
+		{
+			name: "interval_above_the_maximum",
+			recurrence: &dto.CalendarRecurrenceRequest{
+				Rule:     dto.RecurrenceRuleWeekly,
+				Interval: &huge,
+				Until:    &start,
+			},
+			wantErr: "interval must be between 1 and 52 weeks",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req := baseRequest()
+			req.Recurrence = tt.recurrence
+
+			resp, err := svc.CreateEvent(userID, req)
+			require.Error(t, err)
+			assert.Nil(t, resp)
+			assert.Contains(t, err.Error(), tt.wantErr)
+
+			events, err := svc.GetEvents(userID, nil)
+			require.NoError(t, err)
+			assert.Empty(t, events)
+		})
+	}
+}
+
+func TestCreateRecurringEventRejectsTooManyOccurrences(t *testing.T) {
+	svc := getTestService(t)
+	userID := uint(83)
+
+	start := monday()
+
+	// 100 occurrences fit in the cap.
+	_, err := svc.CreateEvent(userID, weeklyRequest(start.AddDate(0, 0, 99*7)))
+	require.NoError(t, err)
+
+	events, err := svc.GetEvents(userID, nil)
+	require.NoError(t, err)
+	require.Len(t, events, 100)
+
+	// The 101st occurrence is rejected instead of being truncated.
+	_, err = svc.CreateEvent(userID, weeklyRequest(start.AddDate(0, 0, 100*7)))
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "maximum of 100 occurrences")
+
+	events, err = svc.GetEvents(userID, nil)
+	require.NoError(t, err)
+	assert.Len(t, events, 100)
+}
+
+func TestUpdateEventSeriesScope(t *testing.T) {
+	svc := getTestService(t)
+	userID := uint(84)
+
+	start := monday()
+	created, err := svc.CreateEvent(userID, weeklyRequest(start.AddDate(0, 0, 21)))
+	require.NoError(t, err)
+
+	t.Run("occurrence_scope_touches_a_single_occurrence", func(t *testing.T) {
+		title := "Only this one"
+		resp, err := svc.UpdateEvent(userID, created.ID, &dto.UpdateCalendarEventRequest{
+			Title: &title,
+			Scope: dto.ScopeOccurrence,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, title, resp.Title)
+
+		events, err := svc.GetEvents(userID, nil)
+		require.NoError(t, err)
+		require.Len(t, events, 4)
+		assert.Equal(t, title, events[0].Title)
+		assert.Equal(t, "English class", events[1].Title)
+	})
+
+	t.Run("series_scope_touches_every_occurrence", func(t *testing.T) {
+		title := "Whole series"
+		resp, err := svc.UpdateEvent(userID, created.ID, &dto.UpdateCalendarEventRequest{
+			Title: &title,
+			Scope: dto.ScopeSeries,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, title, resp.Title)
+
+		events, err := svc.GetEvents(userID, nil)
+		require.NoError(t, err)
+		require.Len(t, events, 4)
+		for _, event := range events {
+			assert.Equal(t, title, event.Title)
+		}
+	})
+
+	t.Run("series_scope_shifts_every_occurrence", func(t *testing.T) {
+		newStart := created.StartAt.Add(time.Hour)
+		newEnd := newStart.Add(2 * time.Hour)
+
+		_, err := svc.UpdateEvent(userID, created.ID, &dto.UpdateCalendarEventRequest{
+			StartAt: &newStart,
+			EndAt:   &newEnd,
+			Scope:   dto.ScopeSeries,
+		})
+		require.NoError(t, err)
+
+		events, err := svc.GetEvents(userID, nil)
+		require.NoError(t, err)
+		require.Len(t, events, 4)
+		for i, event := range events {
+			expected := newStart.AddDate(0, 0, 7*i)
+			assert.True(t, expected.Equal(event.StartAt), "occurrence %d starts at %s", i, event.StartAt)
+			assert.True(t, expected.Add(2*time.Hour).Equal(event.EndAt), "occurrence %d ends at %s", i, event.EndAt)
+		}
+	})
+
+	t.Run("series_scope_on_a_single_event_behaves_like_an_occurrence", func(t *testing.T) {
+		single, err := svc.CreateEvent(userID, baseRequest())
+		require.NoError(t, err)
+
+		title := "Renamed"
+		resp, err := svc.UpdateEvent(userID, single.ID, &dto.UpdateCalendarEventRequest{
+			Title: &title,
+			Scope: dto.ScopeSeries,
+		})
+		require.NoError(t, err)
+		assert.Equal(t, title, resp.Title)
+	})
+}
+
+func TestDeleteEventSeriesScope(t *testing.T) {
+	svc := getTestService(t)
+	userID := uint(85)
+
+	start := monday()
+	created, err := svc.CreateEvent(userID, weeklyRequest(start.AddDate(0, 0, 21)))
+	require.NoError(t, err)
+
+	events, err := svc.GetEvents(userID, nil)
+	require.NoError(t, err)
+	require.Len(t, events, 4)
+
+	t.Run("occurrence_scope_removes_a_single_occurrence", func(t *testing.T) {
+		require.NoError(t, svc.DeleteEvent(userID, events[1].ID, dto.ScopeOccurrence))
+
+		remaining, err := svc.GetEvents(userID, nil)
+		require.NoError(t, err)
+		assert.Len(t, remaining, 3)
+	})
+
+	t.Run("series_scope_removes_every_occurrence", func(t *testing.T) {
+		require.NoError(t, svc.DeleteEvent(userID, created.ID, dto.ScopeSeries))
+
+		remaining, err := svc.GetEvents(userID, nil)
+		require.NoError(t, err)
+		assert.Empty(t, remaining)
+	})
+
+	t.Run("series_scope_on_a_single_event_removes_it", func(t *testing.T) {
+		single, err := svc.CreateEvent(userID, baseRequest())
+		require.NoError(t, err)
+
+		require.NoError(t, svc.DeleteEvent(userID, single.ID, dto.ScopeSeries))
+
+		_, err = svc.GetEvent(userID, single.ID)
+		assert.Error(t, err)
+	})
 }

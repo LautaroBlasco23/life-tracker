@@ -185,7 +185,10 @@ CRUD with filter support, plus `GET /stats` aggregating total time per category.
 ### Calendar — `domain/calendar`
 
 **Schema** (`calendar_events` table): `id`, `userId`, `title` (max 255),
-`description`, `category` (max 100), `start_at`, `end_at`.
+`description`, `category` (max 100), `start_at`, `end_at`, plus the
+recurrence columns `series_id`, `occurrence_index`, `recurrence_rule`,
+`recurrence_until`, `recurrence_interval` (all nullable — one-off events
+keep them NULL).
 
 Scheduled time blocks for the week calendar (the `Calendar` tab of the web
 Time page). Unlike `time_records` — logged facts with only a duration — events
@@ -197,6 +200,35 @@ Rules:
 - `GET` with a range keeps events that **overlap** `[from, to)`, so a block
   crossing midnight or a week boundary appears in both views.
 - `from` and `to` are RFC3339 instants and must be sent together.
+
+**Weekly recurrence**
+
+A recurring event is **materialized**: creating one writes one row per
+occurrence (same weekday and time of day), all of them sharing a `series_id`
+and carrying their `occurrence_index`. The read path is unchanged — every
+occurrence is an ordinary event, so the overlap query and the week grid need
+no special casing.
+
+- `POST /calendar-events` accepts an optional `recurrence` object:
+  `{ "rule": "weekly", "interval": 1, "until": "<RFC3339>" }`.
+  `until` is **required** for a weekly rule; `interval` is the number of
+  weeks between occurrences (default 1, max 52).
+- An occurrence is created while its start is **before or at** `until`; a
+  series can hold at most **100 occurrences**. A longer series is rejected
+  with a 400 error instead of being truncated.
+- Updating or deleting an event that belongs to a series takes a `scope`:
+  - `PUT /calendar-events/:id` — `scope` in the body (`occurrence`, the
+    default, or `series`).
+  - `DELETE /calendar-events/:id?scope=series` — `scope` as a query
+    parameter (the repo convention for flags).
+  - `scope=series` applies the change to every occurrence: a new start shifts
+    the whole series by the same amount and the edited occurrence's new
+    duration is applied to all of them. `scope=series` on an event that is
+    not part of a series behaves like `scope=occurrence`.
+
+Limitation: the API only receives instants, so the occurrences keep the
+weekday and the UTC time of day of the first one. A daylight-saving change in
+the middle of a series shifts the local time of the later occurrences.
 
 ### Routine — `domain/routine`
 
@@ -336,11 +368,11 @@ All routes are mounted under the `/api` prefix. "Public" routes need no token; "
 
 | Method | Path | Access | Description |
 |---|---|---|---|
-| POST | /calendar-events | Protected | Create event |
+| POST | /calendar-events | Protected | Create event (optional weekly `recurrence`) |
 | GET | /calendar-events?from=&to= | Protected | List events overlapping the range |
 | GET | /calendar-events/:id | Protected | Get event |
-| PUT | /calendar-events/:id | Protected | Update event |
-| DELETE | /calendar-events/:id | Protected | Delete event |
+| PUT | /calendar-events/:id | Protected | Update event (`scope` in the body) |
+| DELETE | /calendar-events/:id?scope= | Protected | Delete event (`scope=series` removes the series) |
 
 ### Routine — `/api/routines`
 

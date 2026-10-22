@@ -22,18 +22,28 @@ import {
 } from '@/components/ui/select';
 import { Trash2 } from 'lucide-react';
 import { calendarService } from '@shared/services/calendar-service';
-import type { CalendarEvent } from '@shared/types/calendar';
+import type {
+  CalendarEvent,
+  CalendarEventScope,
+  CreateCalendarEventInput,
+} from '@shared/types/calendar';
 import { TIME_CATEGORIES } from '@shared/types/time';
 import { useTranslations } from '@shared/contexts/language-context';
 import { showToast } from '@/lib/toast';
 import {
+  addDaysToDateValue,
   combineDateAndTime,
   timeInputValueAt,
   toDateInputValue,
+  toEndOfDayInstant,
   toTimeInputValue,
 } from '../lib/week';
 
 const MAX_DURATION_MS = 24 * 60 * 60 * 1000;
+/** Default length of a new weekly series, in weeks. */
+const DEFAULT_SERIES_WEEKS = 4;
+
+type RecurrenceChoice = 'none' | 'weekly';
 
 export interface EventDefaults {
   date: Date;
@@ -69,7 +79,15 @@ export function CalendarEventModal({
   const [dateValue, setDateValue] = useState('');
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('10:00');
+  const [recurrence, setRecurrence] = useState<RecurrenceChoice>('none');
+  const [untilDate, setUntilDate] = useState('');
+  const [scope, setScope] = useState<CalendarEventScope>('occurrence');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // The repeat rule is fixed once the event exists: a series is materialized
+  // at creation time, so it cannot be turned into one (or back) later.
+  const isEditing = event !== null;
+  const isSeriesEvent = Boolean(event?.seriesId);
 
   useEffect(() => {
     if (!open) return;
@@ -83,6 +101,13 @@ export function CalendarEventModal({
       setDateValue(toDateInputValue(start));
       setStartTime(toTimeInputValue(start));
       setEndTime(toTimeInputValue(end));
+      setRecurrence(event.recurrenceRule === 'weekly' ? 'weekly' : 'none');
+      setUntilDate(
+        event.recurrenceUntil
+          ? toDateInputValue(new Date(event.recurrenceUntil))
+          : ''
+      );
+      setScope('occurrence');
       return;
     }
 
@@ -93,8 +118,42 @@ export function CalendarEventModal({
       setDateValue(toDateInputValue(defaults.date));
       setStartTime(timeInputValueAt(defaults.date, defaults.startMinutes));
       setEndTime(timeInputValueAt(defaults.date, defaults.endMinutes));
+      setRecurrence('none');
+      setUntilDate('');
+      setScope('occurrence');
     }
   }, [open, event, defaults]);
+
+  const handleRecurrenceChange = (value: string) => {
+    const choice = value as RecurrenceChoice;
+    setRecurrence(choice);
+    if (choice === 'weekly' && !untilDate) {
+      setUntilDate(addDaysToDateValue(dateValue, DEFAULT_SERIES_WEEKS * 7));
+    }
+  };
+
+  const save = async (action: () => Promise<unknown>) => {
+    setIsSubmitting(true);
+    try {
+      await action();
+      showToast({
+        title: event ? t('eventUpdated') : t('eventCreated'),
+        description: t(
+          event ? 'eventUpdatedDescription' : 'eventCreatedDescription',
+          { title: title.trim() }
+        ),
+      });
+      onSaved(event ? 'updated' : 'created');
+    } catch (error) {
+      showToast({
+        title: t('failedToSave'),
+        description: error instanceof Error ? error.message : undefined,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleSubmit = async (formEvent: React.FormEvent) => {
     formEvent.preventDefault();
@@ -129,40 +188,40 @@ export function CalendarEventModal({
       return;
     }
 
-    setIsSubmitting(true);
-    try {
-      const payload = {
-        title: trimmedTitle,
-        description,
-        category,
-        startAt: start.toISOString(),
-        endAt: end.toISOString(),
-      };
+    const payload = {
+      title: trimmedTitle,
+      description,
+      category,
+      startAt: start.toISOString(),
+      endAt: end.toISOString(),
+    };
 
-      if (event) {
-        await calendarService.updateEvent(event.id, payload);
-        showToast({
-          title: t('eventUpdated'),
-          description: t('eventUpdatedDescription', { title: trimmedTitle }),
-        });
-        onSaved('updated');
-      } else {
-        await calendarService.createEvent(payload);
-        showToast({
-          title: t('eventCreated'),
-          description: t('eventCreatedDescription', { title: trimmedTitle }),
-        });
-        onSaved('created');
-      }
-    } catch (error) {
-      showToast({
-        title: t('failedToSave'),
-        description: error instanceof Error ? error.message : undefined,
-        variant: 'destructive',
-      });
-    } finally {
-      setIsSubmitting(false);
+    if (event) {
+      await save(() => calendarService.updateEvent(event.id, payload, scope));
+      return;
     }
+
+    const input: CreateCalendarEventInput = { ...payload };
+    if (recurrence === 'weekly') {
+      if (!untilDate) {
+        showToast({ title: t('repeatUntilRequired'), variant: 'destructive' });
+        return;
+      }
+      if (untilDate < dateValue) {
+        showToast({
+          title: t('repeatUntilBeforeStart'),
+          variant: 'destructive',
+        });
+        return;
+      }
+      input.recurrence = {
+        rule: 'weekly',
+        interval: 1,
+        until: toEndOfDayInstant(untilDate),
+      };
+    }
+
+    await save(() => calendarService.createEvent(input));
   };
 
   return (
@@ -226,6 +285,65 @@ export function CalendarEventModal({
               <TimeInput id="event-end" value={endTime} onChange={setEndTime} />
             </div>
           </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="event-repeat">{t('repeat')}</Label>
+            <Select
+              value={recurrence}
+              onValueChange={handleRecurrenceChange}
+              disabled={isEditing}
+            >
+              <SelectTrigger id="event-repeat">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">{t('repeatNone')}</SelectItem>
+                <SelectItem value="weekly">{t('repeatWeekly')}</SelectItem>
+              </SelectContent>
+            </Select>
+            {isEditing ? (
+              <p className="text-xs text-muted-foreground">
+                {t('repeatLocked')}
+              </p>
+            ) : null}
+          </div>
+
+          {recurrence === 'weekly' ? (
+            <div className="space-y-2">
+              <Label htmlFor="event-repeat-until">{t('repeatUntil')}</Label>
+              <Input
+                id="event-repeat-until"
+                type="date"
+                value={untilDate}
+                onChange={(e) => setUntilDate(e.target.value)}
+                disabled={isEditing}
+                className="text-foreground"
+              />
+            </div>
+          ) : null}
+
+          {isSeriesEvent ? (
+            <div className="space-y-2">
+              <Label htmlFor="event-scope">{t('applyTo')}</Label>
+              <Select
+                value={scope}
+                onValueChange={(value) => setScope(value as CalendarEventScope)}
+              >
+                <SelectTrigger id="event-scope">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="occurrence">
+                    {t('applyToOccurrence')}
+                  </SelectItem>
+                  <SelectItem value="series">{t('applyToSeries')}</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {t('seriesEvent')}
+              </p>
+            </div>
+          ) : null}
 
           <div className="space-y-2">
             <Label htmlFor="event-description">{t('description')}</Label>

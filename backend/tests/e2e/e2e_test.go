@@ -420,6 +420,59 @@ func TestCalendarEventLifecycle(t *testing.T) {
 	assert.Equal(t, http.StatusNotFound, rec.Code)
 }
 
+// TestCalendarWeeklyRecurrence exercises the materialized recurrence over the
+// production router: a weekly event writes one row per occurrence, and the
+// series scope removes them all.
+func TestCalendarWeeklyRecurrence(t *testing.T) {
+	username, email, password := uniqueUser(t)
+	access, _ := registerUser(t, username, email, password)
+
+	authed := func(method, path string, body any) (*httptest.ResponseRecorder, map[string]any) {
+		return doJSON(t, method, path, access, body)
+	}
+
+	start := time.Date(2030, time.January, 7, 10, 0, 0, 0, time.UTC) // a Monday
+	end := start.Add(2 * time.Hour)
+
+	rec, res := authed(http.MethodPost, "/api/calendar-events", map[string]any{
+		"title":    "E2E weekly class",
+		"category": "Study",
+		"startAt":  start.Format(time.RFC3339),
+		"endAt":    end.Format(time.RFC3339),
+		"recurrence": map[string]any{
+			"rule":  "weekly",
+			"until": start.AddDate(0, 0, 21).Format(time.RFC3339),
+		},
+	})
+	require.Equal(t, http.StatusCreated, rec.Code, "body: %s", rec.Body.String())
+
+	created, _ := res["data"].(map[string]any)
+	require.NotNil(t, created, "body: %s", rec.Body.String())
+	eventID, ok := created["id"].(float64)
+	require.True(t, ok)
+	require.NotZero(t, eventID)
+	assert.NotEmpty(t, created["seriesId"], "a recurring event carries a series id")
+
+	// Every occurrence shows up in the range query.
+	from := start.AddDate(0, 0, -1).Format(time.RFC3339)
+	to := start.AddDate(0, 0, 28).Format(time.RFC3339)
+	rec, res = authed(http.MethodGet, "/api/calendar-events?from="+from+"&to="+to, nil)
+	require.Equal(t, http.StatusOK, rec.Code, "body: %s", rec.Body.String())
+	items, ok := res["data"].([]any)
+	require.True(t, ok, "list must return an array")
+	assert.Len(t, items, 4, "three weeks of weekly occurrences")
+
+	// Deleting the series removes every occurrence.
+	path := fmt.Sprintf("/api/calendar-events/%d?scope=series", int64(eventID))
+	rec, _ = authed(http.MethodDelete, path, nil)
+	require.Equal(t, http.StatusOK, rec.Code, "body: %s", rec.Body.String())
+
+	rec, res = authed(http.MethodGet, "/api/calendar-events?from="+from+"&to="+to, nil)
+	require.Equal(t, http.StatusOK, rec.Code, "body: %s", rec.Body.String())
+	items, _ = res["data"].([]any)
+	assert.Empty(t, items, "the whole series is gone")
+}
+
 func TestCORSPreflightReturns204(t *testing.T) {
 	// Preflight must flow through CORSMiddleware (catch-all OPTIONS handler)
 	// and come back 204 with CORS headers set.

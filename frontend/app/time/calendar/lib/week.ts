@@ -117,6 +117,30 @@ export function combineDateAndTime(dateValue: string, timeValue: string): Date {
   return new Date(year, month - 1, day, hours, minutes, 0, 0);
 }
 
+/**
+ * Adds days to a `yyyy-MM-dd` date input value, keeping the same format.
+ * Month and year overflow is handled by the Date constructor.
+ */
+export function addDaysToDateValue(dateValue: string, days: number): string {
+  const date = combineDateAndTime(dateValue, '00:00');
+  if (Number.isNaN(date.getTime())) return '';
+  return toDateInputValue(
+    new Date(date.getFullYear(), date.getMonth(), date.getDate() + days)
+  );
+}
+
+/**
+ * End of the local day of a `yyyy-MM-dd` date input value, as an ISO instant.
+ * A recurring event repeats on that day, so the bound is the last instant of
+ * the day the user picked.
+ */
+export function toEndOfDayInstant(dateValue: string): string {
+  const parts = dateValue.split('-').map(Number);
+  if (parts.length !== 3 || parts.some((part) => Number.isNaN(part))) return '';
+  const [year, month, day] = parts;
+  return new Date(year, month - 1, day, 23, 59, 59, 999).toISOString();
+}
+
 export function minutesFromMidnight(date: Date): number {
   return date.getHours() * 60 + date.getMinutes();
 }

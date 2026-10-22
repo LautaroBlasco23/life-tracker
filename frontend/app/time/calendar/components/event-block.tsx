@@ -2,6 +2,7 @@
 
 import type { CalendarEvent } from '@shared/types/calendar';
 import { cn } from '@/lib/utils';
+import { Repeat } from 'lucide-react';
 import { formatTimeRange } from '../lib/week';
 
 const ACCENT_BARS: Record<string, string> = {
@@ -65,8 +66,16 @@ export function EventBlock({
           accent
         )}
       />
-      <span className="truncate text-xs font-medium leading-tight text-foreground">
-        {event.title}
+      <span className="flex items-center gap-1">
+        {event.seriesId ? (
+          <Repeat
+            aria-hidden
+            className="h-3 w-3 shrink-0 text-muted-foreground"
+          />
+        ) : null}
+        <span className="min-w-0 truncate text-xs font-medium leading-tight text-foreground">
+          {event.title}
+        </span>
       </span>
       <span className="truncate text-[11px] leading-tight text-muted-foreground">
         {timeRange}

@@ -161,3 +161,59 @@ func TestUpdatePersistsChanges(t *testing.T) {
 	assert.True(t, at(9, 30).Equal(updated.StartAt))
 	assert.True(t, at(9, 0).Equal(updated.EndAt))
 }
+
+// createSeriesEvent stores an event that belongs to a series.
+func createSeriesEvent(t *testing.T, repo CalendarEventRepository, userID uint, seriesID string, index int, start time.Time) *model.CalendarEvent {
+	t.Helper()
+	event := &model.CalendarEvent{
+		UserID:          userID,
+		Title:           "weekly",
+		Category:        "Study",
+		StartAt:         start,
+		EndAt:           start.Add(time.Hour),
+		SeriesID:        &seriesID,
+		OccurrenceIndex: &index,
+	}
+	require.NoError(t, repo.Create(event))
+	return event
+}
+
+// TestFindBySeries verifies that the occurrences of a series come back in
+// chronological order and that other users are isolated.
+func TestFindBySeries(t *testing.T) {
+	repo := getTestRepository(t)
+	userID := uint(40)
+	seriesID := "series-1"
+
+	second := createSeriesEvent(t, repo, userID, seriesID, 1, at(10, 0).AddDate(0, 0, 7))
+	first := createSeriesEvent(t, repo, userID, seriesID, 0, at(10, 0))
+	createSeriesEvent(t, repo, uint(41), "series-2", 0, at(10, 0))
+	createTestEvent(t, repo, userID, "one-off", at(12, 0), at(13, 0))
+
+	events, err := repo.FindBySeries(userID, seriesID)
+	require.NoError(t, err)
+	require.Len(t, events, 2)
+	assert.Equal(t, first.ID, events[0].ID)
+	assert.Equal(t, second.ID, events[1].ID)
+}
+
+// TestDeleteSeries verifies that deleting a series soft-deletes every
+// occurrence and leaves the other events alone.
+func TestDeleteSeries(t *testing.T) {
+	repo := getTestRepository(t)
+	userID := uint(45)
+	seriesID := "series-1"
+
+	createSeriesEvent(t, repo, userID, seriesID, 0, at(10, 0))
+	createSeriesEvent(t, repo, userID, seriesID, 1, at(10, 0).AddDate(0, 0, 7))
+	oneOff := createTestEvent(t, repo, userID, "one-off", at(12, 0), at(13, 0))
+
+	deleted, err := repo.DeleteSeries(userID, seriesID)
+	require.NoError(t, err)
+	assert.Equal(t, int64(2), deleted)
+
+	events, err := repo.FindByUserID(userID, nil)
+	require.NoError(t, err)
+	require.Len(t, events, 1)
+	assert.Equal(t, oneOff.ID, events[0].ID)
+}
