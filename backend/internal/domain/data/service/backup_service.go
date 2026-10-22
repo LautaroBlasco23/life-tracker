@@ -7,6 +7,7 @@ import (
 	"time"
 
 	activityModel "life-tracker-backend/internal/domain/activity/model"
+	calendarModel "life-tracker-backend/internal/domain/calendar/model"
 	financeModel "life-tracker-backend/internal/domain/finance/model"
 	noteModel "life-tracker-backend/internal/domain/note/model"
 	routineModel "life-tracker-backend/internal/domain/routine/model"
@@ -31,6 +32,7 @@ func NewBackupService(db *gorm.DB, mongoDB *mongo.Database) *BackupService {
 type backupData struct {
 	activities        []activityModel.Activity
 	timeRecords       []timeModel.TimeRecord
+	calendarEvents    []calendarModel.CalendarEvent
 	notes             []noteModel.Note
 	routines          []routineModel.Routine
 	routineActivities []routineModel.RoutineActivity
@@ -57,6 +59,9 @@ func (s *BackupService) fetchData(userID uint) (*backupData, error) {
 	}
 	if err := s.db.Unscoped().Where("user_id = ?", userID).Order("id").Find(&data.timeRecords).Error; err != nil {
 		return nil, fmt.Errorf("failed to load time records: %w", err)
+	}
+	if err := s.db.Unscoped().Where("user_id = ?", userID).Order("id").Find(&data.calendarEvents).Error; err != nil {
+		return nil, fmt.Errorf("failed to load calendar events: %w", err)
 	}
 	if err := s.db.Unscoped().Where("user_id = ?", userID).Order("id").Find(&data.notes).Error; err != nil {
 		return nil, fmt.Errorf("failed to load notes: %w", err)
@@ -136,6 +141,7 @@ func buildWorkbook(userID uint, data *backupData) (*excelize.File, error) {
 	}{
 		{SheetActivities, ActivitiesHeader, activityRows(data.activities)},
 		{SheetTimeRecords, TimeRecordsHeader, timeRecordRows(data.timeRecords)},
+		{SheetCalendarEvents, CalendarEventsHeader, calendarEventRows(data.calendarEvents)},
 		{SheetNotes, NotesHeader, noteRows(data.notes)},
 		{SheetRoutines, RoutinesHeader, routineRows(data.routines)},
 		{SheetRoutineActivities, RoutineActivitiesHeader, routineActivityRows(data.routineActivities)},
@@ -172,6 +178,8 @@ func countOf(sheetName string, data *backupData) int {
 		return len(data.activities)
 	case SheetTimeRecords:
 		return len(data.timeRecords)
+	case SheetCalendarEvents:
+		return len(data.calendarEvents)
 	case SheetNotes:
 		return len(data.notes)
 	case SheetRoutines:
