@@ -1,6 +1,17 @@
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it, jest } from '@jest/globals';
 import { render, screen } from '@testing-library/react-native';
 import { StreakBadge } from './streak-badge';
+
+// StreakBadge resolves its ink colors through useColors() (theme context);
+// the badge unit tests don't mount ThemeProvider, so stub the palette hook.
+jest.mock('../../lib/use-colors', () => ({
+  useColors: () => ({
+    secondary: '#d6a36d',
+    secondaryForeground: '#30372f',
+    warning: '#96642a',
+    textMuted: '#6a6c61',
+  }),
+}));
 
 // RNTL v14 render is async — always await it before querying.
 

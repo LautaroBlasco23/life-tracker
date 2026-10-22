@@ -460,6 +460,7 @@
   },
   "notes": {
     "title": "Notas",
+    "description": "Escribí y organizá tus notas",
     "search": "Buscar notas...",
     "newNote": "Nueva nota",
     "addGroup": "Crear grupo",

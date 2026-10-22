@@ -4,8 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { AuthGuard } from '@/components/auth-guard';
-import { Navigation } from '@/components/navigation';
+import { PageHeader } from '@/components/ui/page-header';
 import { noteService } from '@shared/services/note-service';
 import { noteGroupService } from '@shared/services/note-group-service';
 import type { Note, NoteGroup } from '@shared/types/note';
@@ -449,142 +448,135 @@ export default function NotesPage() {
   };
 
   return (
-    <AuthGuard>
-      <div className="min-h-screen bg-background pb-20 lg:pb-0 lg:pl-64">
-        <Navigation />
-        <div className="h-[calc(100vh-4rem)] lg:h-screen flex flex-col">
-          <div className="flex items-center justify-between p-4 border-b border-border">
-            <h1 className="text-2xl font-semibold text-foreground">
-              {t('title')}
-            </h1>
-          </div>
+    <>
+      <div className="h-[calc(100vh-4rem)] lg:h-screen flex flex-col">
+        <PageHeader title={t('title')} description={t('description')} />
 
-          <div className="flex flex-1 overflow-hidden flex-col md:flex-row">
-            <aside
-              className={cn(
-                'flex flex-col bg-muted/30',
-                'w-full md:w-80 md:border-r md:border-border',
-                selectedNote ? 'hidden md:flex' : 'flex'
-              )}
-            >
-              <div className="p-3 space-y-3 border-b border-border md:border-b-0">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    type="text"
-                    placeholder={t('search')}
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-9"
-                  />
-                </div>
-                <Button
-                  onClick={() => setCreateGroupOpen(true)}
-                  variant="outline"
-                  className="w-full"
-                  size="sm"
-                >
-                  <FolderPlus className="h-4 w-4 mr-2" />
-                  {t('addGroup')}
-                </Button>
-                <Button onClick={handleCreateNote} className="w-full" size="sm">
-                  <Plus className="h-4 w-4 mr-2" />
-                  {t('newNote')}
-                </Button>
-              </div>
-
-              <div className="flex-1 overflow-hidden flex flex-col min-h-0">
-                <NotesSidebar
-                  notes={notes}
-                  groups={groups}
-                  selectedNote={selectedNote}
-                  searchQuery={searchQuery}
-                  isLoading={isLoading}
-                  onSelectNote={handleSelectNote}
-                  onEditNote={(note) => {
-                    handleSelectNote(note);
-                    setIsEditing(true);
-                  }}
-                  onDeleteNote={openDeleteModal}
-                  onUpdateNotes={handleUpdateNotes}
-                  onUpdateGroups={handleUpdateGroups}
-                  onRenameGroup={handleRenameGroup}
-                  onOpenDeleteGroup={openDeleteGroupModal}
+        <div className="flex flex-1 overflow-hidden flex-col md:flex-row">
+          <aside
+            className={cn(
+              'flex flex-col bg-muted/30',
+              'w-full md:w-80 md:border-r md:border-border',
+              selectedNote ? 'hidden md:flex' : 'flex'
+            )}
+          >
+            <div className="p-3 space-y-3 border-b border-border md:border-b-0">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder={t('search')}
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9"
                 />
               </div>
-            </aside>
+              <Button
+                onClick={() => setCreateGroupOpen(true)}
+                variant="outline"
+                className="w-full"
+                size="sm"
+              >
+                <FolderPlus className="h-4 w-4 mr-2" />
+                {t('addGroup')}
+              </Button>
+              <Button onClick={handleCreateNote} className="w-full" size="sm">
+                <Plus className="h-4 w-4 mr-2" />
+                {t('newNote')}
+              </Button>
+            </div>
 
-            <main
-              className={cn(
-                'flex-1 flex flex-col min-h-0',
-                selectedNote ? 'flex' : 'hidden md:flex'
-              )}
-            >
-              {selectedNote ? (
-                <>
-                  <div className="p-4 border-b border-border flex items-center justify-between gap-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={handleBackToList}
-                      className="md:hidden"
-                    >
-                      <ArrowLeft className="h-4 w-4 mr-1" />
-                      {t('back')}
-                    </Button>
-                    <Input
-                      type="text"
-                      value={editTitle}
-                      onChange={(e) => setEditTitle(e.target.value)}
-                      placeholder={t('titlePlaceholder')}
-                      className="flex-1 text-xl font-semibold border-none shadow-none focus-visible:ring-0 px-0 h-auto"
-                    />
-                    <NoteToolbar
-                      isEditing={isEditing}
-                      onToggleMode={handleToggleMode}
-                      onSave={handleSaveNote}
-                      onDiscard={handleDiscard}
-                      canSave={hasUnsavedChanges}
-                      isSaving={isSaving}
-                    />
-                  </div>
-                  <div className="flex-1 min-h-0 p-4">
-                    {isEditing ? (
-                      <Textarea
-                        value={editContent}
-                        onChange={(e) => setEditContent(e.target.value)}
-                        placeholder={t('contentPlaceholder')}
-                        className="w-full h-full resize-none border-none shadow-none focus-visible:ring-0 text-base leading-relaxed"
-                      />
-                    ) : (
-                      <MarkdownView
-                        content={editContent}
-                        className="h-full overflow-y-auto"
-                      />
-                    )}
-                  </div>
-                  <div className="px-4 py-2 border-t border-border text-xs text-muted-foreground">
-                    {t('lastEdited', {
-                      date: formatDate(selectedNote.editedAt),
-                    })}
-                    {hasUnsavedChanges && (
-                      <span className="ml-2 text-amber-500">
-                        {'• ' + t('unsavedChanges')}
-                      </span>
-                    )}
-                  </div>
-                </>
-              ) : (
-                <div className="flex-1 flex items-center justify-center text-muted-foreground">
-                  <div className="text-center">
-                    <FileText className="h-16 w-16 mx-auto mb-4 opacity-50" />
-                    <p className="text-lg font-medium">{t('selectNote')}</p>
-                    <p className="text-sm mt-1">{t('selectNoteDescription')}</p>
-                  </div>
+            <div className="flex-1 overflow-hidden flex flex-col min-h-0">
+              <NotesSidebar
+                notes={notes}
+                groups={groups}
+                selectedNote={selectedNote}
+                searchQuery={searchQuery}
+                isLoading={isLoading}
+                onSelectNote={handleSelectNote}
+                onEditNote={(note) => {
+                  handleSelectNote(note);
+                  setIsEditing(true);
+                }}
+                onDeleteNote={openDeleteModal}
+                onUpdateNotes={handleUpdateNotes}
+                onUpdateGroups={handleUpdateGroups}
+                onRenameGroup={handleRenameGroup}
+                onOpenDeleteGroup={openDeleteGroupModal}
+              />
+            </div>
+          </aside>
+
+          <main
+            className={cn(
+              'flex-1 flex flex-col min-h-0',
+              selectedNote ? 'flex' : 'hidden md:flex'
+            )}
+          >
+            {selectedNote ? (
+              <>
+                <div className="p-4 border-b border-border flex items-center justify-between gap-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleBackToList}
+                    className="md:hidden"
+                  >
+                    <ArrowLeft className="h-4 w-4 mr-1" />
+                    {t('back')}
+                  </Button>
+                  <Input
+                    type="text"
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    placeholder={t('titlePlaceholder')}
+                    className="flex-1 text-xl font-semibold border-none shadow-none focus-visible:ring-0 px-0 h-auto"
+                  />
+                  <NoteToolbar
+                    isEditing={isEditing}
+                    onToggleMode={handleToggleMode}
+                    onSave={handleSaveNote}
+                    onDiscard={handleDiscard}
+                    canSave={hasUnsavedChanges}
+                    isSaving={isSaving}
+                  />
                 </div>
-              )}
-            </main>
-          </div>
+                <div className="flex-1 min-h-0 p-4">
+                  {isEditing ? (
+                    <Textarea
+                      value={editContent}
+                      onChange={(e) => setEditContent(e.target.value)}
+                      placeholder={t('contentPlaceholder')}
+                      className="w-full h-full resize-none border-none shadow-none focus-visible:ring-0 text-base leading-relaxed"
+                    />
+                  ) : (
+                    <MarkdownView
+                      content={editContent}
+                      className="h-full overflow-y-auto"
+                    />
+                  )}
+                </div>
+                <div className="px-4 py-2 border-t border-border text-xs text-muted-foreground">
+                  {t('lastEdited', {
+                    date: formatDate(selectedNote.editedAt),
+                  })}
+                  {hasUnsavedChanges && (
+                    <span className="ml-2 text-amber-500">
+                      {'• ' + t('unsavedChanges')}
+                    </span>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="flex-1 flex items-center justify-center text-muted-foreground">
+                <div className="text-center">
+                  <FileText className="h-16 w-16 mx-auto mb-4 opacity-50" />
+                  <p className="text-lg font-medium">{t('selectNote')}</p>
+                  <p className="text-sm mt-1">{t('selectNoteDescription')}</p>
+                </div>
+              </div>
+            )}
+          </main>
         </div>
       </div>
 
@@ -651,6 +643,6 @@ export default function NotesPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </AuthGuard>
+    </>
   );
 }

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { AuthGuard } from '@/components/auth-guard';
 import { Navigation } from '@/components/navigation';
+import { PageHeader } from '@/components/ui/page-header';
 import { activityService } from '@shared/services/activity-service';
 import { reminderService } from '@shared/services/reminder-service';
 import type { Activity, DayTime } from '@shared/types/activity';
@@ -103,8 +104,8 @@ export default function ActivitiesPage() {
       label: t('morning'),
       icon: Sun,
       description: t('startYourDay'),
-      accentColor: 'border-amber-400',
-      iconColor: 'text-amber-500',
+      accentColor: 'border-secondary',
+      iconColor: 'text-secondary',
     },
     afternoon: {
       label: t('afternoon'),
@@ -606,119 +607,52 @@ export default function ActivitiesPage() {
     <AuthGuard>
       <div className="min-h-screen bg-background pb-20 lg:pb-0 lg:pl-64">
         <Navigation />
+        <PageHeader title={getPageTitle()} description={getPageDescription()}>
+          <Button
+            variant="outline"
+            onClick={() => {
+              setInitialRoutineId(null);
+              setShowRoutinesModal(true);
+            }}
+            className="flex items-center gap-2"
+          >
+            <Repeat className="h-4 w-4" />
+            {tRoutines('title')}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setShowFilterSidebar(true)}
+            className="flex items-center gap-2"
+          >
+            <Filter className="h-4 w-4" />
+            {tCommon('filters')}
+            {filterCount > 0 && (
+              <Badge
+                variant="secondary"
+                className="ml-1 h-5 w-5 p-0 flex items-center justify-center"
+              >
+                {filterCount}
+              </Badge>
+            )}
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setShowTemplatesModal(true)}
+            className="flex items-center gap-2"
+          >
+            <LayoutTemplate className="h-4 w-4" />
+            {tTemplates('button')}
+          </Button>
+          <Button
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            {t('newActivity')}
+          </Button>
+        </PageHeader>
+
         <div className="max-w-4xl mx-auto p-4 md:p-6">
-          <div className="flex flex-col gap-4 mb-8 md:hidden">
-            <div>
-              <h1 className="text-2xl font-semibold text-foreground mb-1">
-                {getPageTitle()}
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                {getPageDescription()}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  setInitialRoutineId(null);
-                  setShowRoutinesModal(true);
-                }}
-                className="flex items-center gap-2"
-              >
-                <Repeat className="h-4 w-4" />
-                {tRoutines('title')}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowFilterSidebar(true)}
-                className="flex items-center gap-2"
-              >
-                <Filter className="h-4 w-4" />
-                {tCommon('filters')}
-                {filterCount > 0 && (
-                  <Badge
-                    variant="secondary"
-                    className="ml-1 h-5 w-5 p-0 flex items-center justify-center"
-                  >
-                    {filterCount}
-                  </Badge>
-                )}
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowTemplatesModal(true)}
-                className="flex items-center gap-2"
-              >
-                <LayoutTemplate className="h-4 w-4" />
-                {tTemplates('button')}
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => setShowCreateModal(true)}
-                className="flex items-center gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                {t('newActivity')}
-              </Button>
-            </div>
-          </div>
-
-          <div className="hidden md:flex justify-between items-center mb-8">
-            <div>
-              <h1 className="text-3xl font-semibold text-foreground mb-2">
-                {getPageTitle()}
-              </h1>
-              <p className="text-muted-foreground">{getPageDescription()}</p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setInitialRoutineId(null);
-                  setShowRoutinesModal(true);
-                }}
-                className="flex items-center gap-2"
-              >
-                <Repeat className="h-4 w-4" />
-                {tRoutines('title')}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setShowFilterSidebar(true)}
-                className="flex items-center gap-2"
-              >
-                <Filter className="h-4 w-4" />
-                {tCommon('filters')}
-                {filterCount > 0 && (
-                  <Badge
-                    variant="secondary"
-                    className="ml-1 h-5 w-5 p-0 flex items-center justify-center"
-                  >
-                    {filterCount}
-                  </Badge>
-                )}
-              </Button>
-              <Button
-                variant="outline"
-                onClick={() => setShowTemplatesModal(true)}
-                className="flex items-center gap-2"
-              >
-                <LayoutTemplate className="h-4 w-4" />
-                {tTemplates('button')}
-              </Button>
-              <Button
-                onClick={() => setShowCreateModal(true)}
-                className="flex items-center gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                {t('newActivity')}
-              </Button>
-            </div>
-          </div>
-
           {viewMode === 'filtered' && filterCount > 0 && (
             <div className="mb-6 flex items-center gap-2 flex-wrap">
               <span className="text-sm text-muted-foreground">
@@ -752,11 +686,11 @@ export default function ActivitiesPage() {
           )}
 
           {viewMode === 'today' && globalStreak && globalStreak.current > 0 && (
-            <Card className="mb-6 bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20 border-orange-200 dark:border-orange-900/50">
+            <Card className="mb-6 bg-secondary/10 border-secondary/40">
               <CardContent className="p-4 flex items-center gap-4 flex-wrap">
                 <div className="flex items-center gap-3">
                   <Flame
-                    className="h-6 w-6 text-orange-500"
+                    className="h-6 w-6 text-secondary"
                     fill="currentColor"
                   />
                   <div>

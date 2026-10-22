@@ -27,17 +27,19 @@ export function StreakBadge({
     md: 'h-4 w-4',
   };
 
+  // Calm, token-driven tiers: amber (secondary/warning) intensity grows with
+  // the streak; no gradients or aggressive fills (styles.md).
+  const tierClasses = isOnFire
+    ? 'bg-secondary text-secondary-foreground border border-secondary'
+    : isHot
+      ? 'bg-secondary/15 text-warning'
+      : isWarm
+        ? 'bg-secondary/10 text-warning'
+        : 'bg-muted text-muted-foreground';
+
   return (
     <div
-      className={`inline-flex items-center rounded-full font-medium ${sizeClasses[size]} ${
-        isOnFire
-          ? 'bg-gradient-to-r from-orange-500 to-red-500 text-white'
-          : isHot
-            ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'
-            : isWarm
-              ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-              : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
-      }`}
+      className={`inline-flex items-center rounded-full font-medium ${sizeClasses[size]} ${tierClasses}`}
     >
       <Flame
         className={`${iconSizes[size]} ${isOnFire ? 'animate-pulse' : ''}`}

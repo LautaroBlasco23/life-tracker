@@ -16,6 +16,7 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { AuthGuard } from '@/components/auth-guard';
 import { Navigation } from '@/components/navigation';
+import { PageHeader } from '@/components/ui/page-header';
 import { authService } from '@shared/services/auth-service';
 import { userService } from '@shared/services/user-service';
 import { dataService } from '@shared/services/data-service';
@@ -247,20 +248,16 @@ export default function ProfilePage() {
     <AuthGuard>
       <div className="min-h-screen bg-background pb-20 lg:pb-0 lg:pl-64">
         <Navigation />
-        <div className="max-w-2xl mx-auto p-6">
-          <div className="flex justify-between items-center mb-8">
-            <div>
-              <h1 className="text-3xl font-semibold text-foreground mb-2">
-                {t('title')}
-              </h1>
-              <p className="text-muted-foreground">{t('description')}</p>
-              {user?.username && (
-                <p className="text-sm text-muted-foreground mt-1">
-                  @{user.username}
-                </p>
-              )}
-            </div>
-          </div>
+        <PageHeader
+          title={t('title')}
+          description={
+            user?.username
+              ? `${t('description')} · @${user.username}`
+              : t('description')
+          }
+        />
+
+        <div className="max-w-2xl mx-auto p-4 md:p-6">
           <div className="space-y-6">
             <Card className="bg-muted/30">
               <CardHeader>

@@ -15,7 +15,7 @@ const variantClasses: Record<ButtonVariant, { bg: string; text: string }> = {
   default: { bg: 'bg-primary dark:bg-dark-primary', text: 'text-primary-foreground dark:text-dark-primary-foreground' },
   outline: { bg: 'bg-transparent border border-border dark:border-dark-border', text: 'text-foreground dark:text-dark-foreground' },
   ghost: { bg: 'bg-transparent', text: 'text-primary dark:text-dark-primary' },
-  destructive: { bg: 'bg-danger dark:bg-dark-danger', text: 'text-white' },
+  destructive: { bg: 'bg-danger dark:bg-dark-danger', text: 'text-primary-foreground dark:text-dark-primary-foreground' },
 };
 
 export const Button = forwardRef<React.ElementRef<typeof Pressable>, ButtonProps>(

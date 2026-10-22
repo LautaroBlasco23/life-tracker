@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { AuthGuard } from '@/components/auth-guard';
 import { Navigation } from '@/components/navigation';
+import { PageHeader } from '@/components/ui/page-header';
 import { timeService } from '@shared/services/time-service';
 import type { TimeRecord } from '@shared/types/time';
 import {
@@ -52,14 +53,12 @@ const CATEGORY_COLORS: Record<
   string,
   { accentColor: string; iconColor: string }
 > = {
-  Work: { accentColor: 'border-violet-400', iconColor: 'text-violet-500' },
-  Personal: {
-    accentColor: 'border-emerald-400',
-    iconColor: 'text-emerald-500',
-  },
-  Health: { accentColor: 'border-rose-400', iconColor: 'text-rose-500' },
-  Learning: { accentColor: 'border-amber-400', iconColor: 'text-amber-500' },
-  default: { accentColor: 'border-sky-400', iconColor: 'text-sky-500' },
+  // Mirrors the mobile mapping (apps/mobile/app/(app)/time.tsx): tokens only.
+  Work: { accentColor: 'border-secondary', iconColor: 'text-secondary' },
+  Personal: { accentColor: 'border-success', iconColor: 'text-success' },
+  Health: { accentColor: 'border-danger', iconColor: 'text-danger' },
+  Learning: { accentColor: 'border-warning', iconColor: 'text-warning' },
+  default: { accentColor: 'border-primary', iconColor: 'text-primary' },
 };
 
 const MONTH_NAMES = [
@@ -352,85 +351,40 @@ export default function TimePage() {
     <AuthGuard>
       <div className="min-h-screen bg-background pb-20 lg:pb-0 lg:pl-64">
         <Navigation />
+        <PageHeader
+          title={t('title')}
+          description={
+            timePeriod === 'allTime'
+              ? t('allRecords')
+              : t('viewing', { period: periodLabel })
+          }
+        >
+          <Button
+            variant="outline"
+            onClick={() => setShowFilterSidebar(true)}
+            className="flex items-center gap-2"
+          >
+            <Filter className="h-4 w-4" />
+            {tCommon('filters')}
+            {filterCount > 0 && (
+              <Badge
+                variant="secondary"
+                className="ml-1 h-5 w-5 p-0 flex items-center justify-center"
+              >
+                {filterCount}
+              </Badge>
+            )}
+          </Button>
+          <Button
+            onClick={() => setShowCreateModal(true)}
+            className="flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            {t('logTime')}
+          </Button>
+        </PageHeader>
+
         <div className="max-w-4xl mx-auto p-4 md:p-6">
-          <div className="flex flex-col gap-4 mb-8 md:hidden">
-            <div>
-              <h1 className="text-2xl font-semibold text-foreground mb-1">
-                {t('title')}
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                {timePeriod === 'allTime'
-                  ? t('allRecords')
-                  : t('viewing', { period: periodLabel })}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowFilterSidebar(true)}
-                className="flex items-center gap-2"
-              >
-                <Filter className="h-4 w-4" />
-                {tCommon('filters')}
-                {filterCount > 0 && (
-                  <Badge
-                    variant="secondary"
-                    className="ml-1 h-5 w-5 p-0 flex items-center justify-center"
-                  >
-                    {filterCount}
-                  </Badge>
-                )}
-              </Button>
-              <Button
-                size="sm"
-                onClick={() => setShowCreateModal(true)}
-                className="flex items-center gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                {t('logTime')}
-              </Button>
-            </div>
-          </div>
-
-          <div className="hidden md:flex justify-between items-center mb-8">
-            <div>
-              <h1 className="text-3xl font-semibold text-foreground mb-2">
-                {t('title')}
-              </h1>
-              <p className="text-muted-foreground">
-                {timePeriod === 'allTime'
-                  ? t('allRecords')
-                  : t('viewing', { period: periodLabel })}
-              </p>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                variant="outline"
-                onClick={() => setShowFilterSidebar(true)}
-                className="flex items-center gap-2"
-              >
-                <Filter className="h-4 w-4" />
-                {tCommon('filters')}
-                {filterCount > 0 && (
-                  <Badge
-                    variant="secondary"
-                    className="ml-1 h-5 w-5 p-0 flex items-center justify-center"
-                  >
-                    {filterCount}
-                  </Badge>
-                )}
-              </Button>
-              <Button
-                onClick={() => setShowCreateModal(true)}
-                className="flex items-center gap-2"
-              >
-                <Plus className="h-4 w-4" />
-                {t('logTime')}
-              </Button>
-            </div>
-          </div>
-
           <div className="mb-6">
             <Select value={timePeriod} onValueChange={handleTimePeriodChange}>
               <SelectTrigger className="w-full md:w-[200px]">
@@ -549,14 +503,14 @@ export default function TimePage() {
           </Card>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <Card className="bg-surface border-secondary/30 shadow-[inset_0_0_20px_rgba(97,218,251,0.05)]">
+            <Card className="bg-surface border-border">
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">
                       {t('totalTime')}
                     </p>
-                    <p className="text-2xl font-bold text-muted-foreground">
+                    <p className="text-2xl font-semibold text-foreground tabular-nums">
                       {formatTotalTime(stats.totalMinutes)}
                     </p>
                   </div>
@@ -566,14 +520,14 @@ export default function TimePage() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="bg-surface border-secondary/30 shadow-[inset_0_0_20px_rgba(97,218,251,0.05)]">
+            <Card className="bg-surface border-border">
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">
                       {t('entries')}
                     </p>
-                    <p className="text-2xl font-bold text-muted-foreground">
+                    <p className="text-2xl font-semibold text-foreground tabular-nums">
                       {stats.recordCount}
                     </p>
                   </div>
@@ -583,14 +537,14 @@ export default function TimePage() {
                 </div>
               </CardContent>
             </Card>
-            <Card className="bg-surface border-secondary/30 shadow-[inset_0_0_20px_rgba(97,218,251,0.05)]">
+            <Card className="bg-surface border-border">
               <CardContent className="pt-6">
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-muted-foreground mb-1">
                       {t('topCategory')}
                     </p>
-                    <p className="text-2xl font-bold text-muted-foreground">
+                    <p className="text-2xl font-semibold text-foreground">
                       {stats.topCategory ?? 'N/A'}
                     </p>
                     {stats.topCategory && (
