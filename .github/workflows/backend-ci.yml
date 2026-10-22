@@ -22,7 +22,7 @@ permissions:
 env:
   IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/lifetracker-backend
   # Must match backend/go.mod and the golang image in backend/Dockerfile.
-  GO_VERSION: "1.26.9"
+  GO_VERSION: "1.26.10"
 
 jobs:
   test:
