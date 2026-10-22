@@ -6,19 +6,7 @@ import { showToast } from '../ui/toast';
 import { Button } from '../ui/button';
 import { FormField } from '../ui/form-field';
 import { OptionSelect } from '../ui/option-select';
-
-const CATEGORY_KEYS: Record<string, string> = {
-  reading: 'reading',
-  gaming: 'gaming',
-  exercise: 'exercise',
-  work: 'work',
-  study: 'study',
-  meditation: 'meditation',
-  hobbies: 'hobbies',
-  social: 'social',
-  entertainment: 'entertainment',
-  other: 'other',
-};
+import { useCategoryLabel } from '../../lib/category-labels';
 
 interface RecordFormModalProps {
   visible: boolean;
@@ -39,8 +27,8 @@ export function RecordFormModal({
   onSaved,
 }: RecordFormModalProps) {
   const t = useTranslations('time');
-  const tTimeCategories = useTranslations('timeCategories');
   const tCommon = useTranslations('common');
+  const categoryLabel = useCategoryLabel();
   const isEdit = record !== null && record !== undefined;
 
   const [category, setCategory] = useState<string | null>(null);
@@ -63,9 +51,6 @@ export function RecordFormModal({
       setMinutes('');
     }
   }, [visible, record]);
-
-  const translateCategory = (cat: string) =>
-    tTimeCategories(CATEGORY_KEYS[cat.toLowerCase()] ?? 'other');
 
   const handleSubmit = async () => {
     const totalMinutes =
@@ -142,7 +127,7 @@ export function RecordFormModal({
           <OptionSelect
             label={t('category')}
             value={category}
-            options={TIME_CATEGORIES.map((cat) => ({ value: cat, label: translateCategory(cat) }))}
+            options={TIME_CATEGORIES.map((cat) => ({ value: cat, label: categoryLabel(cat) }))}
             onSelect={setCategory}
             placeholder={t('selectCategory')}
           />
