@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.1](https://github.com/LautaroBlasco23/life-tracker/compare/v1.2.0...v1.2.1) (2026-10-22)
+
+
+### Miscellaneous Chores
+
+* **deps:** bump zod from 3.25.67 to 4.6.7 in /frontend ([#71](https://github.com/LautaroBlasco23/life-tracker/issues/71)) ([710a2d0](https://github.com/LautaroBlasco23/life-tracker/commit/710a2d01f89a890ce59c54fe7b14d9f6dbe5cfc5))
+* **deps:** upgrade expo sdk to 58 with react-native 0.88 ([#76](https://github.com/LautaroBlasco23/life-tracker/issues/76)) ([35007d7](https://github.com/LautaroBlasco23/life-tracker/commit/35007d760ac8760ca17e76b3a4c08d1d6a9aac23))
+
 ## [1.2.0](https://github.com/LautaroBlasco23/life-tracker/compare/v1.1.4...v1.2.0) (2026-10-22)
 
 
