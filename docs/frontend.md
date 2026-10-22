@@ -43,6 +43,12 @@ Developed initially with Vercel V0. Built with Next.js and TypeScript.
     a weekly event, the last date the series repeats on (up to 100
     occurrences). Occurrences of a series are marked with a repeat icon and
     can be edited or deleted alone or as a whole series.
+  - Overnight events: an explicit "ends the next day" toggle lets an event
+    end past midnight (the end time is never reinterpreted); the 24-hour
+    limit still applies.
+  - Mobile parity: the Expo app has the same two tabs (records / calendar);
+    the calendar shows a day picker + single-day agenda with the same form
+    (category, repeat, scope) reusing the shared calendar service.
 
 - **Finance Management**
   - Personal finance tracking interface
