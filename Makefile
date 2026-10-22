@@ -136,12 +136,23 @@ components:
 # Air (and other Go tooling) lives in GOPATH/bin via `make install-tools`.
 # Fail fast with the fix instead of starting the frontend and erroring later.
 CHECK_AIR = command -v air >/dev/null 2>&1 || { echo "air not found — run 'make install-tools'"; exit 1; };
+# Air dies at startup ('Process Exit with Code 1') before binding :8080 when
+# JWT_SECRET is a placeholder — the frontend would build fine and then fail
+# every fetch. Known-weak values are defined in backend/internal/config
+# (insecureSecrets); the ($(...)? form also matches an empty/missing value so
+# .env files seeded straight from .env.example are caught before air spawns.
+CHECK_ENV = grep -Eq '^JWT_SECRET=(your-secret-key-here|default-secret-change-this|dev-secret-change-me|changeme|secret)?$$' $(ENV_FILE) 2>/dev/null && { \
+		echo "JWT_SECRET is an insecure placeholder in $(notdir $(ENV_FILE)) — fix with:"; \
+		echo '  sed -i "s|^JWT_SECRET=.*|JWT_SECRET=$$(openssl rand -hex 32)|" .env'; \
+		exit 1; \
+	} || true
 
 dev: setup db-up
 	@echo "==> fast lane: air (api :8080) + next dev (web :3000) + compose databases"
 	$(CHECK_AIR)
 	@echo "==> env file: $(notdir $(ENV_FILE))"
 	@[ -f "$(ENV_FILE)" ] || (echo ".env/.env.example not found — run 'make setup'"; exit 1)
+	$(CHECK_ENV)
 	@until docker exec golang_api_postgres pg_isready -U postgres >/dev/null 2>&1; do sleep 1; done
 	@[ -d frontend/node_modules ] || (echo "==> installing frontend deps"; cd frontend && npm install)
 	@echo "==> frontend: next dev on :3000 (NEXT_PUBLIC_API_URL -> :8080/api)"
@@ -214,7 +225,8 @@ setup:
 	@if [ ! -f .env ]; then \
 		echo "Creating .env from .env.example..."; \
 		cp .env.example .env; \
-		echo "✓ .env created. Review and update configuration if needed."; \
+		sed -i "s|^JWT_SECRET=.*|JWT_SECRET=$$(openssl rand -hex 32)|" .env; \
+		echo "✓ .env created (JWT_SECRET generated). Review and update configuration if needed."; \
 	else \
 		echo "✓ .env already exists"; \
 	fi
@@ -237,6 +249,7 @@ hooks:
 
 backend-dev: hooks db-up
 	$(CHECK_AIR)
+	$(CHECK_ENV)
 	@until docker exec golang_api_postgres pg_isready -U postgres >/dev/null 2>&1; do sleep 1; done
 	# config.Load() walks up from backend/ and picks up the root .env.
 	cd backend && air -c .air.toml
@@ -480,6 +493,7 @@ mobile:
 	else \
 		$(MAKE) --no-print-directory db-up; \
 		$(CHECK_AIR) \
+		$(CHECK_ENV) \
 		until docker exec golang_api_postgres pg_isready -U postgres >/dev/null 2>&1; do sleep 1; done; \
 		nohup setsid sh -c 'cd backend && exec air -c .air.toml' >/tmp/lifetracker-api.log 2>&1 & \
 		echo $$! > /tmp/lifetracker-api.pid; \
