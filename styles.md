@@ -71,6 +71,18 @@ rules apply.
 - Scale: page titles 28–32px w600–700; section titles 18–22px w600; body 14–16px w400; supporting text 12–14px; prominent numerals 28–36px w600.
 - **Numerals:** apply `tabular-nums` to prominent values and aligned numeric columns (dashboard stats, timers, tables).
 
+## Page header (web)
+
+Every web page renders exactly one shared `PageHeader`
+([`frontend/components/ui/page-header.tsx`](frontend/components/ui/page-header.tsx)):
+a full-width bar with `border-b border-border`, the `h1` page title plus a
+one-line description on the left, and the page's controls (tabs, filters,
+primary action) on the right. It stacks vertically below `md`. Page content
+lives in its own container *below* the bar — `max-w-4xl mx-auto p-4 md:p-6`
+by default, or full-bleed for tool pages like Notes. Do not hand-roll a
+per-page header block; pass `title`, `description`, and the controls as
+children.
+
 ## Spacing, radius, elevation
 
 - Spacing scale: 4 / 8 / 12 / 16 / 24 / 32 / 48 (Tailwind default steps; prefer 4 and 8 over odd values).
