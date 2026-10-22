@@ -1,5 +1,8 @@
 import { readFileSync } from 'node:fs';
+import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+const dir = path.dirname(fileURLToPath(import.meta.url));
 
 const pkg = JSON.parse(
   readFileSync(
@@ -24,6 +27,16 @@ const nextConfig = {
   },
   images: {
     unoptimized: true,
+  },
+  webpack: (config) => {
+    // Explicit aliases: TS 7 removed `baseUrl`, so tsconfig paths alone no
+    // longer feed Next's webpack resolver for `@/*` and `@shared/*`.
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@': path.resolve(dir),
+      '@shared': path.resolve(dir, '../packages/shared/src'),
+    };
+    return config;
   },
 };
 
