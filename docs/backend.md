@@ -273,6 +273,46 @@ and time of day of the series are fixed by its first occurrence.
 - `GET /visits` — filterable by domain and date range.
 - `GET /stats` — aggregate time per domain.
 
+### Data export/import — `domain/data`
+
+Full backup of one user as an XLSX workbook: `GET /users/me/data/export`
+downloads it, `POST /users/me/data/import` (multipart field `file`) restores it.
+
+**Covered entities** — one sheet per entity, plus a `_meta` sheet with
+`schema_version`, `exported_at` and `user_id`:
+
+| Sheet | Store | Rows |
+|---|---|---|
+| `activities` | PostgreSQL | activities |
+| `time_records` | PostgreSQL | time records |
+| `calendar_events` | PostgreSQL | calendar events |
+| `notes` | PostgreSQL | notes |
+| `routines`, `routine_activities` | PostgreSQL | routines and their activity links |
+| `activity_records` | MongoDB | activity records |
+| `transactions`, `payments` | MongoDB | finance data |
+
+The `calendar_events` sheet is generated from the calendar model, so every
+column of the table is backed up (a column added to the model is exported
+without touching the backup code). Every cell is written as a string
+(ISO 8601 dates, ObjectID hex) to survive a round trip through Excel.
+
+**Import semantics**
+
+- **Destructive** — the user's current data is deleted and replaced with the
+  contents of the file.
+- **All or nothing** — the whole file is validated first; if a row breaks a
+  rule, the import is refused with a report and nothing is changed.
+- **Re-owned** — every restored row belongs to the importing user; the
+  archived `user_id` is ignored.
+- **Fresh ids** — calendar events are restored with new ids (the id sequence
+  is global, so an archived id could belong to another user's row); the
+  other entities keep their ids.
+- **Domain rules** — restored calendar events must have a title, an `end_at`
+  after `start_at` and a duration of at most 24 hours.
+
+The workbook layout is versioned: `schema_version` is currently `2`; files of
+an older version are refused instead of being restored partially.
+
 ---
 
 ## API Reference
@@ -413,6 +453,13 @@ All routes are mounted under the `/api` prefix. "Public" routes need no token; "
 | POST | /screen-time/visits | Protected | Record a web visit |
 | GET | /screen-time/visits | Protected | List visits (domain/date filters) |
 | GET | /screen-time/stats | Protected | Aggregate time per domain |
+
+### Data — `/api/users/me/data`
+
+| Method | Path | Access | Description |
+|---|---|---|---|
+| GET | /data/export | Protected | Download the user's backup as XLSX |
+| POST | /data/import | Protected | Restore the user's data from an XLSX backup |
 
 ### System
 
