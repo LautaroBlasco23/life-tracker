@@ -173,28 +173,28 @@ export function UpdateEmailModal({
                 required
                 className={`pr-10 transition-colors ${
                   emailStatus === 'available'
-                    ? 'border-green-500 focus-visible:ring-green-500'
+                    ? 'border-success focus-visible:ring-success'
                     : emailStatus === 'taken'
-                      ? 'border-red-500 focus-visible:ring-red-500'
+                      ? 'border-danger focus-visible:ring-danger'
                       : ''
                 }`}
               />
               {emailStatus === 'available' && (
-                <Check className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-green-500" />
+                <Check className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-success" />
               )}
               {emailStatus === 'taken' && (
-                <X className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-red-500" />
+                <X className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-danger" />
               )}
               {emailStatus === 'checking' && (
                 <div className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" />
               )}
             </div>
             {emailStatus === 'available' && (
-              <p className="text-xs text-green-600">
+              <p className="text-xs text-success">
                 {t('emailAvailable') || 'Email is available'}
               </p>
             )}
-            {emailError && <p className="text-xs text-red-600">{emailError}</p>}
+            {emailError && <p className="text-xs text-danger">{emailError}</p>}
           </div>
           <div className="space-y-2">
             <Label htmlFor="email-password">{t('password')}</Label>

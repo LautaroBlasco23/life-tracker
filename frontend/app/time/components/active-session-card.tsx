@@ -92,9 +92,7 @@ export function ActiveSessionCard({
   return (
     <Card
       className={`bg-surface border-secondary/30 transition-all duration-300 relative overflow-hidden ${
-        isRunning
-          ? 'border-primary/60 shadow-[0_0_25px_rgba(59,130,246,0.2),inset_0_0_30px_rgba(59,130,246,0.05)]'
-          : ''
+        isRunning ? 'border-primary/60 ring-2 ring-primary/20' : ''
       }`}
     >
       <TimerParticles isActive={isRunning} />

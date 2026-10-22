@@ -4,13 +4,27 @@
     <meta charset="UTF-8" />
     <title>Screen Time Tracker</title>
     <style>
-      body { font-family: sans-serif; width: 300px; padding: 12px; margin: 0; }
-      input { width: 100%; padding: 6px; box-sizing: border-box; }
+      :root {
+        /* Warm Minimalism palette (packages/shared/src/lib/theme-colors.ts, light mode) */
+        --bg: #F5F2EA;
+        --surface: #FFFFFF;
+        --text: #30372F;
+        --text-muted: #6A6C61;
+        --primary: #5C6F55;
+        --primary-foreground: #FFFFFF;
+        --border: #E8E3D8;
+        --success: #477653;
+        --success-bg: #EDF3ED;
+        --danger: #B54D45;
+        --danger-bg: #F7EBE9;
+      }
+      body { font-family: sans-serif; width: 300px; padding: 12px; margin: 0; background: var(--bg); color: var(--text); }
+      input { width: 100%; padding: 6px; box-sizing: border-box; border: 1px solid var(--border); border-radius: 4px; }
       button { cursor: pointer; }
 
-      .tabs { display: flex; border-bottom: 1px solid #ddd; margin-bottom: 12px; }
-      .tab { flex: 1; padding: 8px; text-align: center; border: none; background: none; font-size: 13px; cursor: pointer; color: #666; }
-      .tab.active { border-bottom: 2px solid #1a73e8; color: #1a73e8; font-weight: 600; }
+      .tabs { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 12px; }
+      .tab { flex: 1; padding: 8px; text-align: center; border: none; background: none; font-size: 13px; cursor: pointer; color: var(--text-muted); }
+      .tab.active { border-bottom: 2px solid var(--primary); color: var(--primary); font-weight: 600; }
 
       .tab-content { display: none; }
       .tab-content.active { display: block; }
@@ -19,29 +33,29 @@
 
       .stat-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; }
 
-      .track-banner { display: flex; align-items: center; justify-content: space-between; background: #e8f5e9; border: 1px solid #81c784; border-radius: 4px; padding: 6px 8px; margin-bottom: 10px; font-size: 12px; }
+      .track-banner { display: flex; align-items: center; justify-content: space-between; background: var(--success-bg); border: 1px solid rgba(71, 118, 83, 0.4); border-radius: 4px; padding: 6px 8px; margin-bottom: 10px; font-size: 12px; }
       .track-banner button { padding: 2px 10px; font-size: 12px; }
 
       .domain-row { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 13px; }
-      .domain-row .remove-btn { border: none; background: none; color: #c62828; font-size: 14px; padding: 0 4px; line-height: 1; }
+      .domain-row .remove-btn { border: none; background: none; color: var(--danger); font-size: 14px; padding: 0 4px; line-height: 1; }
 
       .add-row { display: flex; gap: 6px; margin-top: 10px; }
       .add-row input { flex: 1; margin: 0; }
       .add-row button { padding: 6px 10px; white-space: nowrap; }
 
-      .setting-label { display: block; font-size: 12px; color: #666; margin-bottom: 4px; }
+      .setting-label { display: block; font-size: 12px; color: var(--text-muted); margin-bottom: 4px; }
       .setting-row { margin-bottom: 12px; }
 
       .full-btn { width: 100%; padding: 8px; margin-top: 8px; }
 
       .msg { font-size: 12px; margin-top: 6px; min-height: 16px; padding: 6px 8px; border-radius: 4px; }
-      .msg.ok { color: #2e7d32; background: #e8f5e9; }
-      .msg.err { color: #c62828; background: #ffebee; }
+      .msg.ok { color: var(--success); background: var(--success-bg); }
+      .msg.err { color: var(--danger); background: var(--danger-bg); }
 
       .login-msg { font-size: 12px; margin-top: 8px; padding: 8px; border-radius: 4px; display: none; }
       .login-msg.show { display: block; }
-      .login-msg.ok { color: #2e7d32; background: #e8f5e9; }
-      .login-msg.err { color: #c62828; background: #ffebee; }
+      .login-msg.ok { color: var(--success); background: var(--success-bg); }
+      .login-msg.err { color: var(--danger); background: var(--danger-bg); }
 
       .btn-loading {
         position: relative;
@@ -56,7 +70,7 @@
         left: 50%;
         margin-left: -8px;
         margin-top: -8px;
-        border: 2px solid #fff;
+        border: 2px solid var(--primary-foreground);
         border-radius: 50%;
         border-top-color: transparent;
         animation: spin 0.8s linear infinite;
@@ -108,7 +122,7 @@
         <h4>Settings</h4>
         <div class="setting-row">
           <label class="setting-label">Backend URL</label>
-          <div id="current-api-host" style="font-size:13px;padding:6px;background:#f5f5f5;border-radius:4px;"></div>
+          <div id="current-api-host" style="font-size:13px;padding:6px;background:var(--surface);border-radius:4px;"></div>
         </div>
         <button class="full-btn" id="save-settings-btn" style="margin-top:0">Edit Backend URL</button>
         <p class="msg" id="settings-msg"></p>

@@ -21,15 +21,13 @@ import {
   CreditCard,
   BarChart3,
 } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from 'recharts';
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from '@/components/ui/chart';
 import { useTranslations } from '@shared/contexts/language-context';
 
 interface DolarRate {
@@ -124,6 +122,12 @@ export function FinanceDashboard({
     (transaction) => !transaction.currentPeriodPayment
   );
 
+  // Semantic token colors for the monthly trend (mirrors the mobile chart).
+  const chartConfig = {
+    income: { label: t('income'), color: 'var(--color-success)' },
+    outcome: { label: t('outcome'), color: 'var(--color-danger)' },
+  } satisfies ChartConfig;
+
   const chartData = monthlyStats
     .map((stats, index) => ({
       name: stats.month.slice(0, 3),
@@ -155,9 +159,7 @@ export function FinanceDashboard({
               </span>
               <span
                 className={`shrink-0 font-medium ${
-                  isIncome
-                    ? 'text-green-600 dark:text-green-400'
-                    : 'text-red-600 dark:text-red-400'
+                  isIncome ? 'text-success' : 'text-danger'
                 }`}
               >
                 ${formatCurrency(item.total)}
@@ -178,14 +180,14 @@ export function FinanceDashboard({
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="bg-surface border-secondary/30 shadow-[inset_0_0_20px_rgba(97,218,251,0.05)]">
+        <Card className="bg-surface border-border">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground mb-1">
                   {t('totalIncome')}
                 </p>
-                <p className="text-2xl font-bold text-muted-foreground">
+                <p className="text-2xl font-semibold text-foreground tabular-nums">
                   ${formatCurrency(summary?.totalIncome ?? 0)}
                 </p>
               </div>
@@ -196,14 +198,14 @@ export function FinanceDashboard({
           </CardContent>
         </Card>
 
-        <Card className="bg-surface border-secondary/30 shadow-[inset_0_0_20px_rgba(97,218,251,0.05)]">
+        <Card className="bg-surface border-border">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground mb-1">
                   {t('totalOutcome')}
                 </p>
-                <p className="text-2xl font-bold text-muted-foreground">
+                <p className="text-2xl font-semibold text-foreground tabular-nums">
                   ${formatCurrency(summary?.totalOutcome ?? 0)}
                 </p>
               </div>
@@ -214,7 +216,7 @@ export function FinanceDashboard({
           </CardContent>
         </Card>
 
-        <Card className="bg-surface border-secondary/30 shadow-[inset_0_0_20px_rgba(97,218,251,0.05)]">
+        <Card className="bg-surface border-border">
           <CardContent className="pt-6">
             <div className="flex items-center justify-between">
               <div>
@@ -222,10 +224,10 @@ export function FinanceDashboard({
                   {t('balance')}
                 </p>
                 <p
-                  className={`text-2xl font-bold ${
+                  className={`text-2xl font-semibold tabular-nums ${
                     (summary?.balance ?? 0) >= 0
-                      ? 'text-green-600 dark:text-green-400'
-                      : 'text-red-600 dark:text-red-400'
+                      ? 'text-success'
+                      : 'text-danger'
                   }`}
                 >
                   ${formatCurrency(summary?.balance ?? 0)}
@@ -307,42 +309,53 @@ export function FinanceDashboard({
               {t('noChartData')}
             </p>
           ) : (
-            <ResponsiveContainer width="100%" height={260}>
+            <ChartContainer config={chartConfig} className="h-[260px] w-full">
               <BarChart data={chartData} barGap={4}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  vertical={false}
+                  stroke="var(--border)"
+                />
                 <XAxis
                   dataKey="name"
                   tickLine={false}
                   axisLine={false}
                   fontSize={12}
+                  tick={{ fill: 'var(--text-muted)' }}
                 />
                 <YAxis
                   tickLine={false}
                   axisLine={false}
                   fontSize={12}
                   width={60}
+                  tick={{ fill: 'var(--text-muted)' }}
                   tickFormatter={(value: number) => formatCurrency(value)}
                 />
-                <Tooltip
-                  formatter={(value: number | string) =>
-                    `$${formatCurrency(Number(value))}`
+                <ChartTooltip
+                  cursor={{
+                    fill: 'color-mix(in oklab, var(--text-muted) 10%, transparent)',
+                  }}
+                  content={
+                    <ChartTooltipContent
+                      formatter={(value) => `$${formatCurrency(Number(value))}`}
+                      indicator="dot"
+                    />
                   }
-                  cursor={{ fill: 'rgba(0,0,0,0.05)' }}
                 />
                 <Bar
                   dataKey="income"
-                  fill="#22c55e"
+                  fill="var(--color-income)"
                   radius={[4, 4, 0, 0]}
                   name={t('income')}
                 />
                 <Bar
                   dataKey="outcome"
-                  fill="#ef4444"
+                  fill="var(--color-outcome)"
                   radius={[4, 4, 0, 0]}
                   name={t('outcome')}
                 />
               </BarChart>
-            </ResponsiveContainer>
+            </ChartContainer>
           )}
         </CardContent>
       </Card>

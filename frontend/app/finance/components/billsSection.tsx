@@ -24,15 +24,15 @@ const TYPE_CONFIG = {
     label: 'Income',
     icon: TrendingUp,
     description: 'Money coming in',
-    accentColor: 'border-green-400',
-    iconColor: 'text-green-500',
+    accentColor: 'border-success',
+    iconColor: 'text-success',
   },
   outcome: {
     label: 'Expenses',
     icon: TrendingDown,
     description: 'Money going out',
     accentColor: 'border-red-400',
-    iconColor: 'text-red-500',
+    iconColor: 'text-danger',
   },
 } as const;
 
