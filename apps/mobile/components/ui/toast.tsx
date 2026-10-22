@@ -68,7 +68,7 @@ export function ToastProvider() {
           className={cn(
             'text-sm font-semibold',
             destructive
-              ? 'text-white'
+              ? 'text-primary-foreground dark:text-dark-primary-foreground'
               : 'text-foreground dark:text-dark-foreground'
           )}
         >
@@ -78,7 +78,9 @@ export function ToastProvider() {
           <Text
             className={cn(
               'text-xs mt-0.5',
-              destructive ? 'text-white/90' : 'text-muted dark:text-dark-muted'
+              destructive
+                ? 'text-primary-foreground/90 dark:text-dark-primary-foreground/90'
+                : 'text-muted dark:text-dark-muted'
             )}
           >
             {toast.description}

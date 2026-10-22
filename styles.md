@@ -1,8 +1,12 @@
 # Styles — Agent Guide for UI Work
 
 This is the contract for how UI should look across the web frontend
-(`frontend/`) and the mobile app (`apps/mobile/`). Read this before creating or
-modifying any component, layout, or styling. Humans: same rules apply.
+(`frontend/`), the mobile app (`apps/mobile/`), and the chrome extension
+(`chrome-extension/`). The design language is **Warm Minimalism**: warm neutral
+backgrounds, sage green as the primary accent, amber reserved for highlights,
+subtle borders instead of shadows, and full light/dark support. Read this
+before creating or modifying any component, layout, or styling. Humans: same
+rules apply.
 
 ## Platform map
 
@@ -10,38 +14,82 @@ modifying any component, layout, or styling. Humans: same rules apply.
 |---|---|---|
 | Styling | Tailwind CSS **v4** | NativeWind 4 (Tailwind **v3** preset) |
 | UI primitives | shadcn/ui → `frontend/components/ui/` | Hand-rolled → `apps/mobile/components/ui/` |
-| Colors defined in | `frontend/app/globals.css` (oklch CSS vars, shadcn convention) | `apps/mobile/tailwind.config.js` (hex, paired light + `dark-*` tokens) |
+| Colors defined in | `frontend/app/globals.css` (hex CSS vars, exact parity with `theme-colors.ts`) | `apps/mobile/tailwind.config.js` (hex, paired light + `dark-*` tokens) |
 | Dark mode | `.dark` class + `@custom-variant dark` | `dark:` variants of paired `dark-*` tokens |
-| Theme switching | `ThemeContext` (`frontend/contexts/theme-context.tsx`) sets CSS vars from `themeColors` | `ThemeProvider` drives `Appearance.setColorScheme` |
-| Icon library | Lucide React | Lucide React |
+| Theme switching | `ThemeContext` (`frontend/contexts/theme-context.tsx`): class toggle, `system`/`light`/`dark` preference in `localStorage('theme')` | `ThemeProvider` drives `Appearance.setColorScheme` (`'unspecified'` = follow OS) |
+| Icon library | Lucide React | Lucide React Native |
 | `cn()` helper | `@/lib/utils` | `apps/mobile/lib/cn` |
 
 **Single source of truth for the palette:** [`packages/shared/src/lib/theme-colors.ts`](packages/shared/src/lib/theme-colors.ts). Both platforms derive their tokens from it. Never invent a color not present there.
 
+**Automated guards (run on every palette change):**
+- `packages/shared/src/lib/theme-colors.test.ts` — token contract + WCAG AA contrast for critical pairs.
+- `frontend/app/globals-parity.test.ts` — `globals.css` hex values must exactly match `theme-colors.ts`.
+
 ## Color rules
 
-- **Never hardcode colors** (hex, oklch, rgb, named). Use tokens.
-- Token names are identical across platforms for `bg-primary`, `bg-danger`, `bg-success`, `bg-warning`, `border-border`, `text-foreground`.
+- **Never hardcode colors** (hex, oklch, rgb, named, Tailwind palette classes like `text-green-600`). Use tokens.
+- Token names are identical across platforms for `bg-primary`, `bg-secondary`, `bg-danger`, `bg-success`, `bg-warning`, `bg-surface`, `border-border`, `text-foreground`.
 - Platform differences to watch:
-  - Web has shadcn extras: `card`, `popover`, `secondary`, `accent`, `destructive`, `ring`, `input`, `sidebar-*`, `chart-1..5`.
-  - Mobile's muted text is `text-muted` (mapped from `textMuted`); secondary text on mobile has no separate token — use `text-muted`.
+  - Web has shadcn extras: `card`, `popover`, `muted`, `accent`, `destructive`, `ring`, `input`, `sidebar-*`, `chart-1..5`. `--card`/`--popover`/`--destructive`/`--muted-foreground`/`--ring`/`--sidebar-*` alias the canonical shared tokens — don't give them independent values.
+  - Mobile's muted text is `text-muted` (mapped from `textMuted`); the web equivalent is `text-muted-foreground`.
   - Mobile always pairs base + dark token: `bg-surface dark:bg-dark-surface`. Web only needs one class; the `.dark` variant resolves via CSS vars.
+  - Mobile dark surfaces are registered as separate `dark-*` colors, so on-fill *ink* also needs its dark twin (e.g. `text-primary-foreground dark:text-dark-primary-foreground`).
 - Typography/spacing differentiate muted text from foreground rather than adding new grays or opacity hacks (`opacity-50` is reserved for disabled/loading states).
 
-### Palette (web reference; mobile mirrors it via `theme-colors.ts`)
+### Palette (`theme-colors.ts`; web `globals.css` mirrors it exactly)
 
 | Role | Light | Dark |
 |---|---|---|
-| background | `#ffffff` | `#0d1117` |
-| surface / card | `#f6f8fa` | `#161b22` |
-| foreground (primary text) | `#1f2328` | `#f0f6fc` |
-| muted text | `#57606a` | `#c9d1d9` |
-| primary (links, CTAs, progress) | `#0583f2` | `#61dafb` |
-| secondary / accent | `#61dafb` / `#79c0ff` | `#79c0ff` / `#a5d6ff` |
-| danger | `#cf222e` | `#ff7b72` |
-| success | `#1a7f37` | `#56d364` |
-| warning | `#9a6700` | `#e3b341` |
-| border | `#d0d7de` | `#30363d` |
+| background | `#f5f2ea` (warm) | `#1c1d19` (warm charcoal, never pure black) |
+| surface | `#ffffff` | `#262821` |
+| surface-elevated | `#ffffff` | `#33352c` |
+| foreground (primary text) | `#30372f` | `#f2efe6` |
+| muted text | `#6a6c61` | `#aaa99f` |
+| primary (sage, CTAs/selected/progress) | `#5c6f55` | `#a5b59a` |
+| primary-foreground | `#ffffff` | `#1c1d19` |
+| secondary (warm amber — highlights) | `#d6a36d` | `#d8b58a` |
+| accent (sage-tinted hover/selected surface) | `#e3e7dc` | `#2f332a` |
+| danger | `#b54d45` | `#d98878` |
+| success | `#477653` | `#8fbf96` |
+| warning | `#96642a` | `#d8b58a` |
+| border | `#e8e3d8` | `#3a3c33` |
+| sticky (sticky-note card) | `#f4e8d4` | `#3e3524` |
+
+### Color usage rules
+
+- Warm neutrals are the default; **sage green is reserved for primary actions, selected states, and progress**.
+- **Amber (`secondary`) is a highlight, not a text color on light surfaces** — it fails 3:1 there. Use it as a tinted background (`bg-secondary/10`) with dark ink (`text-foreground`), or use `text-warning` when amber text is needed in both modes.
+- Semantic colors (success/warning/danger) are for state and feedback only, and are always paired with an icon or label — never color alone.
+- Dark mode is role-adapted, not inverted: accents get lighter, backgrounds get warm charcoal.
+- WCAG AA is the floor: 4.5:1 normal text, 3:1 large text/UI components. The contrast test enforces the critical pairs; new pairs go into the test.
+
+## Typography
+
+- **Web:** Geist Sans/Mono (already wired via `--font-sans`/`--font-mono`). Playfair Display is available as `font-brand` for the brand mark / editorial headings only — don't spread it to body text.
+- **Mobile:** the system default font.
+- Scale: page titles 28–32px w600–700; section titles 18–22px w600; body 14–16px w400; supporting text 12–14px; prominent numerals 28–36px w600.
+- **Numerals:** apply `tabular-nums` to prominent values and aligned numeric columns (dashboard stats, timers, tables).
+
+## Page header (web)
+
+Every web page renders exactly one shared `PageHeader`
+([`frontend/components/ui/page-header.tsx`](frontend/components/ui/page-header.tsx)):
+a full-width bar with `border-b border-border`, the `h1` page title plus a
+one-line description on the left, and the page's controls (tabs, filters,
+primary action) on the right. It stacks vertically below `md`. Page content
+lives in its own container *below* the bar — `max-w-4xl mx-auto p-4 md:p-6`
+by default, or full-bleed for tool pages like Notes. Do not hand-roll a
+per-page header block; pass `title`, `description`, and the controls as
+children.
+
+## Spacing, radius, elevation
+
+- Spacing scale: 4 / 8 / 12 / 16 / 24 / 32 / 48 (Tailwind default steps; prefer 4 and 8 over odd values).
+- Radius (web, from `--radius: 0.75rem`): buttons/inputs `rounded-md` (10px), cards `rounded-lg` (12px), `rounded-xl` (16px) for hero surfaces. Mobile mirrors with explicit `rounded-*` classes.
+- Borders over shadows: 1px `border-border` on cards/surfaces. Shadows only for genuinely floating elements (popovers, menus, toasts) — **never decorative "inset glow" or colored glows**.
+- Standard button height `h-10` web (`h-11` for hero CTAs); mobile touch targets ≥ 44×44.
+- Cards only for meaningful groups; avoid nesting cards inside cards. Establish hierarchy with spacing, typography, and surface contrast.
 
 ## Component reuse rules (in priority order)
 
@@ -53,21 +101,25 @@ modifying any component, layout, or styling. Humans: same rules apply.
 
 ## Baseline look
 
-- Cards: rounded (web `rounded-xl`+, mobile `rounded-xl`), 1px border token, surface background, `p-4`. Titles `font-semibold`, body `text-base`.
-- Buttons: height `h-11`, `rounded-lg`, `px-4`, medium-weight labels. Variants: default (primary bg), outline (transparent + border), ghost (transparent + primary text), destructive. Disabled/loading → `opacity-50` + disabled state.
-- Inputs: bordered with `--input-border` / `border` token, consistent radius with buttons.
-- Feedback: success/warning/danger only from palette tokens; danger text on white/destructive bg keeps contrast.
-- Ranking of visual surface (web): `background` < `surface/card` < `popover`. In dark mode the surfaces get lighter, never darker.
-- Don't introduce new animation libraries; existing stack covers transitions.
+- Cards: surface background (web `bg-surface`), 1px `border-border`, `rounded-lg`, `p-4`. Titles `font-semibold`; supporting text `text-muted-foreground`.
+- Buttons: default = solid `bg-primary`/`text-primary-foreground`; secondary = `bg-muted`; outline = `bg-surface` + border; ghost; destructive = `bg-danger` semantics. All variants keep hover/active/focus/disabled states and `rounded-md`.
+- Charts: use the shadcn `chart.tsx` wrapper (`ChartContainer` + `ChartConfig`) with token colors — never raw hex fills. Semantic data (income/expense) maps to success/danger. Gridlines/axes use `border`/`text-muted`.
+- Progress: `bg-primary` fill on a `border`/`muted` track; calm, no aggressive animation.
+- Feedback: success/warning/danger only from palette tokens; on-fill text uses `primary-foreground` (never bare `text-white` — it fails AA on dark-mode fills).
+- Ranking of visual surface (web): `background` < `surface/card` < `popover/surface-elevated`. In dark mode surfaces get lighter, never darker.
+- Don't introduce new animation libraries; existing stack covers transitions. Respect reduced-motion for anything beyond micro-transitions.
 
 ## Don'ts
 
 - No hardcoded colors, no inline `style={{ color: ... }}` for themed values.
 - No new component libraries (no Radix directly outside shadcn wrappers, no new icon packs).
-- No per-platform visual divergence beyond what platform primitives require — tokens must stay in sync with `theme-colors.ts`.
-- Don't edit `globals.css` palettes or `apps/mobile/tailwind.config.js` directly for UI changes; change `theme-colors.ts` first, then propagate to both platforms.
+- No per-platform visual divergence beyond what platform primitives require — tokens must stay in sync with `theme-colors.ts` (web parity is test-enforced).
+- No pure black (`#000`) backgrounds, pure white text on dark surfaces, or gradients as decoration.
+- Don't edit `globals.css` palettes or `apps/mobile/tailwind.config.js` directly for UI changes; change `theme-colors.ts` first, run the contract tests, then propagate.
 
 ## Where themes/tokens are wired (for token changes)
 
-- Web: `frontend/app/globals.css` (shadcn vars + `@theme inline`), `frontend/contexts/theme-context.tsx` (applies `themeColors` to CSS vars at runtime).
-- Mobile: `apps/mobile/tailwind.config.js` (duplicates `theme-colors.ts`; keep in sync), `apps/mobile/global.css`.
+- Shared: `packages/shared/src/lib/theme-colors.ts` (+ `theme-colors.test.ts` contract/AA tests).
+- Web: `frontend/app/globals.css` (`:root`/`.dark` hex must match `theme-colors.ts` — `app/globals-parity.test.ts`), `@theme inline` token mapping, `frontend/contexts/theme-context.tsx` (class toggle + `system` preference; no runtime var injection), pre-paint theme script in `app/layout.tsx`.
+- Mobile: `apps/mobile/tailwind.config.js` (duplicates `theme-colors.ts`; keep in sync), `apps/mobile/lib/theme-provider.tsx`, `apps/mobile/lib/use-colors.ts` (token palette for non-Tailwind props).
+- Chrome extension: light-only `:root` variables in `chrome-extension/popup.html`, mirroring the light palette.

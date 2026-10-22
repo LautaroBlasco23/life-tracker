@@ -263,19 +263,19 @@ export default function RegisterPage() {
                   required
                   className={`bg-input pr-10 transition-colors ${
                     usernameStatus === 'available'
-                      ? 'border-green-500 focus-visible:ring-green-500'
+                      ? 'border-success focus-visible:ring-success'
                       : usernameStatus === 'taken'
-                        ? 'border-red-500 focus-visible:ring-red-500'
+                        ? 'border-danger focus-visible:ring-danger'
                         : 'border-border'
                   }`}
                   pattern="[a-z0-9_]+"
                   title="Username can only contain lowercase letters, numbers, and underscores"
                 />
                 {usernameStatus === 'available' && (
-                  <Check className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-green-500" />
+                  <Check className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-success" />
                 )}
                 {usernameStatus === 'taken' && (
-                  <X className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-red-500" />
+                  <X className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-danger" />
                 )}
                 {usernameStatus === 'checking' && (
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" />
@@ -285,12 +285,12 @@ export default function RegisterPage() {
                 {t('usernameHelp')}
               </p>
               {usernameStatus === 'available' && (
-                <p className="text-xs text-green-600">
+                <p className="text-xs text-success">
                   {t('usernameAvailable') || 'Username is available'}
                 </p>
               )}
               {usernameError && (
-                <p className="text-xs text-red-600">{usernameError}</p>
+                <p className="text-xs text-danger">{usernameError}</p>
               )}
             </div>
             <div className="space-y-2">
@@ -305,29 +305,29 @@ export default function RegisterPage() {
                   required
                   className={`bg-input pr-10 transition-colors ${
                     emailStatus === 'available'
-                      ? 'border-green-500 focus-visible:ring-green-500'
+                      ? 'border-success focus-visible:ring-success'
                       : emailStatus === 'taken'
-                        ? 'border-red-500 focus-visible:ring-red-500'
+                        ? 'border-danger focus-visible:ring-danger'
                         : 'border-border'
                   }`}
                 />
                 {emailStatus === 'available' && (
-                  <Check className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-green-500" />
+                  <Check className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-success" />
                 )}
                 {emailStatus === 'taken' && (
-                  <X className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-red-500" />
+                  <X className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-danger" />
                 )}
                 {emailStatus === 'checking' && (
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 border-2 border-muted-foreground border-t-transparent rounded-full animate-spin" />
                 )}
               </div>
               {emailStatus === 'available' && (
-                <p className="text-xs text-green-600">
+                <p className="text-xs text-success">
                   {t('emailAvailable') || 'Email is available'}
                 </p>
               )}
               {emailError && (
-                <p className="text-xs text-red-600">{emailError}</p>
+                <p className="text-xs text-danger">{emailError}</p>
               )}
             </div>
             <div className="space-y-2">
