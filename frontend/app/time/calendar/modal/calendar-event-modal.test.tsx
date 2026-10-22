@@ -24,6 +24,8 @@ vi.mock('@shared/contexts/language-context', () => ({
   useTranslations: (namespace: string) => (key: string) => {
     const calendar: Record<string, string> = {
       eventTitle: 'Title',
+      endsNextDay: 'Ends the next day',
+      tooLong: 'An event cannot be longer than 24 hours',
       invalidRange: 'End time must be after start time',
       repeat: 'Repeat',
       repeatNone: 'None',
@@ -223,6 +225,42 @@ describe('CalendarEventModal', () => {
       7,
       expect.objectContaining({ title: 'English class' }),
       'series'
+    );
+  });
+
+  it('sends the next-day instant when the overnight toggle is on', async () => {
+    const user = userEvent.setup();
+    renderModal(23 * 60, 0); // 23:00 -> 00:00 next day
+
+    await user.type(screen.getByLabelText('Title'), 'Overnight class');
+    await user.click(
+      screen.getByRole('checkbox', { name: 'Ends the next day' })
+    );
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(calendarService.createEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        startAt: new Date(2026, 9, 19, 23, 0).toISOString(),
+        endAt: new Date(2026, 9, 20, 0, 0).toISOString(),
+      })
+    );
+  });
+
+  it('rejects an overnight event longer than 24 hours', async () => {
+    const user = userEvent.setup();
+    renderModal(10 * 60, 11 * 60); // 10:00 -> 11:00 next day = 25h
+
+    await user.type(screen.getByLabelText('Title'), 'Too long');
+    await user.click(
+      screen.getByRole('checkbox', { name: 'Ends the next day' })
+    );
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(calendarService.createEvent).not.toHaveBeenCalled();
+    expect(showToast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'An event cannot be longer than 24 hours',
+      })
     );
   });
 });

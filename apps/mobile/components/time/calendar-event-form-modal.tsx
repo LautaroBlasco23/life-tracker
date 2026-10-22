@@ -1,8 +1,19 @@
 import { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Text, View } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  Text,
+  View,
+} from 'react-native';
 import { Trash2 } from 'lucide-react-native';
 import { calendarService, useTranslations } from '@shared';
-import type { CalendarEvent } from '@shared/types/calendar';
+import type {
+  CalendarEvent,
+  CalendarEventScope,
+  CreateCalendarEventInput,
+} from '@shared/types/calendar';
 import { TIME_CATEGORIES } from '@shared/types/time';
 import { showToast } from '../ui/toast';
 import { Button } from '../ui/button';
@@ -10,13 +21,22 @@ import { FormField } from '../ui/form-field';
 import { OptionSelect } from '../ui/option-select';
 import { useCategoryLabel } from '../../lib/category-labels';
 import { useColors } from '../../lib/use-colors';
+import { cn } from '../../lib/cn';
 import {
+  addDaysToDateValue,
   combineDateAndTime,
+  isNextDayEnd,
   isValidDateValue,
   isValidTimeOfDay,
   isWithinMaxDuration,
+  toEndOfDayInstant,
   toDateInputValue,
 } from '../../lib/calendar-week';
+
+/** Default length of a new weekly series, in weeks. */
+const DEFAULT_SERIES_WEEKS = 4;
+
+type RecurrenceChoice = 'none' | 'weekly';
 
 const DEFAULT_CATEGORY = 'Other';
 const DEFAULT_START_HOURS = 9;
@@ -121,10 +141,21 @@ export function CalendarEventFormModal({
   const [description, setDescription] = useState('');
   const [dateValue, setDateValue] = useState('');
   const [startHours, setStartHours] = useState(String(DEFAULT_START_HOURS));
-  const [startMinutes, setStartMinutes] = useState(String(DEFAULT_START_MINUTES));
+  const [startMinutes, setStartMinutes] = useState(
+    String(DEFAULT_START_MINUTES),
+  );
   const [endHours, setEndHours] = useState('');
   const [endMinutes, setEndMinutes] = useState('');
+  const [recurrence, setRecurrence] = useState<RecurrenceChoice>('none');
+  const [untilDate, setUntilDate] = useState('');
+  const [scope, setScope] = useState<CalendarEventScope>('occurrence');
+  /** Overnight events end on the calendar day after the start date. */
+  const [endsNextDay, setEndsNextDay] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // The repeat rule is fixed once the event exists: a series is materialized
+  // at creation time, so it cannot be turned into one (or back) later.
+  const isSeriesEvent = Boolean(event?.seriesId);
 
   useEffect(() => {
     if (!visible) return;
@@ -140,20 +171,35 @@ export function CalendarEventFormModal({
       setStartMinutes(String(start.getMinutes()).padStart(2, '0'));
       setEndHours(String(end.getHours()).padStart(2, '0'));
       setEndMinutes(String(end.getMinutes()).padStart(2, '0'));
+      setRecurrence(event.recurrenceRule === 'weekly' ? 'weekly' : 'none');
+      setUntilDate(
+        event.recurrenceUntil
+          ? toDateInputValue(new Date(event.recurrenceUntil))
+          : '',
+      );
+      setScope('occurrence');
+      setEndsNextDay(isNextDayEnd(event.startAt, event.endAt));
       return;
     }
 
     const date = defaults?.date ?? new Date();
     const startMinutes = defaults?.startMinutes ?? DEFAULT_START_HOURS * 60;
-    const endMinutes = defaults?.endMinutes ?? startMinutes + DEFAULT_DURATION_MINUTES;
+    const endMinutes =
+      defaults?.endMinutes ?? startMinutes + DEFAULT_DURATION_MINUTES;
     setTitle('');
     setCategory(DEFAULT_CATEGORY);
     setDescription('');
     setDateValue(toDateInputValue(date));
     setStartHours(String(Math.floor(startMinutes / 60)).padStart(2, '0'));
     setStartMinutes(String(startMinutes % 60).padStart(2, '0'));
-    setEndHours(String(Math.floor((endMinutes % (24 * 60)) / 60)).padStart(2, '0'));
+    setEndHours(
+      String(Math.floor((endMinutes % (24 * 60)) / 60)).padStart(2, '0'),
+    );
     setEndMinutes(String(endMinutes % 60).padStart(2, '0'));
+    setRecurrence('none');
+    setUntilDate('');
+    setScope('occurrence');
+    setEndsNextDay(false);
   }, [visible, event, defaults]);
 
   const handleSubmit = async () => {
@@ -184,10 +230,22 @@ export function CalendarEventFormModal({
       return;
     }
 
-    const start = combineDateAndTime(dateValue, startHourValue, startMinuteValue);
-    const end = combineDateAndTime(dateValue, endHourValue, endMinuteValue);
+    const start = combineDateAndTime(
+      dateValue,
+      startHourValue,
+      startMinuteValue,
+    );
+    const end = combineDateAndTime(
+      endsNextDay ? addDaysToDateValue(dateValue, 1) : dateValue,
+      endHourValue,
+      endMinuteValue,
+    );
 
-    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
+    if (
+      Number.isNaN(start.getTime()) ||
+      Number.isNaN(end.getTime()) ||
+      end <= start
+    ) {
       showToast({ title: t('invalidRange'), variant: 'destructive' });
       return;
     }
@@ -208,14 +266,43 @@ export function CalendarEventFormModal({
       };
 
       if (isEdit && event) {
-        const updated = await calendarService.updateEvent(event.id, payload);
+        const updated = await calendarService.updateEvent(
+          event.id,
+          payload,
+          scope,
+        );
         onSaved(updated);
         showToast({
           title: t('eventUpdated'),
           description: t('eventUpdatedDescription', { title: trimmedTitle }),
         });
       } else {
-        const created = await calendarService.createEvent(payload);
+        let input: CreateCalendarEventInput = { ...payload };
+        if (recurrence === 'weekly') {
+          if (!untilDate) {
+            showToast({
+              title: t('repeatUntilRequired'),
+              variant: 'destructive',
+            });
+            return;
+          }
+          if (untilDate < dateValue) {
+            showToast({
+              title: t('repeatUntilBeforeStart'),
+              variant: 'destructive',
+            });
+            return;
+          }
+          input = {
+            ...input,
+            recurrence: {
+              rule: 'weekly' as const,
+              interval: 1,
+              until: toEndOfDayInstant(untilDate),
+            },
+          };
+        }
+        const created = await calendarService.createEvent(input);
         onSaved(created);
         showToast({
           title: t('eventCreated'),
@@ -235,7 +322,12 @@ export function CalendarEventFormModal({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      onRequestClose={onClose}
+    >
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         className="flex-1 justify-end bg-black/50"
@@ -293,7 +385,89 @@ export function CalendarEventFormModal({
               onChangeMinutes={setEndMinutes}
             />
           </View>
+          <View className="h-3" />
+
+          {/* Overnight toggle: same explicit pattern as the weekday chips of
+              the activity form — the end time is never reinterpreted. */}
+          <Pressable
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: endsNextDay }}
+            onPress={() => setEndsNextDay((prev) => !prev)}
+            className={cn(
+              'self-start flex-row items-center gap-2 px-3 py-2 rounded-lg border',
+              endsNextDay
+                ? 'bg-primary dark:bg-dark-primary border-primary dark:border-dark-primary'
+                : 'border-border dark:border-dark-border',
+            )}
+          >
+            <Text
+              className={cn(
+                'text-sm',
+                endsNextDay
+                  ? 'text-primary-foreground dark:text-dark-primary-foreground'
+                  : 'text-foreground dark:text-dark-foreground',
+              )}
+            >
+              {t('endsNextDay')}
+            </Text>
+          </Pressable>
           <View className="h-4" />
+
+          {!isEdit ? (
+            <>
+              <OptionSelect
+                label={t('repeat')}
+                value={recurrence}
+                options={[
+                  { value: 'none', label: t('repeatNone') },
+                  { value: 'weekly', label: t('repeatWeekly') },
+                ]}
+                onSelect={(value) => {
+                  setRecurrence(value);
+                  if (value === 'weekly' && !untilDate) {
+                    setUntilDate(
+                      addDaysToDateValue(dateValue, DEFAULT_SERIES_WEEKS * 7),
+                    );
+                  }
+                }}
+                placeholder={t('repeat')}
+              />
+              <View className="h-4" />
+              {recurrence === 'weekly' ? (
+                <>
+                  <FormField
+                    label={t('repeatUntil')}
+                    placeholder="YYYY-MM-DD"
+                    value={untilDate}
+                    onChangeText={setUntilDate}
+                    keyboardType="numbers-and-punctuation"
+                    autoCorrect={false}
+                  />
+                  <View className="h-4" />
+                </>
+              ) : null}
+            </>
+          ) : null}
+
+          {isEdit && isSeriesEvent ? (
+            <>
+              <OptionSelect
+                label={t('applyTo')}
+                value={scope}
+                options={[
+                  { value: 'occurrence', label: t('applyToOccurrence') },
+                  { value: 'series', label: t('applyToSeries') },
+                ]}
+                onSelect={setScope}
+                placeholder={t('applyTo')}
+              />
+              <View className="h-1" />
+              <Text className="text-xs text-muted dark:text-dark-muted">
+                {t('seriesEvent')}
+              </Text>
+              <View className="h-4" />
+            </>
+          ) : null}
 
           <FormField
             label={t('description')}

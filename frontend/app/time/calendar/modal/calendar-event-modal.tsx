@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Trash2 } from 'lucide-react';
 import { calendarService } from '@shared/services/calendar-service';
 import type {
@@ -33,6 +34,7 @@ import { showToast } from '@/lib/toast';
 import {
   addDaysToDateValue,
   combineDateAndTime,
+  isNextDayEnd,
   timeInputValueAt,
   toDateInputValue,
   toEndOfDayInstant,
@@ -82,6 +84,8 @@ export function CalendarEventModal({
   const [recurrence, setRecurrence] = useState<RecurrenceChoice>('none');
   const [untilDate, setUntilDate] = useState('');
   const [scope, setScope] = useState<CalendarEventScope>('occurrence');
+  /** Overnight events end on the calendar day after the start date. */
+  const [endsNextDay, setEndsNextDay] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // The repeat rule is fixed once the event exists: a series is materialized
@@ -108,6 +112,7 @@ export function CalendarEventModal({
           : ''
       );
       setScope('occurrence');
+      setEndsNextDay(isNextDayEnd(event.startAt, event.endAt));
       return;
     }
 
@@ -121,6 +126,7 @@ export function CalendarEventModal({
       setRecurrence('none');
       setUntilDate('');
       setScope('occurrence');
+      setEndsNextDay(false);
     }
   }, [open, event, defaults]);
 
@@ -169,7 +175,10 @@ export function CalendarEventModal({
     }
 
     const start = combineDateAndTime(dateValue, startTime);
-    const end = combineDateAndTime(dateValue, endTime);
+    const end = combineDateAndTime(
+      endsNextDay ? addDaysToDateValue(dateValue, 1) : dateValue,
+      endTime
+    );
 
     if (
       Number.isNaN(start.getTime()) ||
@@ -284,6 +293,20 @@ export function CalendarEventModal({
               <Label htmlFor="event-end">{t('endTime')}</Label>
               <TimeInput id="event-end" value={endTime} onChange={setEndTime} />
             </div>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <Checkbox
+              id="event-overnight"
+              checked={endsNextDay}
+              onCheckedChange={(checked) => setEndsNextDay(checked === true)}
+            />
+            <Label
+              htmlFor="event-overnight"
+              className="text-sm font-normal cursor-pointer"
+            >
+              {t('endsNextDay')}
+            </Label>
           </div>
 
           <div className="space-y-2">

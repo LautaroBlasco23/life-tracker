@@ -24,14 +24,15 @@ function addDays(date: Date, days: number): Date {
 /** Monday 00:00 of the week containing `date`. */
 export function getWeekStart(date: Date): Date {
   const start = new Date(date.getFullYear(), date.getMonth(), date.getDate());
-  const offset = (start.getDay() - WEEK_STARTS_ON + DAYS_IN_WEEK) % DAYS_IN_WEEK;
+  const offset =
+    (start.getDay() - WEEK_STARTS_ON + DAYS_IN_WEEK) % DAYS_IN_WEEK;
   start.setDate(start.getDate() - offset);
   return start;
 }
 
 export function getWeekDays(weekStart: Date): Date[] {
   return Array.from({ length: DAYS_IN_WEEK }, (_, index) =>
-    addDays(weekStart, index)
+    addDays(weekStart, index),
   );
 }
 
@@ -109,6 +110,43 @@ export function toDateInputValue(date: Date): string {
 }
 
 /**
+ * Adds days to a `yyyy-MM-dd` date input value, keeping the same format.
+ * (Port of web's `frontend/app/time/calendar/lib/week.ts`.)
+ */
+export function addDaysToDateValue(dateValue: string, days: number): string {
+  const parts = dateValue.split('-');
+  if (parts.length !== 3 || parts.some((part) => part === '')) return '';
+  const [year, month, day] = parts.map(Number);
+  if ([year, month, day].some((part) => Number.isNaN(part))) return '';
+  return toDateInputValue(new Date(year, month - 1, day + days));
+}
+
+/**
+ * End of the local day of a `yyyy-MM-dd` value, as an ISO instant. A
+ * recurring event repeats on that day, so the bound is the last instant of
+ * the day the user picked.
+ */
+export function toEndOfDayInstant(dateValue: string): string {
+  const parts = dateValue.split('-');
+  if (parts.length !== 3 || parts.some((part) => part === '')) return '';
+  const [year, month, day] = parts.map(Number);
+  if ([year, month, day].some((part) => Number.isNaN(part))) return '';
+  return new Date(year, month - 1, day, 23, 59, 59, 999).toISOString();
+}
+
+/** True when the event ends on the calendar day after it starts. */
+export function isNextDayEnd(startAt: string, endAt: string): boolean {
+  const start = new Date(startAt);
+  const end = new Date(endAt);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return false;
+  }
+  return (
+    toDateInputValue(end) === addDaysToDateValue(toDateInputValue(start), 1)
+  );
+}
+
+/**
  * Builds a local Date from a date value and a time of day. Construction is
  * local-time on purpose: the user edits their own wall clock, and
  * `toISOString()` converts to the instant the API needs.
@@ -116,7 +154,7 @@ export function toDateInputValue(date: Date): string {
 export function combineDateAndTime(
   dateValue: string,
   hours: number,
-  minutes: number
+  minutes: number,
 ): Date {
   const [year, month, day] = dateValue.split('-').map(Number);
   if ([year, month, day, hours, minutes].some((part) => Number.isNaN(part))) {

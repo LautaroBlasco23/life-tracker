@@ -1,12 +1,24 @@
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, FlatList, Pressable, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  FlatList,
+  Pressable,
+  Text,
+  View,
+} from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import { CalendarX, ChevronLeft, ChevronRight, Plus } from 'lucide-react-native';
+import {
+  CalendarX,
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+} from 'lucide-react-native';
 import { calendarService, useLanguage, useTranslations } from '@shared';
-import type { CalendarEvent } from '@shared/types/calendar';
+import type { CalendarEvent, CalendarEventScope } from '@shared/types/calendar';
 import { showToast } from '../ui/toast';
 import { Button } from '../ui/button';
 import { DeleteModal } from '../ui/delete-modal';
+import { OptionSelect } from '../ui/option-select';
 import { useCategoryLabel } from '../../lib/category-labels';
 import {
   formatDayHeading,
@@ -68,12 +80,13 @@ export function CalendarView() {
   const [reloadKey, setReloadKey] = useState(0);
   const [showFormModal, setShowFormModal] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
-  const [formDefaults, setFormDefaults] = useState<CalendarEventDefaults | null>(
-    null
-  );
+  const [formDefaults, setFormDefaults] =
+    useState<CalendarEventDefaults | null>(null);
   const [deletingEvent, setDeletingEvent] = useState<CalendarEvent | null>(
-    null
+    null,
   );
+  const [deleteScope, setDeleteScope] =
+    useState<CalendarEventScope>('occurrence');
 
   const days = useMemo(() => getWeekDays(weekStart), [weekStart]);
 
@@ -107,7 +120,7 @@ export function CalendarView() {
       return () => {
         cancelled = true;
       };
-    }, [weekStart, reloadKey, t])
+    }, [weekStart, reloadKey, t]),
   );
 
   const dayEvents = useMemo(() => {
@@ -119,7 +132,7 @@ export function CalendarView() {
         return eventStart < end && eventEnd > start;
       })
       .sort(
-        (a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime()
+        (a, b) => new Date(a.startAt).getTime() - new Date(b.startAt).getTime(),
       );
   }, [events, selectedDay]);
 
@@ -156,7 +169,7 @@ export function CalendarView() {
     if (!deletingEvent) return;
     const event = deletingEvent;
     try {
-      await calendarService.deleteEvent(event.id);
+      await calendarService.deleteEvent(event.id, deleteScope);
       showToast({
         title: t('eventDeleted'),
         description: t('eventDeletedDescription'),
@@ -237,7 +250,7 @@ export function CalendarView() {
                       'flex-1 rounded-lg border px-1 py-2 items-center',
                       selected
                         ? 'border-primary bg-primary dark:border-dark-primary dark:bg-dark-primary'
-                        : 'border-border dark:border-dark-border bg-surface dark:bg-dark-surface'
+                        : 'border-border dark:border-dark-border bg-surface dark:bg-dark-surface',
                     )}
                   >
                     <Text
@@ -245,7 +258,7 @@ export function CalendarView() {
                         'text-[10px] uppercase tracking-wide',
                         selected
                           ? 'text-primary-foreground dark:text-dark-primary-foreground'
-                          : 'text-muted dark:text-dark-muted'
+                          : 'text-muted dark:text-dark-muted',
                       )}
                       numberOfLines={1}
                     >
@@ -258,7 +271,7 @@ export function CalendarView() {
                           ? 'text-primary-foreground dark:text-dark-primary-foreground'
                           : isToday(day)
                             ? 'text-primary dark:text-dark-primary'
-                            : 'text-foreground dark:text-dark-foreground'
+                            : 'text-foreground dark:text-dark-foreground',
                       )}
                     >
                       {day.getDate()}
@@ -281,7 +294,7 @@ export function CalendarView() {
             <View
               className={cn(
                 'w-1 rounded-full self-stretch',
-                CATEGORY_ACCENT_CLASS[item.category] ?? DEFAULT_ACCENT_CLASS
+                CATEGORY_ACCENT_CLASS[item.category] ?? DEFAULT_ACCENT_CLASS,
               )}
             />
             <View className="flex-1">
@@ -351,6 +364,7 @@ export function CalendarView() {
           setShowFormModal(false);
           setEditingEvent(null);
           setDeletingEvent(event);
+          setDeleteScope('occurrence');
         }}
       />
 
@@ -369,6 +383,20 @@ export function CalendarView() {
                 {categoryLabel(deletingEvent.category)} ·{' '}
                 {formatTimeRange(deletingEvent.startAt, deletingEvent.endAt)}
               </Text>
+              {deletingEvent.seriesId ? (
+                <View className="mt-3">
+                  <OptionSelect
+                    label={t('deleteScope')}
+                    value={deleteScope}
+                    options={[
+                      { value: 'occurrence', label: t('applyToOccurrence') },
+                      { value: 'series', label: t('applyToSeries') },
+                    ]}
+                    onSelect={setDeleteScope}
+                    placeholder={t('deleteScope')}
+                  />
+                </View>
+              ) : null}
             </View>
           ) : null
         }
