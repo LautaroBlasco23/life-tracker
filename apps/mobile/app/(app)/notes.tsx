@@ -794,7 +794,7 @@ export default function NotesScreen() {
             <View className="py-10 items-center">
               <ActivityIndicator color={colors.primary} />
             </View>
-          ) : null
+          ) : undefined
         }
         contentContainerClassName="pb-24"
       />
