@@ -504,7 +504,24 @@
     "back": "Back",
     "edit": "Edit",
     "preview": "Preview",
-    "editNote": "Edit Note"
+    "editNote": "Edit Note",
+    "tabNotes": "Notes",
+    "tabSticky": "Sticky Notes"
+  },
+  "stickyNotes": {
+    "title": "Sticky Notes",
+    "newNote": "New Note",
+    "empty": "No sticky notes yet",
+    "emptyDescription": "Create a quick note to remember something.",
+    "titlePlaceholder": "Title",
+    "descriptionPlaceholder": "Write something...",
+    "save": "Save",
+    "delete": "Delete",
+    "deleted": "Sticky note deleted",
+    "failedToLoad": "Failed to load sticky notes",
+    "failedToCreate": "Failed to create sticky note",
+    "failedToUpdate": "Failed to update sticky note",
+    "failedToDelete": "Failed to delete sticky note"
   },
   "profile": {
     "title": "Profile",

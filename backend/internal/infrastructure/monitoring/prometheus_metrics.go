@@ -174,6 +174,27 @@ var (
 		Buckets: []float64{100, 500, 1000, 2500, 5000, 10000, 25000},
 	})
 
+	// Sticky Note metrics
+	StickyNotesCreated = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "lifetracker_sticky_notes_created_total",
+		Help: "Total sticky notes created",
+	})
+
+	StickyNotesUpdated = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "lifetracker_sticky_notes_updated_total",
+		Help: "Total sticky notes updated",
+	})
+
+	StickyNotesDeleted = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "lifetracker_sticky_notes_deleted_total",
+		Help: "Total sticky notes deleted",
+	})
+
+	ActiveStickyNotes = promauto.NewGauge(prometheus.GaugeOpts{
+		Name: "lifetracker_active_sticky_notes",
+		Help: "Current number of active sticky notes",
+	})
+
 	// Time Record metrics
 	TimeRecordsCreated = promauto.NewCounterVec(prometheus.CounterOpts{
 		Name: "lifetracker_time_records_created_total",
