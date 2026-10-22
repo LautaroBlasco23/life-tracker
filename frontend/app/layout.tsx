@@ -12,9 +12,11 @@ import './globals.css';
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
-  variable: '--font-brand',
+  variable: '--font-playfair',
   weight: ['400', '500', '600'],
 });
+
+const themeInitScript = `(function(){try{var t=localStorage.getItem('theme');var d=t==='dark'||(t!=='light'&&t!==null&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);}catch(e){}})();`;
 
 export const metadata: Metadata = {
   title: 'Lifetracker',
@@ -39,6 +41,9 @@ export default function RootLayout({
       <head>
         {/* eslint-disable-next-line @next/next/no-sync-scripts */}
         <script src="/env-config.js" />
+        {/* Applies the persisted theme before first paint to avoid a flash
+            of the wrong palette; mirrors ThemeProvider's resolution logic. */}
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body>
         <Suspense fallback={null}>

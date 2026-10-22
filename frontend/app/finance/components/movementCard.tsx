@@ -64,7 +64,7 @@ export function MovementCard({
               {isPending && (
                 <Badge
                   variant="outline"
-                  className="shrink-0 border-amber-500/40 text-amber-600 dark:text-amber-400"
+                  className="shrink-0 border-warning/40 text-warning"
                 >
                   <AlertCircle className="mr-1 h-3 w-3" />
                   {t('paymentRequired')}
@@ -85,9 +85,7 @@ export function MovementCard({
             <div className="text-right">
               <p
                 className={`font-semibold ${
-                  isIncome
-                    ? 'text-green-600 dark:text-green-400'
-                    : 'text-red-600 dark:text-red-400'
+                  isIncome ? 'text-success' : 'text-danger'
                 }`}
               >
                 {isIncome ? '+' : '-'}${formatCurrency(movement.amount)}

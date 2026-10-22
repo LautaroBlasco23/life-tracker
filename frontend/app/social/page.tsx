@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { AuthGuard } from '@/components/auth-guard';
 import { Navigation } from '@/components/navigation';
+import { PageHeader } from '@/components/ui/page-header';
 import { socialService } from '@shared/services/social-service';
 import type { PublicUserCard, FollowerItem } from '@shared/types/user';
 import { showToast } from '@/lib/toast';
@@ -333,14 +334,9 @@ export default function SocialPage() {
     <AuthGuard>
       <div className="min-h-screen bg-background pb-20 lg:pb-0 lg:pl-64">
         <Navigation />
-        <div className="max-w-4xl mx-auto p-4 md:p-6">
-          <div className="mb-8">
-            <h1 className="text-3xl font-semibold text-foreground mb-2">
-              {t('title')}
-            </h1>
-            <p className="text-muted-foreground">{t('description')}</p>
-          </div>
+        <PageHeader title={t('title')} description={t('description')} />
 
+        <div className="max-w-4xl mx-auto p-4 md:p-6">
           <Tabs defaultValue="search" className="space-y-6">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="search" className="flex items-center gap-2">

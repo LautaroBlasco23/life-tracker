@@ -10,7 +10,7 @@ export default function FinanceLayout({
     <AuthGuard>
       <div className="min-h-screen bg-background pb-20 lg:pb-0 lg:pl-64">
         <Navigation />
-        <div className="max-w-4xl mx-auto p-4 md:p-6">{children}</div>
+        {children}
       </div>
     </AuthGuard>
   );

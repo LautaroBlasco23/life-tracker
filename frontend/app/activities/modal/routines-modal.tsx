@@ -88,7 +88,7 @@ function RoutineActivityCard({ item }: { item: RoutineActivityItem }) {
     <Card
       className={cn(
         'bg-muted/30',
-        isCompletedToday && 'border-green-500/50 bg-green-500/10'
+        isCompletedToday && 'border-success/50 bg-success/10'
       )}
     >
       <CardContent className="pt-5">
@@ -101,15 +101,13 @@ function RoutineActivityCard({ item }: { item: RoutineActivityItem }) {
               <span
                 className={cn(
                   'font-medium break-words',
-                  isCompletedToday
-                    ? 'text-green-600 dark:text-green-400'
-                    : 'text-foreground'
+                  isCompletedToday ? 'text-success' : 'text-foreground'
                 )}
               >
                 {item.activityTitle}
               </span>
               {isCompletedToday && (
-                <Badge className="bg-green-500/20 text-green-700 dark:text-green-300 border-green-500/50 text-xs shrink-0">
+                <Badge className="bg-success/15 text-success border-success/50 text-xs shrink-0">
                   {t('activityCompletedToday')}
                 </Badge>
               )}
@@ -399,7 +397,7 @@ export function RoutinesModal({
                           <div className="flex items-center gap-1.5 shrink-0">
                             {routine.isCompletedToday && (
                               <Check
-                                className="h-4 w-4 text-green-600 dark:text-green-400"
+                                className="h-4 w-4 text-success"
                                 aria-label={t('completedToday')}
                               />
                             )}
@@ -458,7 +456,7 @@ export function RoutinesModal({
                           {selectedRoutine.title}
                         </h2>
                         {selectedRoutine.isCompletedToday && (
-                          <Badge className="bg-green-500/20 text-green-700 dark:text-green-300 border-green-500/50 text-xs">
+                          <Badge className="bg-success/15 text-success border-success/50 text-xs">
                             {t('completedToday')}
                           </Badge>
                         )}
