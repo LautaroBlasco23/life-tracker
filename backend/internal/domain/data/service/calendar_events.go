@@ -64,7 +64,17 @@ func calendarEventRows(items []calendarModel.CalendarEvent) [][]interface{} {
 	return rows
 }
 
+// encodeCalendarValue writes one column value. Nullable columns are pointers
+// in the model (a recurring event has a series id, a single event has none),
+// so they are dereferenced here and a NULL becomes an empty cell.
 func encodeCalendarValue(field reflect.Value) string {
+	if field.Kind() == reflect.Ptr {
+		if field.IsNil() {
+			return ""
+		}
+		return encodeCalendarValue(field.Elem())
+	}
+
 	switch value := field.Interface().(type) {
 	case time.Time:
 		return encTime(value)
@@ -102,7 +112,14 @@ func decodeCalendarEvent(sh *sheet, row []string) (calendarModel.CalendarEvent, 
 	return event, nil
 }
 
+// setCalendarValue reads one column value into the model. A nullable column
+// is a pointer: an empty cell leaves it NULL, a value is parsed into a fresh
+// value the pointer is set to.
 func setCalendarValue(field reflect.Value, raw string) error {
+	if field.Kind() == reflect.Ptr {
+		return setCalendarPointer(field, raw)
+	}
+
 	switch field.Interface().(type) {
 	case time.Time:
 		parsed, err := decTime(raw)
@@ -119,6 +136,29 @@ func setCalendarValue(field reflect.Value, raw string) error {
 			return err
 		}
 		field.Set(reflect.ValueOf(gorm.DeletedAt{Time: parsed, Valid: true}))
+	default:
+		return setCalendarScalar(field, raw)
+	}
+	return nil
+}
+
+// setCalendarPointer fills a nullable column: an empty cell keeps it NULL.
+func setCalendarPointer(field reflect.Value, raw string) error {
+	if raw == "" {
+		field.Set(reflect.Zero(field.Type()))
+		return nil
+	}
+	value := reflect.New(field.Type().Elem())
+	if err := setCalendarValue(value.Elem(), raw); err != nil {
+		return err
+	}
+	field.Set(value)
+	return nil
+}
+
+// setCalendarScalar fills a column that cannot be NULL.
+func setCalendarScalar(field reflect.Value, raw string) error {
+	switch field.Interface().(type) {
 	case uint:
 		parsed, err := decUint(raw)
 		if err != nil {

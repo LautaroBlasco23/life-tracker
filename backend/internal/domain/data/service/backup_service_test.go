@@ -557,3 +557,78 @@ func TestImportReownsCalendarEvents(t *testing.T) {
 	assert.Equal(t, uint(1), events[0].UserID, "the archived owner must be replaced")
 	assert.NotEqual(t, uint(700), events[0].ID)
 }
+
+// TestRecurringCalendarEventRoundTrip verifies that the nullable columns of
+// a recurring event (series id, occurrence index, rule, until, interval) are
+// exported and restored. They are pointers in the model, so the codec has to
+// dereference them instead of writing a pointer address into the sheet.
+func TestRecurringCalendarEventRoundTrip(t *testing.T) {
+	svc, db, mongoDB := setupTestService(t)
+	seedFullUser1(t, db, mongoDB)
+
+	seriesID := "a1b2c3d4e5f60718"
+	occurrenceIndex := 2
+	rule := "weekly"
+	until := time.Date(2026, 11, 30, 23, 59, 59, 0, time.UTC)
+	interval := 1
+
+	occurrence := calendarModel.CalendarEvent{
+		UserID:             1,
+		Title:              "Weekly class",
+		Category:           "Study",
+		StartAt:            time.Date(2026, 10, 19, 10, 0, 0, 0, time.UTC),
+		EndAt:              time.Date(2026, 10, 19, 12, 0, 0, 0, time.UTC),
+		SeriesID:           &seriesID,
+		OccurrenceIndex:    &occurrenceIndex,
+		RecurrenceRule:     &rule,
+		RecurrenceUntil:    &until,
+		RecurrenceInterval: &interval,
+	}
+	require.NoError(t, db.Create(&occurrence).Error)
+
+	backup := exportBytes(t, svc, 1)
+
+	f, err := excelize.OpenReader(bytes.NewReader(backup))
+	require.NoError(t, err)
+	rows, err := f.GetRows(SheetCalendarEvents)
+	require.NoError(t, err)
+
+	index := headerIndex(CalendarEventsHeader)
+	var seriesRow []string
+	for _, row := range rows[1:] {
+		if len(row) > index["title"] && row[index["title"]] == "Weekly class" {
+			seriesRow = row
+		}
+	}
+	require.NotNil(t, seriesRow, "the recurring event must be exported")
+	assert.Equal(t, seriesID, seriesRow[index["series_id"]])
+	assert.Equal(t, "2", seriesRow[index["occurrence_index"]])
+	assert.Equal(t, "weekly", seriesRow[index["recurrence_rule"]])
+	assert.Equal(t, "2026-11-30T23:59:59Z", seriesRow[index["recurrence_until"]])
+	assert.Equal(t, "1", seriesRow[index["recurrence_interval"]])
+
+	counts, err := svc.Restore(1, backup)
+	require.NoError(t, err)
+	assert.Equal(t, 3, counts.CalendarEvents)
+
+	var restored []calendarModel.CalendarEvent
+	require.NoError(t, db.Where("user_id = ? AND title = ?", 1, "Weekly class").Find(&restored).Error)
+	require.Len(t, restored, 1)
+	require.NotNil(t, restored[0].SeriesID)
+	assert.Equal(t, seriesID, *restored[0].SeriesID)
+	require.NotNil(t, restored[0].OccurrenceIndex)
+	assert.Equal(t, occurrenceIndex, *restored[0].OccurrenceIndex)
+	require.NotNil(t, restored[0].RecurrenceRule)
+	assert.Equal(t, rule, *restored[0].RecurrenceRule)
+	require.NotNil(t, restored[0].RecurrenceUntil)
+	assert.True(t, until.Equal(restored[0].RecurrenceUntil.UTC()))
+	require.NotNil(t, restored[0].RecurrenceInterval)
+	assert.Equal(t, interval, *restored[0].RecurrenceInterval)
+
+	// A single event keeps its NULL columns.
+	var single []calendarModel.CalendarEvent
+	require.NoError(t, db.Where("user_id = ? AND title = ?", 1, "English class").Find(&single).Error)
+	require.Len(t, single, 1)
+	assert.Nil(t, single[0].SeriesID)
+	assert.Nil(t, single[0].RecurrenceRule)
+}

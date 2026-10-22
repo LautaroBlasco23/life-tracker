@@ -4,6 +4,7 @@ import { getConfig } from "../lib/config";
 export interface RestoreCounts {
   activities: number;
   timeRecords: number;
+  calendarEvents: number;
   notes: number;
   routines: number;
   routineActivities: number;
