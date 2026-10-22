@@ -866,6 +866,7 @@
     "applyToOccurrence": "This event",
     "applyToSeries": "The whole series",
     "deleteScope": "Apply the deletion to",
-    "seriesEvent": "Part of a weekly series"
+    "seriesEvent": "Part of a weekly series",
+    "endsNextDay": "Ends the next day"
   }
 }

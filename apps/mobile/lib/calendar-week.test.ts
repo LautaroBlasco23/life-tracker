@@ -1,5 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 import {
+  addDaysToDateValue,
   combineDateAndTime,
   getDayRange,
   getWeekDays,
@@ -9,9 +10,11 @@ import {
   isToday,
   isValidDateValue,
   isValidTimeOfDay,
+  isNextDayEnd,
   isWithinMaxDuration,
   shiftWeek,
   toDateInputValue,
+  toEndOfDayInstant,
 } from './calendar-week';
 
 describe('getWeekStart', () => {
@@ -64,7 +67,7 @@ describe('getWeekRange', () => {
     expect(from).toBeTruthy();
     expect(to).toBeTruthy();
     expect(new Date(to).getTime() - new Date(from).getTime()).toBe(
-      7 * 24 * 60 * 60 * 1000
+      7 * 24 * 60 * 60 * 1000,
     );
   });
 });
@@ -82,9 +85,9 @@ describe('getDayRange', () => {
 
 describe('isSameDay / isToday', () => {
   it('compares calendar days, not instants', () => {
-    expect(isSameDay(new Date(2026, 9, 21, 0, 0), new Date(2026, 9, 21, 23, 59))).toBe(
-      true
-    );
+    expect(
+      isSameDay(new Date(2026, 9, 21, 0, 0), new Date(2026, 9, 21, 23, 59)),
+    ).toBe(true);
     expect(isSameDay(new Date(2026, 9, 21), new Date(2026, 9, 22))).toBe(false);
   });
 
@@ -147,5 +150,44 @@ describe('isWithinMaxDuration', () => {
     const start = new Date(2026, 9, 21, 9, 0);
     expect(isWithinMaxDuration(start, new Date(2026, 9, 22, 9, 0))).toBe(true);
     expect(isWithinMaxDuration(start, new Date(2026, 9, 22, 9, 1))).toBe(false);
+  });
+});
+
+describe('addDaysToDateValue', () => {
+  it('adds days in local time and keeps the yyyy-MM-dd format', () => {
+    expect(addDaysToDateValue('2026-10-19', 1)).toBe('2026-10-20');
+    expect(addDaysToDateValue('2026-10-31', 1)).toBe('2026-11-01');
+    expect(addDaysToDateValue('2026-12-31', 1)).toBe('2027-01-01');
+  });
+
+  it('returns an empty value for malformed input', () => {
+    expect(addDaysToDateValue('21/10/2026', 1)).toBe('');
+    expect(addDaysToDateValue('', 1)).toBe('');
+  });
+});
+
+describe('toEndOfDayInstant', () => {
+  it('returns the last instant of the local day', () => {
+    expect(toEndOfDayInstant('2026-10-19')).toBe(
+      new Date(2026, 9, 19, 23, 59, 59, 999).toISOString(),
+    );
+  });
+
+  it('returns an empty string for malformed input', () => {
+    expect(toEndOfDayInstant('not-a-date')).toBe('');
+  });
+});
+
+describe('isNextDayEnd', () => {
+  it('is true when the event ends on the day after it starts', () => {
+    const start = new Date(2026, 9, 19, 23, 0).toISOString();
+    const end = new Date(2026, 9, 20, 1, 0).toISOString();
+    expect(isNextDayEnd(start, end)).toBe(true);
+  });
+
+  it('is false for a same-day event', () => {
+    const start = new Date(2026, 9, 19, 10, 0).toISOString();
+    const end = new Date(2026, 9, 19, 12, 0).toISOString();
+    expect(isNextDayEnd(start, end)).toBe(false);
   });
 });

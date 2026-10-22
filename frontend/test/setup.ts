@@ -48,3 +48,16 @@ if (typeof Element.prototype.releasePointerCapture !== 'function') {
 if (typeof Element.prototype.scrollIntoView !== 'function') {
   Element.prototype.scrollIntoView = () => {};
 }
+
+// jsdom does not implement ResizeObserver either; Radix primitives read
+// element sizes through @radix-ui/react-use-size. Tests do not observe
+// sizes, so a no-op observer is enough.
+if (typeof globalThis.ResizeObserver === 'undefined') {
+  class ResizeObserverStub {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+  globalThis.ResizeObserver =
+    ResizeObserverStub as unknown as typeof ResizeObserver;
+}

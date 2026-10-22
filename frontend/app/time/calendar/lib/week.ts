@@ -141,6 +141,18 @@ export function toEndOfDayInstant(dateValue: string): string {
   return new Date(year, month - 1, day, 23, 59, 59, 999).toISOString();
 }
 
+/** True when the event ends on the calendar day after it starts. */
+export function isNextDayEnd(startAt: string, endAt: string): boolean {
+  const start = new Date(startAt);
+  const end = new Date(endAt);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return false;
+  }
+  return (
+    toDateInputValue(end) === addDaysToDateValue(toDateInputValue(start), 1)
+  );
+}
+
 export function minutesFromMidnight(date: Date): number {
   return date.getHours() * 60 + date.getMinutes();
 }

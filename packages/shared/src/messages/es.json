@@ -866,6 +866,7 @@
     "applyToOccurrence": "Este evento",
     "applyToSeries": "Toda la serie",
     "deleteScope": "Aplicar el borrado a",
-    "seriesEvent": "Parte de una serie semanal"
+    "seriesEvent": "Parte de una serie semanal",
+    "endsNextDay": "Termina al día siguiente"
   }
 }
