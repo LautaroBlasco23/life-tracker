@@ -10,6 +10,14 @@ updates:
         update-types:
           - "minor"
           - "patch"
+      # Expo SDK is an ecosystem: expo + all expo-* packages must upgrade
+      # in lockstep with react-native, so batch major updates into one PR.
+      expo-sdk:
+        patterns:
+          - "expo"
+          - "expo-*"
+          - "@expo/*"
+          - "react-native"
 
   # Frontend is self-contained (outside the workspaces by design).
   - package-ecosystem: "npm"
