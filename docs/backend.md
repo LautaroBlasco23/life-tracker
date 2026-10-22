@@ -225,7 +225,6 @@ no special casing.
     the whole series by the same amount and the edited occurrence's new
     duration is applied to all of them. `scope=series` on an event that is
     not part of a series behaves like `scope=occurrence`.
-
 - The occurrences are anchored to the **user's timezone** (the `X-Timezone`
   header the clients send on every request), so a 10:00 class stays at 10:00
   after a daylight-saving change: the step is applied on the wall clock in
