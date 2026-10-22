@@ -1,5 +1,31 @@
 # Changelog
 
+## [1.2.0](https://github.com/LautaroBlasco23/life-tracker/compare/v1.1.4...v1.2.0) (2026-10-22)
+
+
+### Features
+
+* **notes:** add sticky notes with backend domain and shared service ([#68](https://github.com/LautaroBlasco23/life-tracker/issues/68)) ([f46ced1](https://github.com/LautaroBlasco23/life-tracker/commit/f46ced10a3e1859bfaa1bd689fd799b4744aca60))
+* **ui:** unify page headers across web pages ([#65](https://github.com/LautaroBlasco23/life-tracker/issues/65)) ([d42b289](https://github.com/LautaroBlasco23/life-tracker/commit/d42b28931f9e15689712c1e2dc891d8530dcae95))
+
+
+### Bug Fixes
+
+* **deps:** bump github.com/xuri/excelize/v2 to patched version ([#66](https://github.com/LautaroBlasco23/life-tracker/issues/66)) ([f919fae](https://github.com/LautaroBlasco23/life-tracker/commit/f919fae682ed3370cf285106a186061bfe994ec8))
+
+
+### Miscellaneous Chores
+
+* **deps:** bump actions/setup-go from 5.6.0 to 7.0.0 ([#54](https://github.com/LautaroBlasco23/life-tracker/issues/54)) ([a958f9b](https://github.com/LautaroBlasco23/life-tracker/commit/a958f9bde6950c060d830c7a3233200a254a8ee9))
+* **deps:** bump amannn/action-semantic-pull-request from 5 to 6 ([#53](https://github.com/LautaroBlasco23/life-tracker/issues/53)) ([b625fd7](https://github.com/LautaroBlasco23/life-tracker/commit/b625fd7765082d92eb7742bca853b844b3a11a63))
+* **deps:** bump docker/metadata-action from 5.10.0 to 6.2.0 ([#41](https://github.com/LautaroBlasco23/life-tracker/issues/41)) ([29f3b98](https://github.com/LautaroBlasco23/life-tracker/commit/29f3b98368e23cd68ae2ab68868ad013476e9ecc))
+* **deps:** bump gitleaks/gitleaks-action from 2.3.9 to 3.0.0 ([#52](https://github.com/LautaroBlasco23/life-tracker/issues/52)) ([088ec67](https://github.com/LautaroBlasco23/life-tracker/commit/088ec67b9ab406be4a7a18f0f12649f58b8d9a4e))
+* **deps:** bump lucide-react from 0.454.0 to 1.59.0 in /frontend ([#58](https://github.com/LautaroBlasco23/life-tracker/issues/58)) ([ae79380](https://github.com/LautaroBlasco23/life-tracker/commit/ae793806929570f02505639bc46c34de2885fa42))
+* **deps:** bump react and @types/react in /frontend ([#62](https://github.com/LautaroBlasco23/life-tracker/issues/62)) ([c625b0e](https://github.com/LautaroBlasco23/life-tracker/commit/c625b0ee7dabc36f2928ce0181dac66432a4dd10))
+* **deps:** bump sonner from 1.7.4 to 2.0.8 in /frontend ([#60](https://github.com/LautaroBlasco23/life-tracker/issues/60)) ([3c5cdd9](https://github.com/LautaroBlasco23/life-tracker/commit/3c5cdd9a1d86d2a8faad49c0f53c47fbfaae3513))
+* **deps:** bump the npm-minor-patch group across 1 directory with 33 updates ([#67](https://github.com/LautaroBlasco23/life-tracker/issues/67)) ([93bc55f](https://github.com/LautaroBlasco23/life-tracker/commit/93bc55fc06ea536926f6e8286ad2796a12b78a55))
+* **deps:** group expo sdk major upgrades into one dependabot PR ([#69](https://github.com/LautaroBlasco23/life-tracker/issues/69)) ([5b8d30b](https://github.com/LautaroBlasco23/life-tracker/commit/5b8d30b47e63e8290e35e915a4e7714e27d08faf))
+
 ## [1.1.4](https://github.com/LautaroBlasco23/life-tracker/compare/v1.1.3...v1.1.4) (2026-10-14)
 
 
