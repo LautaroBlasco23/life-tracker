@@ -226,9 +226,16 @@ no special casing.
     duration is applied to all of them. `scope=series` on an event that is
     not part of a series behaves like `scope=occurrence`.
 
-Limitation: the API only receives instants, so the occurrences keep the
-weekday and the UTC time of day of the first one. A daylight-saving change in
-the middle of a series shifts the local time of the later occurrences.
+- The occurrences are anchored to the **user's timezone** (the `X-Timezone`
+  header the clients send on every request), so a 10:00 class stays at 10:00
+  after a daylight-saving change: the step is applied on the wall clock in
+  that location, not by adding 7×24h to the instant.
+- A series is written in a single transaction, so a failure never leaves a
+  partial series behind.
+
+Limitation: the rule is materialized at creation time, so a series cannot be
+turned into a single event (or the other way round) later, and the weekday
+and time of day of the series are fixed by its first occurrence.
 
 ### Routine — `domain/routine`
 

@@ -28,6 +28,10 @@ type CalendarEventRepository interface {
 	// DeleteSeries soft-deletes every occurrence of a series and returns the
 	// number of deleted rows.
 	DeleteSeries(userID uint, seriesID string) (int64, error)
+	// WithinTransaction runs fn with a repository bound to a single database
+	// transaction. A materialized series is written in one go, so a failure
+	// half way through must not leave a partial series behind.
+	WithinTransaction(fn func(CalendarEventRepository) error) error
 }
 
 type GormCalendarEventRepository struct {
@@ -36,6 +40,14 @@ type GormCalendarEventRepository struct {
 
 func NewCalendarEventRepository(db *gorm.DB) CalendarEventRepository {
 	return &GormCalendarEventRepository{db: db}
+}
+
+// WithinTransaction runs fn inside a database transaction, giving fn a
+// repository bound to that transaction.
+func (r *GormCalendarEventRepository) WithinTransaction(fn func(CalendarEventRepository) error) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		return fn(&GormCalendarEventRepository{db: tx})
+	})
 }
 
 func (r *GormCalendarEventRepository) Create(event *model.CalendarEvent) error {

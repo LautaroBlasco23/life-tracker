@@ -131,7 +131,7 @@ func TestCreateEvent(t *testing.T) {
 			req := baseRequest()
 			tt.mutate(req)
 
-			resp, err := svc.CreateEvent(7, req)
+			resp, err := svc.CreateEvent(7, req, time.UTC)
 
 			if tt.wantErr {
 				assert.Error(t, err)
@@ -158,7 +158,7 @@ func TestGetEventsRangeAndIsolation(t *testing.T) {
 		{Title: "next-week", Category: "Study", StartAt: time.Date(2026, time.October, 27, 10, 0, 0, 0, time.UTC), EndAt: time.Date(2026, time.October, 27, 12, 0, 0, 0, time.UTC)},
 	}
 	for _, seed := range seeds {
-		_, err := svc.CreateEvent(userID, seed)
+		_, err := svc.CreateEvent(userID, seed, time.UTC)
 		require.NoError(t, err)
 	}
 
@@ -168,7 +168,7 @@ func TestGetEventsRangeAndIsolation(t *testing.T) {
 		StartAt:  time.Date(2026, time.October, 19, 10, 0, 0, 0, time.UTC),
 		EndAt:    time.Date(2026, time.October, 19, 12, 0, 0, 0, time.UTC),
 	}
-	_, err := svc.CreateEvent(uint(43), foreign)
+	_, err := svc.CreateEvent(uint(43), foreign, time.UTC)
 	require.NoError(t, err)
 
 	from := time.Date(2026, time.October, 19, 0, 0, 0, 0, time.UTC)
@@ -198,7 +198,7 @@ func TestUpdateEvent(t *testing.T) {
 	svc := getTestService(t)
 	userID := uint(50)
 
-	created, err := svc.CreateEvent(userID, baseRequest())
+	created, err := svc.CreateEvent(userID, baseRequest(), time.UTC)
 	require.NoError(t, err)
 
 	t.Run("partial_update_keeps_other_fields", func(t *testing.T) {
@@ -234,7 +234,7 @@ func TestDeleteEvent(t *testing.T) {
 	svc := getTestService(t)
 	userID := uint(60)
 
-	created, err := svc.CreateEvent(userID, baseRequest())
+	created, err := svc.CreateEvent(userID, baseRequest(), time.UTC)
 	require.NoError(t, err)
 
 	assert.Error(t, svc.DeleteEvent(uint(61), created.ID, dto.ScopeOccurrence))
@@ -269,7 +269,7 @@ func TestCreateRecurringEventMaterializesOccurrences(t *testing.T) {
 	userID := uint(80)
 
 	start := monday()
-	created, err := svc.CreateEvent(userID, weeklyRequest(start.AddDate(0, 0, 21)))
+	created, err := svc.CreateEvent(userID, weeklyRequest(start.AddDate(0, 0, 21)), time.UTC)
 	require.NoError(t, err)
 	require.NotNil(t, created)
 	require.NotNil(t, created.SeriesID)
@@ -304,7 +304,7 @@ func TestCreateRecurringEventUntilBoundary(t *testing.T) {
 
 	t.Run("an_occurrence_starting_exactly_at_until_is_included", func(t *testing.T) {
 		userID := uint(81)
-		_, err := svc.CreateEvent(userID, weeklyRequest(third))
+		_, err := svc.CreateEvent(userID, weeklyRequest(third), time.UTC)
 		require.NoError(t, err)
 
 		events, err := svc.GetEvents(userID, nil)
@@ -314,7 +314,7 @@ func TestCreateRecurringEventUntilBoundary(t *testing.T) {
 
 	t.Run("an_occurrence_starting_after_until_is_excluded", func(t *testing.T) {
 		userID := uint(82)
-		_, err := svc.CreateEvent(userID, weeklyRequest(third.Add(-time.Second)))
+		_, err := svc.CreateEvent(userID, weeklyRequest(third.Add(-time.Second)), time.UTC)
 		require.NoError(t, err)
 
 		events, err := svc.GetEvents(userID, nil)
@@ -385,7 +385,7 @@ func TestCreateRecurringEventRejectsInvalidRules(t *testing.T) {
 			req := baseRequest()
 			req.Recurrence = tt.recurrence
 
-			resp, err := svc.CreateEvent(userID, req)
+			resp, err := svc.CreateEvent(userID, req, time.UTC)
 			require.Error(t, err)
 			assert.Nil(t, resp)
 			assert.Contains(t, err.Error(), tt.wantErr)
@@ -404,7 +404,7 @@ func TestCreateRecurringEventRejectsTooManyOccurrences(t *testing.T) {
 	start := monday()
 
 	// 100 occurrences fit in the cap.
-	_, err := svc.CreateEvent(userID, weeklyRequest(start.AddDate(0, 0, 99*7)))
+	_, err := svc.CreateEvent(userID, weeklyRequest(start.AddDate(0, 0, 99*7)), time.UTC)
 	require.NoError(t, err)
 
 	events, err := svc.GetEvents(userID, nil)
@@ -412,7 +412,7 @@ func TestCreateRecurringEventRejectsTooManyOccurrences(t *testing.T) {
 	require.Len(t, events, 100)
 
 	// The 101st occurrence is rejected instead of being truncated.
-	_, err = svc.CreateEvent(userID, weeklyRequest(start.AddDate(0, 0, 100*7)))
+	_, err = svc.CreateEvent(userID, weeklyRequest(start.AddDate(0, 0, 100*7)), time.UTC)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "maximum of 100 occurrences")
 
@@ -426,7 +426,7 @@ func TestUpdateEventSeriesScope(t *testing.T) {
 	userID := uint(84)
 
 	start := monday()
-	created, err := svc.CreateEvent(userID, weeklyRequest(start.AddDate(0, 0, 21)))
+	created, err := svc.CreateEvent(userID, weeklyRequest(start.AddDate(0, 0, 21)), time.UTC)
 	require.NoError(t, err)
 
 	t.Run("occurrence_scope_touches_a_single_occurrence", func(t *testing.T) {
@@ -484,7 +484,7 @@ func TestUpdateEventSeriesScope(t *testing.T) {
 	})
 
 	t.Run("series_scope_on_a_single_event_behaves_like_an_occurrence", func(t *testing.T) {
-		single, err := svc.CreateEvent(userID, baseRequest())
+		single, err := svc.CreateEvent(userID, baseRequest(), time.UTC)
 		require.NoError(t, err)
 
 		title := "Renamed"
@@ -502,7 +502,7 @@ func TestDeleteEventSeriesScope(t *testing.T) {
 	userID := uint(85)
 
 	start := monday()
-	created, err := svc.CreateEvent(userID, weeklyRequest(start.AddDate(0, 0, 21)))
+	created, err := svc.CreateEvent(userID, weeklyRequest(start.AddDate(0, 0, 21)), time.UTC)
 	require.NoError(t, err)
 
 	events, err := svc.GetEvents(userID, nil)
@@ -526,7 +526,7 @@ func TestDeleteEventSeriesScope(t *testing.T) {
 	})
 
 	t.Run("series_scope_on_a_single_event_removes_it", func(t *testing.T) {
-		single, err := svc.CreateEvent(userID, baseRequest())
+		single, err := svc.CreateEvent(userID, baseRequest(), time.UTC)
 		require.NoError(t, err)
 
 		require.NoError(t, svc.DeleteEvent(userID, single.ID, dto.ScopeSeries))
@@ -534,4 +534,48 @@ func TestDeleteEventSeriesScope(t *testing.T) {
 		_, err = svc.GetEvent(userID, single.ID)
 		assert.Error(t, err)
 	})
+}
+
+// TestRecurrenceKeepsLocalTimeAcrossDST verifies that a weekly series keeps
+// its wall-clock time when the user's timezone changes its UTC offset. The
+// series starts before the spring-forward transition (2026-03-08 in New York),
+// so the occurrences after it must still be at 10:00 local time.
+func TestRecurrenceKeepsLocalTimeAcrossDST(t *testing.T) {
+	svc := getTestService(t)
+
+	loc, err := time.LoadLocation("America/New_York")
+	require.NoError(t, err)
+
+	// 2026-03-02 10:00 in New York (EST, UTC-5) = 15:00 UTC.
+	start := time.Date(2026, time.March, 2, 15, 0, 0, 0, time.UTC)
+	end := start.Add(2 * time.Hour)
+	until := start.AddDate(0, 0, 21)
+
+	created, err := svc.CreateEvent(77, &dto.CreateCalendarEventRequest{
+		Title:    "English class",
+		Category: "Study",
+		StartAt:  start,
+		EndAt:    end,
+		Recurrence: &dto.CalendarRecurrenceRequest{
+			Rule:  dto.RecurrenceRuleWeekly,
+			Until: &until,
+		},
+	}, loc)
+	require.NoError(t, err)
+	require.NotNil(t, created)
+
+	events, err := svc.GetEvents(77, &dto.CalendarEventFilter{From: &start, To: &until})
+	require.NoError(t, err)
+	require.Len(t, events, 4)
+
+	for _, event := range events {
+		local := event.StartAt.In(loc)
+		assert.Equal(t, 10, local.Hour(), "occurrence %s must stay at 10:00 local", event.StartAt)
+		assert.Equal(t, 0, local.Minute(), "occurrence %s must stay at 10:00 local", event.StartAt)
+	}
+
+	// The first occurrence is before the transition (15:00 UTC), the second
+	// after it (14:00 UTC) - one hour less in UTC, same time on the clock.
+	assert.Equal(t, 15, events[0].StartAt.UTC().Hour())
+	assert.Equal(t, 14, events[1].StartAt.UTC().Hour())
 }

@@ -8,6 +8,7 @@ import (
 
 	"life-tracker-backend/internal/domain/calendar/dto"
 	"life-tracker-backend/internal/domain/calendar/service"
+	"life-tracker-backend/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -32,6 +33,13 @@ func getCalendarUserID(ctx *gin.Context) (uint, error) {
 	return userID, nil
 }
 
+// getTimezone returns the user's timezone (sent by the client on the
+// X-Timezone header). It anchors the occurrences of a recurring series to the
+// user's wall clock.
+func getTimezone(ctx *gin.Context) *time.Location {
+	return middleware.GetTimezoneFromContext(ctx)
+}
+
 func (c *CalendarController) CreateEvent(ctx *gin.Context) {
 	userID, err := getCalendarUserID(ctx)
 	if err != nil {
@@ -45,7 +53,7 @@ func (c *CalendarController) CreateEvent(ctx *gin.Context) {
 		return
 	}
 
-	event, err := c.calendarService.CreateEvent(userID, &req)
+	event, err := c.calendarService.CreateEvent(userID, &req, getTimezone(ctx))
 	if err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return

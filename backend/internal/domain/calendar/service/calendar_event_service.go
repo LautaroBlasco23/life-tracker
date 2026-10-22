@@ -34,13 +34,17 @@ func NewCalendarService(db *gorm.DB) *CalendarService {
 	}
 }
 
-func (s *CalendarService) CreateEvent(userID uint, req *dto.CreateCalendarEventRequest) (*dto.CalendarEventResponse, error) {
+// CreateEvent stores a new event. `loc` is the user's timezone (from the
+// X-Timezone header) and is only used to materialize a recurring series: the
+// occurrences keep the wall-clock time of the first one across DST changes.
+// A nil location falls back to UTC.
+func (s *CalendarService) CreateEvent(userID uint, req *dto.CreateCalendarEventRequest, loc *time.Location) (*dto.CalendarEventResponse, error) {
 	if err := validateEventInterval(req.StartAt, req.EndAt); err != nil {
 		return nil, err
 	}
 
 	if req.Recurrence != nil {
-		return s.createRecurringEvent(userID, req)
+		return s.createRecurringEvent(userID, req, loc)
 	}
 
 	event := model.CalendarEvent{
@@ -62,8 +66,11 @@ func (s *CalendarService) CreateEvent(userID uint, req *dto.CreateCalendarEventR
 // createRecurringEvent materializes a recurring event: one row per
 // occurrence, all of them sharing a series id. The read path stays untouched
 // because every occurrence is an ordinary event.
-func (s *CalendarService) createRecurringEvent(userID uint, req *dto.CreateCalendarEventRequest) (*dto.CalendarEventResponse, error) {
-	occurrences, err := buildOccurrences(userID, req)
+//
+// All occurrences are written in a single transaction: a failure half way
+// through must not leave a partial series behind.
+func (s *CalendarService) createRecurringEvent(userID uint, req *dto.CreateCalendarEventRequest, loc *time.Location) (*dto.CalendarEventResponse, error) {
+	occurrences, err := buildOccurrences(userID, req, loc)
 	if err != nil {
 		return nil, err
 	}
@@ -84,10 +91,17 @@ func (s *CalendarService) createRecurringEvent(userID uint, req *dto.CreateCalen
 		occurrences[i].RecurrenceRule = &rule
 		occurrences[i].RecurrenceUntil = &until
 		occurrences[i].RecurrenceInterval = &interval
+	}
 
-		if err := s.repo.Create(&occurrences[i]); err != nil {
-			return nil, errors.New("failed to create calendar event")
+	if err := s.repo.WithinTransaction(func(txRepo repository.CalendarEventRepository) error {
+		for i := range occurrences {
+			if err := txRepo.Create(&occurrences[i]); err != nil {
+				return err
+			}
 		}
+		return nil
+	}); err != nil {
+		return nil, errors.New("failed to create calendar event")
 	}
 
 	return occurrences[0].ToResponse(), nil
@@ -181,26 +195,29 @@ func (s *CalendarService) updateSeries(userID uint, target *model.CalendarEvent,
 	delta := newStart.Sub(target.StartAt)
 	duration := newEnd.Sub(newStart)
 
-	for i := range occurrences {
-		occurrence := occurrences[i]
-		occurrenceUpdates := make(map[string]interface{}, len(updates))
-		for key, value := range updates {
-			occurrenceUpdates[key] = value
-		}
+	// The series is updated in one transaction: a failure half way through
+	// must not leave some occurrences updated and others not.
+	return s.repo.WithinTransaction(func(txRepo repository.CalendarEventRepository) error {
+		for i := range occurrences {
+			occurrence := occurrences[i]
+			occurrenceUpdates := make(map[string]interface{}, len(updates))
+			for key, value := range updates {
+				occurrenceUpdates[key] = value
+			}
 
-		if _, moved := occurrenceUpdates["start_at"]; moved {
-			occurrenceUpdates["start_at"] = occurrence.StartAt.Add(delta)
-			occurrenceUpdates["end_at"] = occurrence.StartAt.Add(delta).Add(duration)
-		} else if _, resized := occurrenceUpdates["end_at"]; resized {
-			occurrenceUpdates["end_at"] = occurrence.StartAt.Add(duration)
-		}
+			if _, moved := occurrenceUpdates["start_at"]; moved {
+				occurrenceUpdates["start_at"] = occurrence.StartAt.Add(delta)
+				occurrenceUpdates["end_at"] = occurrence.StartAt.Add(delta).Add(duration)
+			} else if _, resized := occurrenceUpdates["end_at"]; resized {
+				occurrenceUpdates["end_at"] = occurrence.StartAt.Add(duration)
+			}
 
-		if err := s.repo.Update(&occurrence, occurrenceUpdates); err != nil {
-			return errors.New("failed to update calendar event")
+			if err := txRepo.Update(&occurrence, occurrenceUpdates); err != nil {
+				return err
+			}
 		}
-	}
-
-	return nil
+		return nil
+	})
 }
 
 func (s *CalendarService) buildUpdateMap(req *dto.UpdateCalendarEventRequest) map[string]interface{} {
@@ -280,7 +297,11 @@ func (s *CalendarService) deleteSeries(userID, eventID uint) error {
 // buildOccurrences materializes the occurrences of a weekly rule. Every
 // occurrence keeps the weekday and the time of day of the first one, and the
 // series stops at `until`.
-func buildOccurrences(userID uint, req *dto.CreateCalendarEventRequest) ([]model.CalendarEvent, error) {
+//
+// The step is applied on the wall clock in the user's timezone (not by adding
+// 7*24h to the instant): a class at 10:00 stays at 10:00 after a DST change.
+// `loc` may be nil, in which case UTC is used.
+func buildOccurrences(userID uint, req *dto.CreateCalendarEventRequest, loc *time.Location) ([]model.CalendarEvent, error) {
 	recurrence := req.Recurrence
 	if recurrence == nil {
 		return nil, errors.New("recurrence is required")
@@ -302,12 +323,17 @@ func buildOccurrences(userID uint, req *dto.CreateCalendarEventRequest) ([]model
 		return nil, errors.New("recurrence until must not be before the event start")
 	}
 
+	if loc == nil {
+		loc = time.UTC
+	}
+
 	duration := req.EndAt.Sub(req.StartAt)
 	step := daysPerWeek * interval
+	localStart := req.StartAt.In(loc)
 
 	occurrences := make([]model.CalendarEvent, 0, 1)
 	for index := 0; ; index++ {
-		start := req.StartAt.AddDate(0, 0, index*step)
+		start := localStart.AddDate(0, 0, index*step).UTC()
 		if start.After(until) {
 			break
 		}
