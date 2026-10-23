@@ -42,7 +42,7 @@ ENV_FILE := $(if $(wildcard $(CURDIR)/.env),$(CURDIR)/.env,$(CURDIR)/.env.exampl
 # Compose wrapper (project name pinned in docker-compose.yml).
 COMPOSE := docker compose -f docker-compose.yml
 
-.PHONY: help components dev dev-container dev-full stop test test-only test-coverage \
+.PHONY: help components docs dev dev-container dev-full stop test test-only test-coverage \
 	test-js test-shared test-frontend test-mobile loadtest loadtest-% \
 	test-e2e \
 	loadtest-stack-up loadtest-stack-down \
@@ -76,6 +76,9 @@ help:
 	@printf "    make test-coverage  backend tests + coverage profile (report-only)\n"
 	@printf "    make test-js        all JS/TS suites: shared + frontend + mobile\n"
 	@printf "    make loadtest       k6 full suite — also: loadtest-breakpoint / -soak / -tap\n"
+	@printf "\n"
+	@printf "$(GREEN)  DOCS$(RST)\n"
+	@printf "    make docs           build + open the docs page (docs/index.html, self-contained)\n"
 	@printf "\n"
 	@printf "$(DIM)  ── component-level ──────────────────────────────────────────────$(RST)\n"
 	@printf "\n"
@@ -123,6 +126,18 @@ components:
 	@printf "    make %-18s %s\n" "mobile-rebuild" "rebuild the native app + reinstall (same as the [R] key)"
 	@printf "    make %-18s %s\n" "mobile-logs"      "tail API + Metro logs"
 	@printf "    make %-18s %s\n" "mobile-stop"      "stop what make mobile started (pidfiles)"
+
+# --- Docs ---
+#
+# docs/ markdown files are the source of truth; docs/build.js inlines them
+# (+ the vendored marked parser) into a single self-contained docs/index.html
+# that works over file://, styled like the app (see styles.md). Re-run `make
+# docs` after editing any markdown to regenerate and open the page.
+docs:
+	node docs/build.js
+	@xdg-open docs/index.html >/dev/null 2>&1 || \
+		explorer.exe "$$(wslpath -w docs/index.html)" >/dev/null 2>&1 || \
+		echo "✓ built docs/index.html — open it in a browser"
 
 # --- Run modes ---
 

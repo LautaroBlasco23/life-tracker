@@ -21,7 +21,9 @@ app, Go backend API, Chrome extension, shared packages, and deployment.
   deploy/migrate `scripts/`.
 - `loadtest/` — k6 suite (own Makefile).
 - `docs/` — per-area documentation (`frontend.md`, `mobile.md`, `backend.md`,
-  `architecture.md`, `ci-cd.md`, `testing.md`, …).
+  `architecture.md`, `ci-cd.md`, `testing.md`, …). `make docs` regenerates and
+  opens `docs/index.html` — a self-contained viewer built from the markdown
+  (source of truth stays the `.md` files; `docs/build.js` inlines them).
 - `Makefile` (root) — single entry point for all commands; `make help` lists them.
 - `styles.md` — cross-platform UI contract.
 
