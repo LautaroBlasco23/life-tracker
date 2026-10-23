@@ -9,7 +9,7 @@ The Go test suite (testify + httptest) runs against isolated Docker databases. F
 | `make test` | Starts test DBs (`docker-compose.yml` with `backend/.env.test`), runs `gotestsum -race`, stops DBs |
 | `make test-only` | Runs the suite against already-running test DBs |
 | `make code-check` | Format + lint (`golangci-lint`) |
-| `make db-test-up` / `make db-test-down` | Manage the test databases manually |
+| `make db-test-up` / `make db-test-down` / `make db-test-remove` | Manage the test databases manually (up / stop / remove + volumes) |
 
 Coverage is report-only for now — no threshold yet; a ratchet (fail PR if the total drops) is planned once suites mature. Baseline (Oct 2026): **49.1% of statements** across 805 tests. Prefer the existing conventions: controller tests use `httptest` + `testify`; repository tests hit the real test DBs (mocking GORM is worse than the isolation the compose DBs give); service logic is table-driven.
 
@@ -46,10 +46,10 @@ Coverage is report-only for now — no threshold yet; a ratchet (fail PR if the 
 | `npm run test:watch` | watch mode |
 
 - Config: `frontend/vitest.config.ts` (jsdom, `globals: true`, `@shared` → `../packages/shared/src` alias mirroring tsconfig); setup file `frontend/test/setup.ts` (jest-dom).
-- Current coverage: `ThemeProvider`/`useTheme` (localStorage persistence, CSS variable application), `ThemeToggle` (shadcn render + interaction), `AuthGuard` (auth service mocking + redirect).
+- Current coverage: `ThemeProvider`/`useTheme` (localStorage persistence, CSS variable application), `ThemeToggle` (shadcn render + interaction), `AuthGuard` (auth service mocking + redirect), and `globals-parity` (frontend palette hex must exactly match `theme-colors.ts`).
 - Conventions: mock `@shared/services/*` with `vi.mock('<module>', factory)` — never import the real service into a component test; mock `next/navigation`'s `useRouter`; RTL cleans up automatically (`globals: true`).
 
-Coverage is report-only: `npm run test:coverage` (Vitest v8 provider, text + html in `coverage/`). CI prints the totals line to the job summary and uploads the html report as an artifact. Baseline (Oct 2026): **98.24% statements** — but only 3 files are under test (theme, auth guard); feature folders have zero unit coverage yet.
+Coverage is report-only: `npm run test:coverage` (Vitest v8 provider, text + html in `coverage/`). CI prints the totals line to the job summary and uploads the html report as an artifact. Baseline (Oct 2026): **98.24% statements** — but only 4 files are under test (theme context, theme toggle, auth guard, globals parity); feature folders have zero unit coverage yet.
 
 ### Playwright E2E (essential suite)
 

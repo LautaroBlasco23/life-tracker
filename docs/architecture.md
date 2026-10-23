@@ -11,13 +11,13 @@ and an nginx container serving the Next.js static export. Deployment is plain
 |---|---|---|
 | `api` | `golang_api_server` (:8080) | The REST API (Gin, prod-built image from `backend/Dockerfile`); runs its embedded migrations on every (re)start |
 | `web` | `lifetracker-web` (:3000) | nginx serving the static Next.js export from a named volume; proxies `/api/*` to the api container on the same origin |
-| `postgres` | `golang_api_postgres` (:5432, loopback) | Relational data: users, activities, notes, time, routines, social |
+| `postgres` | `golang_api_postgres` (:5432, loopback) | Relational data: users, auth, activities, reminders, notes, time, routines, social |
 | `mongodb` | `golang_api_mongodb` (:27017, loopback) | Document data: activity records, transactions, payments, screen time |
 
 Compose *profiles* (never started by a plain `docker compose up -d`):
 
-- `observability` — node-exporter, Prometheus (:9090), Grafana (:3001), Loki (:3100), Promtail. Prometheus scrapes the API's `/metrics` endpoint and node-exporter; Promtail ships container logs into Loki.
-- `loadtest` — `loadtest-api` + `loadtest-postgres` + `loadtest-mongodb`: the same API and databases with pinned credentials and their own volumes, so the load-test lane works regardless of `.env` and never touches dev DB data (see [`loadtest.md`](./loadtest.md)).
+- `observability` — node-exporter, Prometheus (:9090), Grafana (:3001), Loki (:3100), Promtail. Prometheus scrapes the API's `/metrics` endpoint and node-exporter; Promtail ships container logs into Loki. Prometheus/Grafana/Loki publish on `127.0.0.1` only — access from outside the box needs an SSH tunnel.
+- `loadtest` — `loadtest-api` + `loadtest-postgres` + `loadtest-mongodb`: the same API and databases with pinned credentials and their own volumes, so the load-test lane works regardless of `.env` and never touches dev DB data (see [`loadtest.md`](./loadtest.md)). Note `loadtest-api` publishes `:8080` on all interfaces (dev DBs are loopback-only).
 
 Test databases reuse the same `postgres`/`mongodb` definitions with different env values (`backend/.env.test`: :5433/:27018, `_test` volumes, separate network) — see the `db-test-*` make targets.
 
