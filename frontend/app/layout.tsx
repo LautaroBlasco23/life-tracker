@@ -2,7 +2,7 @@ import type React from 'react';
 import type { Metadata } from 'next';
 import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
-import { Playfair_Display } from 'next/font/google';
+import localFont from 'next/font/local';
 import { Analytics } from '@vercel/analytics/next';
 import { ThemeProvider } from '@/contexts/theme-context';
 import { LanguageProvider } from '@shared/contexts/language-context';
@@ -10,10 +10,12 @@ import { ToastProvider } from '@/lib/toast';
 import { Suspense } from 'react';
 import './globals.css';
 
-const playfair = Playfair_Display({
-  subsets: ['latin'],
+// Self-hosted variable font (weights 400–600, latin). Avoids next/font/google
+// network fetches at build time, which intermittently fail in CI/containers.
+const playfair = localFont({
+  src: './fonts/playfair-latin.woff2',
+  display: 'swap',
   variable: '--font-playfair',
-  weight: ['400', '500', '600'],
 });
 
 const themeInitScript = `(function(){try{var t=localStorage.getItem('theme');var d=t==='dark'||(t!=='light'&&t!==null&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.classList.toggle('dark',d);}catch(e){}})();`;
