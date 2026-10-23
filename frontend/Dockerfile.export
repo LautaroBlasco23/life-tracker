@@ -3,7 +3,7 @@
 # output (out/) so it can be docker-cp'd into the nginx web volume
 # (infra/scripts/deploy-frontend.sh). Docker cannot cp directly out of a build
 # stage, hence this scratch image that ships nothing but the static site.
-FROM node:22-alpine AS base
+FROM node:25-alpine AS base
 
 FROM base AS deps
 RUN apk add --no-cache libc6-compat
