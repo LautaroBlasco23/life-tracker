@@ -41,6 +41,11 @@ const ALLOWED_EXACT = new Set([
   "expo-router",
   "expo-sharing",
   "expo-splash-screen",
+  // zod 3.25.76 ships with Expo 58's @expo/cli (build-time CLI — no on-device
+  // runtime path). GHSA-mrhx-c7xc-m3w5 (memory exhaustion validating oversized
+  // constrained collections) affects all zod < 4.6.6, and no @expo/cli 58.x
+  // accepts zod 4.x yet. Remove once expo bumps @expo/cli's zod range.
+  "zod",
 ]);
 
 /** Dev/build tooling chains (see point 1 above): should be out of scope of
