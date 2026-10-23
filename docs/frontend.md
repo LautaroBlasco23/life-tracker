@@ -1,9 +1,9 @@
 # Life Tracker Frontend
 
-Web application for tracking personal activities, finances, spent time, notes and user's profile.
+Web application for tracking personal activities, finances, spent time, notes and the user's profile.
 Developed initially with Vercel V0. Built with Next.js and TypeScript.
 
-![Next.js Version](https://img.shields.io/badge/Next.js-15-black?style=flat&logo=next.js)
+![Next.js Version](https://img.shields.io/badge/Next.js-14-black?style=flat&logo=next.js)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?style=flat&logo=typescript)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
@@ -13,7 +13,7 @@ Developed initially with Vercel V0. Built with Next.js and TypeScript.
 
 - **Authentication**
   - Secure user registration and login
-  - Protected routes with session management
+  - Protected routes with session management (refresh-token rotation)
   - Persistent authentication state
 
 - **Activity Tracking**
@@ -22,6 +22,7 @@ Developed initially with Vercel V0. Built with Next.js and TypeScript.
   - Target-based completion system
   - Time-based categories (Morning, Afternoon, Night)
   - Flexible frequency settings (Daily, Weekly with specific days)
+  - Streaks (`GET /activities/streak`)
   - Visual progress indicators
 
 - **Reminders**
@@ -33,13 +34,25 @@ Developed initially with Vercel V0. Built with Next.js and TypeScript.
     switches it to reminder mode
 
 - **Finance Management**
-  - Personal finance tracking interface
-  - Backend integration in progress
+  - Dashboard + transactions views (tabs under `app/finance/`)
+  - Fully wired to the backend via the shared `finance-service`
+
+- **Time Tracking**
+  - Active session card (`app/time/`, `use-active-sessions`)
+  - Start/stop sessions and browse records
+
+- **Notes**
+  - Markdown notes (`components/notes/` incl. `markdown-view`)
+  - Note groups with manual reorder (`POST /notes/reorder`)
+
+- **Social & Users**
+  - `app/social/` follow/social feed
+  - `app/users/` user search and public profiles (`/user/[username]`)
 
 - **User Profile**
   - Profile information management
   - Avatar upload
-  - Theme preferences (Light/Dark mode)
+  - Theme preferences (System/Light/Dark via `ThemeContext`)
   - Account settings
 
 - **Architecture & Quality**
@@ -48,18 +61,23 @@ Developed initially with Vercel V0. Built with Next.js and TypeScript.
   - Reusable UI components with shadcn/ui
   - Form validation with Zod schemas
   - Responsive design
+  - i18n (EN/ES) via the shared `LanguageProvider` (`@shared`)
+  - Vitest unit tests + Playwright E2E (see [testing.md](./testing.md))
 
 ---
 
 ## Tech Stack
 
-- **Next.js 15** - React framework with App Router
+- **Next.js 14** (App Router, `output: 'export'` static export) - React framework
+- **React 18**
 - **TypeScript** - Type-safe development
 - **Tailwind CSS v4** - Utility-first styling
 - **shadcn/ui + Radix UI** - Accessible component primitives
 - **React Hook Form + Zod** - Form handling and validation
 - **date-fns** - Date utilities
 - **Lucide React** - Icon library
+- **`@shared/*`** - Business logic, services, types and i18n from `packages/shared` (tsconfig path alias)
+- **Husky + lint-staged** - Prettier pre-commit gate
 
 ---
 
@@ -67,18 +85,27 @@ Developed initially with Vercel V0. Built with Next.js and TypeScript.
 
 ```text
 frontend/
-├── app/              # Next.js pages and layouts
-├── components/       # Reusable React components
-├── services/         # API service layer
-├── types/            # TypeScript type definitions
-├── contexts/         # React context providers
-├── lib/              # Utility functions
-├── public/           # Static assets
-├── .env.example
-├── Dockerfile
-├── Makefile
+├── app/                # Next.js App Router pages (feature folders: components/, modals/, hooks/, views/)
+├── components/         # Reusable React components (ui/ = shadcn primitives)
+├── contexts/           # React context providers (theme)
+├── hooks/              # Shared hooks
+├── lib/                # Utility functions
+├── e2e/                # Playwright specs + helpers
+├── test/               # Vitest setup
+├── scripts/            # Prod dependency audit (audit-prod.mjs)
+├── nginx-templates/    # nginx config templates for the runtime container
+├── inject-env.sh       # Runtime env injection (/env-config.js)
+├── Dockerfile          # Static export + nginx runtime image
+├── Dockerfile.dev      # Dev container image (hot reload)
+├── Dockerfile.export   # Export-stage image
+├── out/                # Static export (committed on purpose)
 └── package.json
 ```
+
+> **Note:** there is no `frontend/services/`, `frontend/types/`, or
+> `frontend/Makefile`. Business logic lives in `packages/shared`; commands come
+> from the root Makefile. The frontend is deliberately outside the npm
+> workspaces — run `npm install` inside `frontend/` separately.
 
 ---
 
@@ -87,8 +114,8 @@ frontend/
 ### Prerequisites
 
 - Node.js 22+
-- npm or yarn
-- Backend API running (see backend repository)
+- npm
+- Backend API running (see [backend.md](./backend.md))
 
 ### Fastest Path (One Command)
 
@@ -110,29 +137,25 @@ git clone <your-repo-url>
 cd frontend
 npm install
 
-# 2. Setup environment
-make setup
+# 2. Setup environment (repo root; creates .env from .env.example)
+cd .. && make setup && cd frontend
 
 # 3. Start development server
-npm run dev
+NEXT_PUBLIC_API_URL=http://localhost:8080/api npm run dev
 ```
 
 ### Environment Configuration
 
-```bash
-# Create environment file
-cp .env.example .env
-```
+The frontend has **no build-time `.env`**. The API URL is injected two ways:
 
-Edit `.env`:
-
-```env
-NEXT_PUBLIC_API_URL=http://localhost:8080/api
-```
+- **Dev:** `make dev` passes `NEXT_PUBLIC_API_URL=http://localhost:8080/api` on the command line.
+- **Static export / prod:** runtime injection — `inject-env.sh` writes `window.__ENV__`
+  into `/env-config.js` at container start, loaded by `app/layout.tsx` and
+  consumed by `packages/shared/src/lib/config.ts`.
 
 ### Available Commands
 
-Run `make help` to see all available commands for development, building, and Docker deployment.
+Run `make help` (repo root) to see all available commands.
 
 ---
 
@@ -151,10 +174,10 @@ npm install
 Start the development server with hot reload:
 
 ```bash
-npm run dev
+NEXT_PUBLIC_API_URL=http://localhost:8080/api npm run dev
 ```
 
-Or using Make:
+Or using Make (repo root):
 
 ```bash
 make dev
@@ -162,73 +185,66 @@ make dev
 
 ### Code Quality
 
-Format and type-check code:
+Format and check code:
 
 ```bash
-make code-check
+npm run format   # Prettier (CI gate)
+npm run lint     # ESLint
+npm run lint:ts  # Type check
+npm run type-check
 ```
 
-Format only:
-
-```bash
-npm run format
-```
-
-Lint only:
-
-```bash
-npm run lint
-```
-
-Type check:
-
-```bash
-npm run lint:ts
-```
+> `make code-check` (repo root) is backend-only (gofumpt + golangci-lint).
 
 ### Building for Production
 
 ```bash
-npm run build
-npm run start
+npm run build   # static export -> out/
 ```
 
-Or using Make:
+Serving options:
 
 ```bash
-make build
+make frontend-up      # nginx container serving out/ on :3000 (/api -> api:8080)
+make deploy-frontend  # rebuild the export and copy it into the running container
 ```
 
 ---
 
-## Docker Deployment
+## Docker
 
-Build and run with Docker:
+| Target | Purpose |
+|---|---|
+| `make fe-run-dev` | Dev container with hot reload on :3000 (mounts `frontend/`) |
+| `make fe-build-dev` | Build the dev image (`Dockerfile.dev`) |
+| `make fe-logs-dev` | Follow dev container logs |
+| `make fe-shell-dev` | Shell into the dev container |
+| `make fe-docker-up` | Prod image (`Dockerfile`) on :3000 — bakes the prod API URL |
+| `make fe-docker-down` | Stop/remove the prod-build container |
+| `make fe-docker-restart` | down + up |
+| `make fe-clean` | Remove containers + images + docker prune |
 
-```bash
-# Build production image
-make build-prod
+---
 
-# Run container
-make run-container
+## Tests
 
-# View logs
-make logs
-
-# Stop container
-make stop
-```
+- Unit: `npm test` (Vitest, jsdom) — theme context, auth guard, theme toggle, `globals-parity` (palette hex parity with `theme-colors.ts`)
+- E2E: `npm run test:e2e` (Playwright) — auth guard, login, notes CRUD, smoke (see [testing.md](./testing.md))
+- Coverage: `npm run test:coverage`
 
 ---
 
 ## Available Scripts
 
 - `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run start` - Start production server
+- `npm run build` - Static export to `out/`
+- `npm run start` - Start production server (non-export)
 - `npm run lint` - Run ESLint
-- `npm run lint:ts` - Type check with TypeScript
+- `npm run lint:ts` / `npm run type-check` - Type check with TypeScript
 - `npm run format` - Format code with Prettier
+- `npm run test` / `test:watch` / `test:coverage` - Vitest
+- `npm run test:e2e` - Playwright E2E
+- `npm run prepare` - Install Husky git hooks
 
 ---
 

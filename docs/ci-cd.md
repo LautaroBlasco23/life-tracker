@@ -4,21 +4,21 @@ GitHub Actions workflows live in `.github/workflows/` at the **repository root**
 
 ## `backend-ci.yml`
 
-- **`test` job**: path-filtered on pushes (`backend/**` plus compose/nginx/scripts/`Makefile`); on PRs it runs unconditionally (required checks — see Merge ruleset). Runs the integration test suite against the compose test DBs (`make test-coverage` — same suite with a coverage profile; the total goes to the job summary and `coverage.out` is uploaded as an artifact), then runs the **essential E2E suite** (`make test-e2e` — production router + real JWT middleware). Go 1.26.
+- **`test` job**: path-filtered on pushes (`backend/**` plus compose/nginx/scripts/`Makefile`); on PRs it runs unconditionally (required checks — see Merge ruleset). Runs the integration test suite against the compose test DBs (`make test-coverage` — same suite with a coverage profile; the total goes to the job summary and `coverage.out` is uploaded as an artifact), **Lint (golangci-lint)** and **Vulnerability check (govulncheck)** in the same job, then runs the **essential E2E suite** (`make test-e2e` — production router + real JWT middleware). Go 1.26.
 - **`api-perf-smoke` job**: after `test`, boots the self-contained load-test stack (`make loadtest-stack-up`) and runs the k6 `smoke.js` lane (one fresh user, seconds) against the compose API on `:8080`. k6 thresholds (p95, error rate) fail the PR on breach. Heavy load-test lanes run nightly instead — see `nightly-loadtest.yml`.
-- **`build-push` job**: runs **only on `vX.Y.Z` tags** — builds and pushes the backend image to Docker Hub (`*DOCKERHUB_USERNAME*/lifetracker-backend`) tagged `X.Y.Z`, `X.Y` and `latest`, and uploads Postman endpoint collections as an artifact.
+- **`build-push` job**: runs **only on `vX.Y.Z` tags** — builds and pushes the backend image to Docker Hub (`*DOCKERHUB_USERNAME*/lifetracker-backend`) tagged `X.Y.Z`, `X.Y` and `latest`, and uploads the per-domain JSON endpoint files from `backend/endpoints/` as an artifact.
 
 ## `frontend-ci.yml`
 
-- **`lint` job**: PR gate (unconditional — see Merge ruleset; path-filtered on pushes touching `frontend/**` + `packages/shared/**`) — prettier check, vitest unit tests, **coverage report** (totals to the job summary + html artifact; report-only), `tsc --noEmit`.
+- **`lint` job**: PR gate (unconditional — see Merge ruleset; path-filtered on pushes touching `frontend/**` + `packages/shared/**`) — prettier check, vitest unit tests, **coverage report** (totals to the job summary + html artifact; report-only), `tsc --noEmit`, and a **prod dependency audit** (`node scripts/audit-prod.mjs`).
 - **`e2e` job**: spins up the full-stack container lane (`make dev-container`: postgres + mongodb + api + nginx static export with the `/api` proxy on :3000) and runs the Playwright essential suite (`frontend/e2e/` — auth guard, UI login, notes CRUD, deploy canary). Playwright HTML report uploaded on failure. Essential-only: deeper E2E is follow-up work.
 - **`build-export` job**: runs `next build` with `output: 'export'`, asserting `out/index.html` is produced.
 - **`build-and-push` job**: runs **only on `vX.Y.Z` tags** — builds and pushes the frontend image to Docker Hub (`lautaroblasco1998/lifetracker-frontend`) tagged `X.Y.Z`, `X.Y` and `latest`, then smoke-tests the pushed image.
-- **`smoke` job**: after `build-and-push`, pulls `:latest` (the just-pushed release image) and verifies nginx serving, env injection and the `/api` proxy.
+- **`smoke` job**: after `build-and-push`, pulls `:latest` (the just-pushed release image) and verifies nginx serving, env injection, deep-link routes (`/notes`, `/finance/`), the `GATEWAY_UPSTREAM` nginx var and the `/api` proxy.
 
 ## `mobile-ci.yml`
 
-- PR gate (unconditional on PRs; path-filtered on pushes for `apps/mobile/**` + `packages/shared/**`): type-check, jest-expo unit tests, shared package vitest tests, expo Android export (bundle build as validation).
+- PR gate (unconditional on PRs; path-filtered on pushes for `apps/mobile/**` + `packages/shared/**` + `scripts/**` + the workflow file): type-check, jest-expo unit tests, shared package vitest tests, a prod dependency audit (`npm audit`), and expo Android export (bundle build as validation).
 
 ## `chrome-extension-ci.yml`
 
@@ -31,6 +31,11 @@ GitHub Actions workflows live in `.github/workflows/` at the **repository root**
 ## `security.yml`
 
 - Secret scan (gitleaks) on every PR and every push to `main` (full history on the first run). `backend/.env.test` throwaway test fixtures are allowlisted in `.gitleaks.toml` — keep real credentials out of them anyway. Not in the required-checks list (advisory), but treat failures as must-fix.
+
+## Repo automation
+
+- **`.github/dependabot.yml`** — weekly updates for npm (root workspaces), gomod (backend), docker and GitHub Actions, with grouped minor/patch bumps.
+- **`.github/CODEOWNERS`** — per-path code owners for review requests.
 
 ## `pr-title.yml`
 
