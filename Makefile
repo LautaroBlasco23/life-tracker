@@ -34,6 +34,13 @@ GREEN := \033[1;32m
 DIM   := \033[2m
 RST   := \033[0m
 
+# Fixed dev JWT secret: every worktree points at the same compose `infra`
+# databases, so a token signed in one checkout must verify in all the others.
+# A per-worktree openssl value silently logs everyone out on worktree switch.
+# Value is intentionally NOT in backend's insecureSecrets; prod deployments
+# set their own secret and never source this file path.
+DEV_JWT_SECRET := dev-jwt-life-tracker-6b3f9c2e7d4a8150b2e6c9f3a7d1e5b0
+
 # Env file for docker commands: root .env when present, else .env.example (dev
 # defaults). Absolute so it survives recipe shells; consumed via --env-file
 # (variable substitution) and by scripts/migrate.sh.
@@ -151,12 +158,23 @@ docs:
 # Air (and other Go tooling) lives in GOPATH/bin via `make install-tools`.
 # Fail fast with the fix instead of starting the frontend and erroring later.
 CHECK_AIR = command -v air >/dev/null 2>&1 || { echo "air not found — run 'make install-tools'"; exit 1; };
+# Air dies at startup ('Process Exit with Code 1') before binding :8080 when
+# JWT_SECRET is a placeholder — the frontend would build fine and then fail
+# every fetch. Known-weak values are defined in backend/internal/config
+# (insecureSecrets); the ($(...)? form also matches an empty/missing value so
+# .env files seeded straight from .env.example are caught before air spawns.
+CHECK_ENV = grep -Eq '^JWT_SECRET=(your-secret-key-here|default-secret-change-this|dev-secret-change-me|changeme|secret)?$$' $(ENV_FILE) 2>/dev/null && { \
+		echo "JWT_SECRET is an insecure placeholder in $(notdir $(ENV_FILE)) — fix with:"; \
+		echo '  sed -i "s|^JWT_SECRET=.*|JWT_SECRET=dev-jwt-life-tracker-6b3f9c2e7d4a8150b2e6c9f3a7d1e5b0|" .env'; \
+		exit 1; \
+	} || true
 
 dev: setup db-up
 	@echo "==> fast lane: air (api :8080) + next dev (web :3000) + compose databases"
 	$(CHECK_AIR)
 	@echo "==> env file: $(notdir $(ENV_FILE))"
 	@[ -f "$(ENV_FILE)" ] || (echo ".env/.env.example not found — run 'make setup'"; exit 1)
+	$(CHECK_ENV)
 	@until docker exec golang_api_postgres pg_isready -U postgres >/dev/null 2>&1; do sleep 1; done
 	@[ -d frontend/node_modules ] || (echo "==> installing frontend deps"; cd frontend && npm install)
 	@echo "==> frontend: next dev on :3000 (NEXT_PUBLIC_API_URL -> :8080/api)"
@@ -229,7 +247,8 @@ setup:
 	@if [ ! -f .env ]; then \
 		echo "Creating .env from .env.example..."; \
 		cp .env.example .env; \
-		echo "✓ .env created. Review and update configuration if needed."; \
+		sed -i "s|^JWT_SECRET=.*|JWT_SECRET=$(DEV_JWT_SECRET)|" .env; \
+		echo "✓ .env created (JWT_SECRET set to the shared dev value). Review and update configuration if needed."; \
 	else \
 		echo "✓ .env already exists"; \
 	fi
@@ -252,6 +271,7 @@ hooks:
 
 backend-dev: hooks db-up
 	$(CHECK_AIR)
+	$(CHECK_ENV)
 	@until docker exec golang_api_postgres pg_isready -U postgres >/dev/null 2>&1; do sleep 1; done
 	# config.Load() walks up from backend/ and picks up the root .env.
 	cd backend && air -c .air.toml
@@ -425,7 +445,7 @@ deploy-frontend: frontend-up
 #   - RN debug builds reach Metro through the emulator's host alias
 #     10.0.2.2:8081 (react-native's AndroidInfoHelpers emulator default);
 #   - the API is baked at bundle time as 10.0.2.2 (see
-#     apps/mobile/.env.development).
+#     apps/mobile/.env.example).
 #   - both aliases resolve to the Windows host loopback, which forwards
 #     into WSL ONLY with mirrored networking (`networkingMode=mirrored`
 #     in %USERPROFILE%\.wslconfig): NAT-mode forwarding is IPv6-only and
@@ -495,6 +515,7 @@ mobile:
 	else \
 		$(MAKE) --no-print-directory db-up; \
 		$(CHECK_AIR) \
+		$(CHECK_ENV) \
 		until docker exec golang_api_postgres pg_isready -U postgres >/dev/null 2>&1; do sleep 1; done; \
 		nohup setsid sh -c 'cd backend && exec air -c .air.toml' >/tmp/lifetracker-api.log 2>&1 & \
 		echo $$! > /tmp/lifetracker-api.pid; \
