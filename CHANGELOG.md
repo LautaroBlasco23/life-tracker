@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.2.3](https://github.com/LautaroBlasco23/life-tracker/compare/v1.2.2...v1.2.3) (2026-10-23)
+
+
+### Bug Fixes
+
+* **frontend:** self-host playfair display font ([#81](https://github.com/LautaroBlasco23/life-tracker/issues/81)) ([f598724](https://github.com/LautaroBlasco23/life-tracker/commit/f598724804ee7b70e1c2385d5af82b3e7f75520f))
+
+
+### Miscellaneous Chores
+
+* **deps-dev:** bump the npm-minor-patch group across 1 directory with 2 updates ([#78](https://github.com/LautaroBlasco23/life-tracker/issues/78)) ([d67d41c](https://github.com/LautaroBlasco23/life-tracker/commit/d67d41ced6d793cf431eac75682f5b637c498904))
+* **deps:** bump @hookform/resolvers from 3.10.0 to 6.0.0 in /frontend ([#74](https://github.com/LautaroBlasco23/life-tracker/issues/74)) ([a0623d5](https://github.com/LautaroBlasco23/life-tracker/commit/a0623d518985b9c6923e8d935266cef4ece38aa5))
+* **deps:** bump node from 22-alpine to 25-alpine in /frontend ([#70](https://github.com/LautaroBlasco23/life-tracker/issues/70)) ([4ef36d8](https://github.com/LautaroBlasco23/life-tracker/commit/4ef36d82b81b2dec6981ed5f33f4fc622cb5079e))
+* **deps:** bump react-day-picker from 9.8.0 to 10.0.2 in /frontend ([#73](https://github.com/LautaroBlasco23/life-tracker/issues/73)) ([52e9402](https://github.com/LautaroBlasco23/life-tracker/commit/52e9402c1ac5fb7072dc00dd9ad5344f2b808360))
+* **deps:** bump recharts from 2.15.4 to 3.10.1 in /frontend ([#72](https://github.com/LautaroBlasco23/life-tracker/issues/72)) ([5722cee](https://github.com/LautaroBlasco23/life-tracker/commit/5722ceef50a24d2a00babacf6b5cd6482189dc5b))
+
 ## [1.2.2](https://github.com/LautaroBlasco23/life-tracker/compare/v1.2.1...v1.2.2) (2026-10-22)
 
 
