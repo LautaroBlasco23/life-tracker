@@ -34,6 +34,13 @@ GREEN := \033[1;32m
 DIM   := \033[2m
 RST   := \033[0m
 
+# Fixed dev JWT secret: every worktree points at the same compose `infra`
+# databases, so a token signed in one checkout must verify in all the others.
+# A per-worktree openssl value silently logs everyone out on worktree switch.
+# Value is intentionally NOT in backend's insecureSecrets; prod deployments
+# set their own secret and never source this file path.
+DEV_JWT_SECRET := dev-jwt-life-tracker-6b3f9c2e7d4a8150b2e6c9f3a7d1e5b0
+
 # Env file for docker commands: root .env when present, else .env.example (dev
 # defaults). Absolute so it survives recipe shells; consumed via --env-file
 # (variable substitution) and by scripts/migrate.sh.
@@ -143,7 +150,7 @@ CHECK_AIR = command -v air >/dev/null 2>&1 || { echo "air not found — run 'mak
 # .env files seeded straight from .env.example are caught before air spawns.
 CHECK_ENV = grep -Eq '^JWT_SECRET=(your-secret-key-here|default-secret-change-this|dev-secret-change-me|changeme|secret)?$$' $(ENV_FILE) 2>/dev/null && { \
 		echo "JWT_SECRET is an insecure placeholder in $(notdir $(ENV_FILE)) — fix with:"; \
-		echo '  sed -i "s|^JWT_SECRET=.*|JWT_SECRET=$$(openssl rand -hex 32)|" .env'; \
+		echo '  sed -i "s|^JWT_SECRET=.*|JWT_SECRET=dev-jwt-life-tracker-6b3f9c2e7d4a8150b2e6c9f3a7d1e5b0|" .env'; \
 		exit 1; \
 	} || true
 
@@ -225,8 +232,8 @@ setup:
 	@if [ ! -f .env ]; then \
 		echo "Creating .env from .env.example..."; \
 		cp .env.example .env; \
-		sed -i "s|^JWT_SECRET=.*|JWT_SECRET=$$(openssl rand -hex 32)|" .env; \
-		echo "✓ .env created (JWT_SECRET generated). Review and update configuration if needed."; \
+		sed -i "s|^JWT_SECRET=.*|JWT_SECRET=$(DEV_JWT_SECRET)|" .env; \
+		echo "✓ .env created (JWT_SECRET set to the shared dev value). Review and update configuration if needed."; \
 	else \
 		echo "✓ .env already exists"; \
 	fi
@@ -423,7 +430,7 @@ deploy-frontend: frontend-up
 #   - RN debug builds reach Metro through the emulator's host alias
 #     10.0.2.2:8081 (react-native's AndroidInfoHelpers emulator default);
 #   - the API is baked at bundle time as 10.0.2.2 (see
-#     apps/mobile/.env.development).
+#     apps/mobile/.env.example).
 #   - both aliases resolve to the Windows host loopback, which forwards
 #     into WSL ONLY with mirrored networking (`networkingMode=mirrored`
 #     in %USERPROFILE%\.wslconfig): NAT-mode forwarding is IPv6-only and
