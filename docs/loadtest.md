@@ -121,13 +121,11 @@ Mechanics:
 
 ## Reports & monitoring
 
-- Scenario runs write raw k6 metrics to `../loadtest/reports/<script>-<timestamp>.json`.
+- Scenario runs write raw k6 metrics to `../loadtest/reports/<script>-<timestamp>.json` — except `smoke`, `static` and `provision`, which print only the terminal summary (no `--out json`).
 - The terminal summary already prints req/s, p50/p95/p99, and error rates.
 - During a run, watch Grafana (`http://localhost:3001`, dashboards listed above)
   and optionally `make tap` for raw responses.
-- Prometheus + Grafana run with the compose stack (`make loadtest-stack-up` or
-  `make loadtest-monitoring-up`); the API exposes `/metrics`. Watch
-  `http_req_duration`, pool waits, and Mongo connection saturation during runs.
+- Prometheus + Grafana run with the compose stack (`make loadtest-stack-up` or `make loadtest-monitoring-up` — the latter delegates to the root `monitoring-up`, the full observability profile: Prometheus, Grafana, Loki, Promtail, node-exporter); the API exposes `/metrics`. Watch `http_req_duration`, pool waits, and Mongo connection saturation during runs.
 
 ## Known bottlenecks to look for
 
