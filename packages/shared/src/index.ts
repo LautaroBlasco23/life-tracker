@@ -4,6 +4,7 @@ export * from "./services/auth-service";
 export * from "./services/activity-service";
 export * from "./services/note-service";
 export * from "./services/note-group-service";
+export * from "./services/sticky-note-service";
 export * from "./services/routine-service";
 export * from "./services/time-service";
 export * from "./services/calendar-service";

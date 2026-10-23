@@ -41,6 +41,8 @@ const NEXT_SERVER_ADVISORIES = [
   'GHSA-955p-x3mx-jcvp',
   'GHSA-p293-qw3h-jr36',
   'GHSA-2xp9-vwfh-vxw4',
+  'GHSA-2464-fhr4-w9xw',
+  'GHSA-p3m5-59mp-jv5r',
 ];
 const ALLOWED = new Set(NEXT_SERVER_ADVISORIES);
 

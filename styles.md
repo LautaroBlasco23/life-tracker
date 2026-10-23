@@ -41,20 +41,20 @@ rules apply.
 
 | Role | Light | Dark |
 |---|---|---|
-| background | `#F5F2EA` (warm) | `#1C1D19` (warm charcoal, never pure black) |
-| surface | `#FFFFFF` | `#262821` |
-| surface-elevated | `#FFFFFF` | `#33352C` |
-| foreground (primary text) | `#30372F` | `#F2EFE6` |
-| muted text | `#6A6C61` | `#AAA99F` |
-| primary (sage, CTAs/selected/progress) | `#5C6F55` | `#A5B59A` |
-| primary-foreground | `#FFFFFF` | `#1C1D19` |
-| secondary (warm amber — highlights) | `#D6A36D` | `#D8B58A` |
-| accent (sage-tinted hover/selected surface) | `#E3E7DC` | `#2F332A` |
-| danger | `#B54D45` | `#D98878` |
-| success | `#477653` | `#8FBF96` |
-| warning | `#96642A` | `#D8B58A` |
-| border | `#E8E3D8` | `#3A3C33` |
-| sticky (sticky-note card) | `#F4E8D4` | `#3E3524` |
+| background | `#f5f2ea` (warm) | `#1c1d19` (warm charcoal, never pure black) |
+| surface | `#ffffff` | `#262821` |
+| surface-elevated | `#ffffff` | `#33352c` |
+| foreground (primary text) | `#30372f` | `#f2efe6` |
+| muted text | `#6a6c61` | `#aaa99f` |
+| primary (sage, CTAs/selected/progress) | `#5c6f55` | `#a5b59a` |
+| primary-foreground | `#ffffff` | `#1c1d19` |
+| secondary (warm amber — highlights) | `#d6a36d` | `#d8b58a` |
+| accent (sage-tinted hover/selected surface) | `#e3e7dc` | `#2f332a` |
+| danger | `#b54d45` | `#d98878` |
+| success | `#477653` | `#8fbf96` |
+| warning | `#96642a` | `#d8b58a` |
+| border | `#e8e3d8` | `#3a3c33` |
+| sticky (sticky-note card) | `#f4e8d4` | `#3e3524` |
 
 ### Color usage rules
 
@@ -70,6 +70,18 @@ rules apply.
 - **Mobile:** the system default font.
 - Scale: page titles 28–32px w600–700; section titles 18–22px w600; body 14–16px w400; supporting text 12–14px; prominent numerals 28–36px w600.
 - **Numerals:** apply `tabular-nums` to prominent values and aligned numeric columns (dashboard stats, timers, tables).
+
+## Page header (web)
+
+Every web page renders exactly one shared `PageHeader`
+([`frontend/components/ui/page-header.tsx`](frontend/components/ui/page-header.tsx)):
+a full-width bar with `border-b border-border`, the `h1` page title plus a
+one-line description on the left, and the page's controls (tabs, filters,
+primary action) on the right. It stacks vertically below `md`. Page content
+lives in its own container *below* the bar — `max-w-4xl mx-auto p-4 md:p-6`
+by default, or full-bleed for tool pages like Notes. Do not hand-roll a
+per-page header block; pass `title`, `description`, and the controls as
+children.
 
 ## Spacing, radius, elevation
 

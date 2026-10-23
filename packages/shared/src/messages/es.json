@@ -460,6 +460,7 @@
   },
   "notes": {
     "title": "Notas",
+    "description": "Escribí y organizá tus notas",
     "search": "Buscar notas...",
     "newNote": "Nueva nota",
     "addGroup": "Crear grupo",
@@ -503,7 +504,24 @@
     "back": "Volver",
     "edit": "Editar",
     "preview": "Vista previa",
-    "editNote": "Editar nota"
+    "editNote": "Editar nota",
+    "tabNotes": "Notas",
+    "tabSticky": "Notas adhesivas"
+  },
+  "stickyNotes": {
+    "title": "Notas adhesivas",
+    "newNote": "Nueva nota",
+    "empty": "No hay notas adhesivas",
+    "emptyDescription": "Creá una nota rápida para recordar algo.",
+    "titlePlaceholder": "Título",
+    "descriptionPlaceholder": "Escribí algo...",
+    "save": "Guardar",
+    "delete": "Eliminar",
+    "deleted": "Nota adhesiva eliminada",
+    "failedToLoad": "Error al cargar notas adhesivas",
+    "failedToCreate": "Error al crear la nota adhesiva",
+    "failedToUpdate": "Error al actualizar la nota adhesiva",
+    "failedToDelete": "Error al eliminar la nota adhesiva"
   },
   "profile": {
     "title": "Perfil",

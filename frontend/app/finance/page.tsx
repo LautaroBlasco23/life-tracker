@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus } from 'lucide-react';
 import { CreateTransactionModal } from './modal/createTransactionModal';
-import { FinanceHeader } from './components/financeHeader';
+import { PageHeader } from '@/components/ui/page-header';
 import { TransactionsView } from './views/transactionsView';
 import { DashboardView } from './views/dashboardView';
 import { useFinanceCategories } from './hooks/use-finance-categories';
@@ -39,7 +39,7 @@ export default function FinancePage() {
 
   return (
     <>
-      <FinanceHeader>
+      <PageHeader title={t('title')} description={t('description')}>
         <Tabs value={view} onValueChange={handleViewChange}>
           <TabsList>
             <TabsTrigger value="transactions">{t('movements')}</TabsTrigger>
@@ -53,23 +53,25 @@ export default function FinancePage() {
           <Plus className="h-4 w-4" />
           {t('addMovement')}
         </Button>
-      </FinanceHeader>
+      </PageHeader>
 
-      {visited.transactions && (
-        <div className={view === 'transactions' ? undefined : 'hidden'}>
-          <TransactionsView
-            categories={categories}
-            refreshKey={refreshKey}
-            onOpenCreate={() => setShowCreateModal(true)}
-          />
-        </div>
-      )}
+      <div className="max-w-4xl mx-auto p-4 md:p-6">
+        {visited.transactions && (
+          <div className={view === 'transactions' ? undefined : 'hidden'}>
+            <TransactionsView
+              categories={categories}
+              refreshKey={refreshKey}
+              onOpenCreate={() => setShowCreateModal(true)}
+            />
+          </div>
+        )}
 
-      {visited.dashboard && (
-        <div className={view === 'dashboard' ? undefined : 'hidden'}>
-          <DashboardView refreshKey={refreshKey} />
-        </div>
-      )}
+        {visited.dashboard && (
+          <div className={view === 'dashboard' ? undefined : 'hidden'}>
+            <DashboardView refreshKey={refreshKey} />
+          </div>
+        )}
+      </div>
 
       <CreateTransactionModal
         open={showCreateModal}

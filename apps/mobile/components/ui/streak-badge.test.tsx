@@ -6,10 +6,10 @@ import { StreakBadge } from './streak-badge';
 // the badge unit tests don't mount ThemeProvider, so stub the palette hook.
 jest.mock('../../lib/use-colors', () => ({
   useColors: () => ({
-    secondary: '#D6A36D',
-    secondaryForeground: '#30372F',
-    warning: '#96642A',
-    textMuted: '#6A6C61',
+    secondary: '#d6a36d',
+    secondaryForeground: '#30372f',
+    warning: '#96642a',
+    textMuted: '#6a6c61',
   }),
 }));
 
