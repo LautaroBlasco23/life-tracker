@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.2](https://github.com/LautaroBlasco23/life-tracker/compare/v1.2.1...v1.2.2) (2026-10-22)
+
+
+### Miscellaneous Chores
+
+* **deps:** bump github.com/aws/aws-sdk-go-v2/service/secretsmanager ([#75](https://github.com/LautaroBlasco23/life-tracker/issues/75)) ([e0544be](https://github.com/LautaroBlasco23/life-tracker/commit/e0544be68e03246134a7d419bae816fb38eee340))
+
 ## [1.2.1](https://github.com/LautaroBlasco23/life-tracker/compare/v1.2.0...v1.2.1) (2026-10-22)
 
 
