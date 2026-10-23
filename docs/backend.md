@@ -1,8 +1,8 @@
 # Life Tracker Backend
 
-Go (Gin) REST API for the Life Tracker platform: authentication, user profiles, habits & activities, finances, notes, time tracking, routines, social, and screen time.
+Go (Gin) REST API for the Life Tracker platform: authentication, user profiles, habits & activities, reminders, finances, notes & note groups, time tracking, routines, social, screen time, and full-account data export/import.
 
-This doc covers the backend **logic only** — domain models/schemas, business rules, and the HTTP API. For how the app is built, deployed, and run (container stack), see [architecture.md](./architecture.md) and [deployment-modes.md](./deployment-modes.md). For run commands, see [getting-started.md](./getting-started.md).
+This doc covers the backend **logic only** — business rules and the HTTP API. For how the app is built, deployed, and run (container stack), see [architecture.md](./architecture.md) and [deployment-modes.md](./deployment-modes.md). For run commands, see [getting-started.md](./getting-started.md). For the data model (what is stored and how it relates), see [data-schemas.md](./data-schemas.md).
 
 ---
 
@@ -21,16 +21,18 @@ internal/
 │   └── routes/       ← route registration
 ├── config/           ← env-based configuration
 ├── database/         ← connections + versioned SQL migrations
-├── infrastructure/   ← cross-cutting: image storage (S3), secrets, pagination, monitoring
-└── middleware/       ← JWT auth, CORS, timezone, metrics
+├── infrastructure/   ← cross-cutting: image storage (S3), secrets (incl. AWS Secrets
+│                        Manager for the prod JWT secret), pagination, monitoring
+└── middleware/       ← JWT auth, CORS, timezone, rate limiting, body limits,
+                        security headers, recovery, request ID, request logging, metrics
 ```
 
 **Storage split**
 
 | Storage | Domains | Why |
 |---|---|---|
-| PostgreSQL (GORM) | auth, user, activity, note, time, routine, social | Relational, relational queries (follows, subscriptions, ownership) |
-| MongoDB (mongo-driver) | activity records, finance (transactions/payments), screentime visits | Document data, write-heavy time-series-like records |
+| PostgreSQL (GORM) | auth (+ refresh tokens), user, activity, reminder, note, note-group, time, routine, social | Relational, relational queries (follows, subscriptions, ownership) |
+| MongoDB (mongo-driver) | activity records, finance (transactions/payments), screentime visits (also read by `data` for export) | Document data, write-heavy time-series-like records |
 
 Migrations are versioned SQL files under `internal/database/migrations/` (naming convention `{6-digit-number}_{description}.{up|down}.sql`).
 
@@ -44,42 +46,72 @@ Migrations are versioned SQL files under `internal/database/migrations/` (naming
 - **JWT** — access & refresh token auth
 - **bcrypt** — password hashing
 - **godotenv** — env file loading
+- **golang-migrate** — embedded versioned SQL migrations (run on every API start)
+- **excelize** — Excel export/import (`data` domain)
+- **AWS SDK** — S3 image storage + Secrets Manager (prod JWT secret; LocalStack emulator in dev via `AWS_ENDPOINT_URL`)
+- **prometheus client_golang** — `/metrics`
 
 ---
 
 ## Domain Modules
 
+Each domain below shows its main resource as JSON — one representative request + response. The examples are illustrative (optional fields may be omitted); the full shapes live in the domain DTOs (`internal/domain/<domain>/dto/`), and the data model is documented in [data-schemas.md](./data-schemas.md).
+
 ### Auth — `domain/auth`
 
 Credentials live in the `auth` table; profiles in the `user` table (1:1 via `userId`).
 
-**Schema**
+**Refresh tokens** are also stored **server-side** (`refresh_tokens` table, SHA-256 hashed) so sessions are revocable: password or email change invalidates existing sessions.
 
-| Field | Type | Notes |
-|---|---|---|
-| id | uint | PK |
-| user_id | uint | FK to user |
-| email | string | unique, not null |
-| username | string | unique, not null, max 64 |
-| password_hash | string | never serialized |
+**Example** — `POST /auth/register` request:
+
+```json
+{
+  "email": "ada@example.com",
+  "password": "correct-horse-battery",
+  "firstName": "Ada",
+  "lastName": "Lovelace",
+  "username": "ada"
+}
+```
+
+Register, login, and refresh all return a token pair:
+
+```json
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIs...",
+  "refreshToken": "b7c1d9f04e2a...",
+  "tokenType": "Bearer",
+  "expiresIn": 900
+}
+```
 
 **Logic**
 - `POST register` — validates uniqueness (email/username), hashes password (bcrypt), creates auth + user records, returns token pair.
-- `POST login` — verifies credentials, returns **access token** (short-lived JWT) + **refresh token**.
+- `POST login` — verifies credentials (by email **or** username via `identifier`), returns **access token** (short-lived JWT) + **refresh token** (persisted server-side).
 - `POST refresh` — validates the refresh token and issues a new token pair (rotation).
-- `PUT password` / `PUT email` — protected; email change re-issues tokens. Tokens embed `userId`, `email`, and expiry.
+- `POST logout` — revokes the server-side refresh token.
+- `PUT password` / `PUT email` — protected; email change re-issues tokens and revokes old sessions. Tokens embed `userId`, `email`, and expiry.
 
 ### User — `domain/user`
 
-**Schema** (`user` table)
+**Example** — `GET /users/me` response:
 
-| Field | Type | Notes |
-|---|---|---|
-| id | uint | PK |
-| first_name / last_name | string | not null |
-| profile_pic_url / thumbnail_url | string * | from image upload |
-| timezone | string * | IANA name; fallback UTC |
-| profile_privacy_status | string | `public` (default) \| `private` |
+```json
+{
+  "id": 1,
+  "username": "ada",
+  "firstName": "Ada",
+  "lastName": "Lovelace",
+  "email": "ada@example.com",
+  "profilePicUrl": "https://cdn.example.com/ada.jpg",
+  "thumbnailUrl": "https://cdn.example.com/ada-sm.jpg",
+  "timezone": "America/Argentina/Buenos_Aires",
+  "profilePrivacyStatus": "public",
+  "createdAt": "2026-01-10T09:00:00Z",
+  "updatedAt": "2026-01-15T10:30:00Z"
+}
+```
 
 **Logic**
 - Profile CRUD, username update with format validation + availability check.
@@ -91,20 +123,58 @@ Credentials live in the `auth` table; profiles in the `user` table (1:1 via `use
 
 Activity definitions live in PostgreSQL; **completion records in MongoDB**.
 
-**Schema** (`activities` table)
+**Example** — `POST /activities` request:
 
-| Field | Type | Notes |
-|---|---|---|
-| id / user_id | uint | PK / FK |
-| title, description | string | title max 255 |
-| frequency | enum | `daily` \| `weekly` \| `monthly` |
-| day_frequency | string | optional text (e.g. specific weekdays) |
-| day_time | enum | `notSpecified` \| `morning` \| `afternoon` \| `evening` |
-| privacy_status | enum | `public` \| `private` (default) |
-| completion_amount | int | required completions to count as done (default 1) |
-| is_active | bool | soft toggle, default false |
+```json
+{
+  "title": "Morning stretch",
+  "description": "10 minutes of mobility work",
+  "frequency": "weekly",
+  "dayFrequency": "mon,wed,fri",
+  "dayTime": "morning",
+  "completionAmount": 1
+}
+```
 
-`ActivityRecord` (Mongo): `activityId`, `userId`, `completionDate`, `notes`.
+Response (with `GET /activities/:id/stats` adding the streak/records block):
+
+```json
+{
+  "id": 7,
+  "userId": 1,
+  "title": "Morning stretch",
+  "description": "10 minutes of mobility work",
+  "frequency": "weekly",
+  "dayFrequency": "mon,wed,fri",
+  "dayTime": "morning",
+  "completionAmount": 1,
+  "privacyStatus": "private",
+  "isActive": true,
+  "todayCompletions": 1,
+  "isCompletedToday": true,
+  "streak": { "current": 12, "longest": 21 },
+  "routines": [{ "id": 3, "title": "Morning routine" }]
+}
+```
+
+`todayCompletions`, `isCompletedToday`, `streak`, and `routines` are computed, not stored — see [data-schemas.md](./data-schemas.md#activity-habits).
+
+Recording a completion — `POST /activities/:id/record` (`completionDate` optional, defaults to now):
+
+```json
+{ "completionDate": "2026-01-15T08:30:00Z", "notes": "felt great" }
+```
+
+```json
+{
+  "id": "68f0c1a2e4b0a1b2c3d4e5f6",
+  "activityId": 7,
+  "userId": 1,
+  "completionDate": "2026-01-15T08:30:00Z",
+  "notes": "felt great",
+  "createdAt": "2026-01-15T08:30:00Z"
+}
+```
 
 **Logic**
 - CRUD with a dynamic update map (only provided fields change).
@@ -119,15 +189,31 @@ Activity definitions live in PostgreSQL; **completion records in MongoDB**.
 
 One-time events with a deadline. In Postgres (`reminders` table).
 
-**Schema**
+**Example** — `POST /reminders` request:
 
-| Field | Type | Notes |
-|---|---|---|
-| title, description | string | title max 255 |
-| due_at | timestamptz | deadline, required |
-| active_from | timestamptz | optional; defaults to now (completion window) |
-| completed_at | timestamptz | set on completion |
-| privacy_status | enum | `public` \| `private` (default) |
+```json
+{
+  "title": "Renew passport",
+  "description": "Book the appointment",
+  "dueAt": "2026-02-01T12:00:00Z",
+  "activeFrom": "2026-01-20T00:00:00Z"
+}
+```
+
+Response (adds the server-set fields):
+
+```json
+{
+  "id": 5,
+  "userId": 1,
+  "title": "Renew passport",
+  "description": "Book the appointment",
+  "dueAt": "2026-02-01T12:00:00Z",
+  "activeFrom": "2026-01-20T00:00:00Z",
+  "completedAt": null,
+  "privacyStatus": "private"
+}
+```
 
 **Logic**
 - Status is derived client-side (`getReminderStatus`): `locked` (before `activeFrom`) → `active` → `missed` (past `dueAt`) / `completed`.
@@ -140,21 +226,53 @@ All finance data lives in MongoDB. Categories are a fixed built-in catalog.
 
 **Built-in categories** (12) — income: `Primary Income`, `Side Income`, `Investments`, `Other Income`; outcome: `Housing & Utilities`, `Food & Groceries`, `Transportation`, `Health & Fitness`, `Education`, `Entertainment & Travel`, `Taxes & Fees`, `Pets & Misc`. Each has a type (`income`/`outcome`) and applies to a frequency (`fixed`/`variable`).
 
-**Schemas**
+**Example** — `POST /finances/transactions` (variable transaction) request:
 
-`Transaction` (Mongo)
+```json
+{
+  "type": "outcome",
+  "frequency": "variable",
+  "amount": 42.5,
+  "category": "Food & Groceries",
+  "description": "Weekly groceries",
+  "date": "2026-01-15T12:00:00Z"
+}
+```
 
-| Field | Type | Notes |
-|---|---|---|
-| type | enum | `income` \| `outcome` |
-| frequency | enum | `fixed` \| `variable` |
-| payment_frequency | enum | `monthly` \| `bimonthly` \| `yearly` (fixed only) |
-| amount | float | |
-| category | string | one of the built-in categories |
-| description | string | optional |
-| date | time | |
+Response:
 
-`Payment` (Mongo): `transactionId`, `amount`, `date` — a concrete payment event attached to a fixed transaction.
+```json
+{
+  "id": "68f0c1a2e4b0a1b2c3d4e5f7",
+  "type": "outcome",
+  "frequency": "variable",
+  "amount": 42.5,
+  "categoryName": "Food & Groceries",
+  "description": "Weekly groceries",
+  "date": "2026-01-15T12:00:00Z"
+}
+```
+
+Recording a payment for a fixed transaction — `POST /finances/payments`:
+
+```json
+{ "transactionId": "68f0b9e2e4b0a1b2c3d4e5f1", "amount": 850, "date": "2026-01-05T10:00:00Z" }
+```
+
+The movements feed (`GET /finances/movements`) merges variable transactions, fixed payments, and pending fixed bills into one list:
+
+```json
+{
+  "id": "68f0b9e2e4b0a1b2c3d4e5f2",
+  "sourceType": "payment",
+  "type": "outcome",
+  "amount": 850,
+  "category": "Housing & Utilities",
+  "date": "2026-01-05T10:00:00Z",
+  "paid": true,
+  "transactionId": "68f0b9e2e4b0a1b2c3d4e5f1"
+}
+```
 
 **Logic**
 - **Transactions** — variable transactions are single events; fixed transactions are templates that accrue payments over time.
@@ -166,31 +284,120 @@ All finance data lives in MongoDB. Categories are a fixed built-in catalog.
 
 ### Note — `domain/note`
 
-**Schema** (`notes` table): `id`, `userId`, `title` (max 255), `content` (text).
+**Example** — `POST /notes` request:
 
-Simple CRUD + filtering (title/content search).
+```json
+{ "title": "Book ideas", "content": "## To read\n- The Pragmatic Programmer" }
+```
+
+Response:
+
+```json
+{
+  "id": 4,
+  "userId": 1,
+  "title": "Book ideas",
+  "content": "## To read\n- The Pragmatic Programmer",
+  "groupId": 2,
+  "position": 3
+}
+```
+
+Manual ordering — `POST /notes/reorder`:
+
+```json
+{
+  "items": [
+    { "id": 4, "groupId": 2, "position": 0 },
+    { "id": 5, "groupId": null, "position": 1 }
+  ]
+}
+```
+
+**Logic**
+
+CRUD + filtering (title/content search), plus `POST /notes/reorder` for manual ordering.
+
+### Note Group — `domain/note-group`
+
+Notes can be grouped. Full CRUD over `note_groups` (`id`, `userId`, `name`, `position`), plus `POST /note-groups/reorder`:
+
+```json
+{
+  "items": [
+    { "id": 2, "position": 0 },
+    { "id": 1, "position": 1 }
+  ]
+}
+```
 
 ### Time — `domain/time`
 
-**Schema** (`time_records` table)
+**Example** — `POST /time-records` request:
 
-| Field | Type | Notes |
-|---|---|---|
-| category | string | max 100, not null |
-| description | string | |
-| duration_minutes | int | not null |
+```json
+{ "category": "Deep work", "description": "Docs refactor", "durationMinutes": 90 }
+```
+
+Response:
+
+```json
+{
+  "id": 9,
+  "category": "Deep work",
+  "description": "Docs refactor",
+  "durationMinutes": 90,
+  "createdAt": "2026-01-15T14:00:00Z",
+  "updatedAt": "2026-01-15T14:00:00Z"
+}
+```
+
+**Logic**
 
 CRUD with filter support, plus `GET /stats` aggregating total time per category.
 
 ### Routine — `domain/routine`
 
-**Schemas** (`routines` + join table `routine_activities`)
+**Example** — `POST /routines` request (ordered activity references):
 
-| Field | Type | Notes |
-|---|---|---|
-| title, description | string | title max 255 |
-| privacy_status | enum | `public` \| `private` (default) |
-| routine_activities | (routine_id, activity_id) composite PK | ordered by `position` |
+```json
+{
+  "title": "Morning routine",
+  "description": "Start the day right",
+  "privacyStatus": "private",
+  "dayTime": "morning",
+  "dayFrequency": "mon,tue,wed,thu,fri",
+  "activityIds": [
+    { "activityId": 7, "position": 0 },
+    { "activityId": 9, "position": 1 }
+  ]
+}
+```
+
+Response (activities expanded inline):
+
+```json
+{
+  "id": 3,
+  "userId": 1,
+  "title": "Morning routine",
+  "description": "Start the day right",
+  "status": "active",
+  "privacyStatus": "private",
+  "dayTime": "morning",
+  "dayFrequency": "mon,tue,wed,thu,fri",
+  "activities": [
+    {
+      "activityId": 7,
+      "activityTitle": "Morning stretch",
+      "position": 0,
+      "todayCompletions": 1,
+      "scheduledToday": true
+    }
+  ],
+  "isCompletedToday": false
+}
+```
 
 **Logic**
 - A routine is an ordered collection of the owner's activities.
@@ -199,11 +406,36 @@ CRUD with filter support, plus `GET /stats` aggregating total time per category.
 
 ### Social — `domain/social`
 
-**Schemas** (`follows`, `subscriptions`)
+**Example** — subscribing to a public activity (`POST /subscriptions`):
 
-`Follow` — composite PK `(follower_id, followee_id)`; `status` `pending` \| `accepted`; `acceptedAt` nullable.
+```json
+{ "sourceType": "activity", "sourceId": 7 }
+```
 
-`Subscription` — `subscriberUserId`, `sourceUserId`, `sourceType` (`activity` \| `routine`), `sourceId`, `clonedId`.
+```json
+{ "id": 12, "sourceType": "activity", "sourceId": 7, "clonedId": 15 }
+```
+
+Public profile view (`GET /users/:username/profile`) — content is only populated when the viewer may see it:
+
+```json
+{
+  "id": 2,
+  "username": "grace",
+  "firstName": "Grace",
+  "lastName": "Hopper",
+  "profilePrivacyStatus": "public",
+  "followStatus": "accepted",
+  "isFollowing": true,
+  "followersCount": 18,
+  "followingCount": 4,
+  "canViewContent": true,
+  "activities": [
+    { "id": 7, "title": "5k run", "frequency": "daily", "completionAmount": 1, "subscribed": false }
+  ],
+  "routines": []
+}
+```
 
 **Logic**
 - **Follow system** — request/accept flow: follow creates a `pending` request (or `accepted` if the target profile is public), the owner accepts/rejects, and followers/following lists are paginated.
@@ -214,9 +446,31 @@ CRUD with filter support, plus `GET /stats` aggregating total time per category.
 
 **Schema** (`web_visits`, Mongo): `userId`, `domain`, `visitedAt`.
 
+**Example** — `POST /screen-time/visits` (from the Chrome extension):
+
+```json
+{ "domain": "github.com", "visitedAt": "2026-01-15T14:22:00Z" }
+```
+
+Stats (`GET /screen-time/stats`) aggregate visit counts per domain:
+
+```json
+{ "domain": "github.com", "count": 142 }
+```
+
+**Logic**
 - `POST /visits` — records a visit (from the Chrome extension).
 - `GET /visits` — filterable by domain and date range.
-- `GET /stats` — aggregate time per domain.
+- `GET /stats` — aggregate **visit count** per domain (the model stores no duration).
+
+### Data — `domain/data`
+
+Full-account backup: **Excel export/import** of the user's data (excelize), reading from PostgreSQL + MongoDB collections.
+
+- `GET /users/me/data/export` — produces an Excel workbook of all the user's records.
+- `POST /users/me/data/import` — imports an uploaded workbook (body capped by `MaxBodyBytes` config, ~32 MB).
+
+Consumed by both clients via the shared `data-service` (`packages/shared/src/services/`).
 
 ---
 
@@ -231,6 +485,7 @@ All routes are mounted under the `/api` prefix. "Public" routes need no token; "
 | POST | /auth/register | Public | Create account, returns token pair |
 | POST | /auth/login | Public | Login, returns token pair |
 | POST | /auth/refresh | Public | Rotate refresh token |
+| POST | /auth/logout | Protected | Revoke the refresh token (session) |
 | PUT | /auth/password | Protected | Update password |
 | PUT | /auth/email | Protected | Update email, re-issues tokens |
 
@@ -245,8 +500,7 @@ All routes are mounted under the `/api` prefix. "Public" routes need no token; "
 | GET | /users | Protected | List users |
 | GET | /users/search?prefix= | Protected | Prefix search |
 | GET | /users/:username | Protected | Get profile by username |
-| DELETE | /users/:id | Protected | Delete user |
-| GET | /users/check-username?username= | Public | Username availability |
+| GET | /users/check-username?username= | Public | Username availability (rate-limited) |
 | GET | /users/check-email?email= | Public | Email availability |
 
 ### Activity — `/api/activities`
@@ -263,6 +517,8 @@ All routes are mounted under the `/api` prefix. "Public" routes need no token; "
 | GET | /activities/:id/records | Protected | Completion history |
 | GET | /activities/:id/stats | Protected | Completions + streak stats |
 | DELETE | /activities/:id/revert | Protected | Revert last completion |
+
+**Extra:** `GET /activities/streak` — global streak across all the user's activities.
 
 ### Reminder — `/api/reminders`
 
@@ -304,6 +560,18 @@ All routes are mounted under the `/api` prefix. "Public" routes need no token; "
 | GET | /notes/:id | Protected | Get note |
 | PUT | /notes/:id | Protected | Update note |
 | DELETE | /notes/:id | Protected | Delete note |
+| POST | /notes/reorder | Protected | Manual note ordering |
+
+### Note Group — `/api/note-groups`
+
+| Method | Path | Access | Description |
+|---|---|---|---|
+| POST | /note-groups | Protected | Create group |
+| GET | /note-groups | Protected | List groups |
+| GET | /note-groups/:id | Protected | Get group |
+| PUT | /note-groups/:id | Protected | Update group |
+| DELETE | /note-groups/:id | Protected | Delete group |
+| POST | /note-groups/reorder | Protected | Manual group ordering |
 
 ### Time — `/api/time-records`
 
@@ -340,6 +608,7 @@ All routes are mounted under the `/api` prefix. "Public" routes need no token; "
 | POST | /subscriptions | Protected | Subscribe to a public activity/routine |
 | GET | /subscriptions | Protected | My subscriptions |
 | DELETE | /subscriptions/:id | Protected | Unsubscribe |
+| GET | /users/:username/profile | Public | Public profile view |
 
 ### Screen Time — `/api/screen-time`
 
@@ -347,7 +616,7 @@ All routes are mounted under the `/api` prefix. "Public" routes need no token; "
 |---|---|---|---|
 | POST | /screen-time/visits | Protected | Record a web visit |
 | GET | /screen-time/visits | Protected | List visits (domain/date filters) |
-| GET | /screen-time/stats | Protected | Aggregate time per domain |
+| GET | /screen-time/stats | Protected | Aggregate visit count per domain |
 
 ### System
 
@@ -356,7 +625,7 @@ All routes are mounted under the `/api` prefix. "Public" routes need no token; "
 | GET | /health | Service health incl. PostgreSQL + MongoDB status |
 | GET | /metrics | Prometheus metrics |
 
-Postman collections for all domains are available in `../backend/postman/`.
+Postman collections for a subset of domains (activities, authentication, finances, health, routines, users) are available in `../backend/postman/`. CI uploads plain per-domain JSON endpoint files from `backend/endpoints/` as an artifact instead (see [ci-cd.md](./ci-cd.md)).
 
 ---
 

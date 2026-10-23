@@ -14,4 +14,7 @@ paths = [
     '''\.env\.example$''',
     # Postman collection with empty token placeholders.
     '''backend/postman/.*\.json$''',
+    # Endpoint-contract examples: fake JWT/refresh tokens cut off with "…"
+    # (never real credentials — see the docs source of truth rule).
+    '''docs/backend\.md$''',
 ]
