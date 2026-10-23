@@ -182,6 +182,60 @@ Simple CRUD + filtering (title/content search).
 
 CRUD with filter support, plus `GET /stats` aggregating total time per category.
 
+### Calendar — `domain/calendar`
+
+**Schema** (`calendar_events` table): `id`, `userId`, `title` (max 255),
+`description`, `category` (max 100), `start_at`, `end_at`, plus the
+recurrence columns `series_id`, `occurrence_index`, `recurrence_rule`,
+`recurrence_until`, `recurrence_interval` (all nullable — one-off events
+keep them NULL).
+
+Scheduled time blocks for the week calendar (the `Calendar` tab of the web
+Time page). Unlike `time_records` — logged facts with only a duration — events
+carry an explicit start and end and may be in the future.
+
+Rules:
+
+- `end_at` must be after `start_at`; an event may not exceed 24 hours.
+- `GET` with a range keeps events that **overlap** `[from, to)`, so a block
+  crossing midnight or a week boundary appears in both views.
+- `from` and `to` are RFC3339 instants and must be sent together.
+
+**Weekly recurrence**
+
+A recurring event is **materialized**: creating one writes one row per
+occurrence (same weekday and time of day), all of them sharing a `series_id`
+and carrying their `occurrence_index`. The read path is unchanged — every
+occurrence is an ordinary event, so the overlap query and the week grid need
+no special casing.
+
+- `POST /calendar-events` accepts an optional `recurrence` object:
+  `{ "rule": "weekly", "interval": 1, "until": "<RFC3339>" }`.
+  `until` is **required** for a weekly rule; `interval` is the number of
+  weeks between occurrences (default 1, max 52).
+- An occurrence is created while its start is **before or at** `until`; a
+  series can hold at most **100 occurrences**. A longer series is rejected
+  with a 400 error instead of being truncated.
+- Updating or deleting an event that belongs to a series takes a `scope`:
+  - `PUT /calendar-events/:id` — `scope` in the body (`occurrence`, the
+    default, or `series`).
+  - `DELETE /calendar-events/:id?scope=series` — `scope` as a query
+    parameter (the repo convention for flags).
+  - `scope=series` applies the change to every occurrence: a new start shifts
+    the whole series by the same amount and the edited occurrence's new
+    duration is applied to all of them. `scope=series` on an event that is
+    not part of a series behaves like `scope=occurrence`.
+- The occurrences are anchored to the **user's timezone** (the `X-Timezone`
+  header the clients send on every request), so a 10:00 class stays at 10:00
+  after a daylight-saving change: the step is applied on the wall clock in
+  that location, not by adding 7×24h to the instant.
+- A series is written in a single transaction, so a failure never leaves a
+  partial series behind.
+
+Limitation: the rule is materialized at creation time, so a series cannot be
+turned into a single event (or the other way round) later, and the weekday
+and time of day of the series are fixed by its first occurrence.
+
 ### Routine — `domain/routine`
 
 **Schemas** (`routines` + join table `routine_activities`)
@@ -217,6 +271,46 @@ CRUD with filter support, plus `GET /stats` aggregating total time per category.
 - `POST /visits` — records a visit (from the Chrome extension).
 - `GET /visits` — filterable by domain and date range.
 - `GET /stats` — aggregate time per domain.
+
+### Data export/import — `domain/data`
+
+Full backup of one user as an XLSX workbook: `GET /users/me/data/export`
+downloads it, `POST /users/me/data/import` (multipart field `file`) restores it.
+
+**Covered entities** — one sheet per entity, plus a `_meta` sheet with
+`schema_version`, `exported_at` and `user_id`:
+
+| Sheet | Store | Rows |
+|---|---|---|
+| `activities` | PostgreSQL | activities |
+| `time_records` | PostgreSQL | time records |
+| `calendar_events` | PostgreSQL | calendar events |
+| `notes` | PostgreSQL | notes |
+| `routines`, `routine_activities` | PostgreSQL | routines and their activity links |
+| `activity_records` | MongoDB | activity records |
+| `transactions`, `payments` | MongoDB | finance data |
+
+The `calendar_events` sheet is generated from the calendar model, so every
+column of the table is backed up (a column added to the model is exported
+without touching the backup code). Every cell is written as a string
+(ISO 8601 dates, ObjectID hex) to survive a round trip through Excel.
+
+**Import semantics**
+
+- **Destructive** — the user's current data is deleted and replaced with the
+  contents of the file.
+- **All or nothing** — the whole file is validated first; if a row breaks a
+  rule, the import is refused with a report and nothing is changed.
+- **Re-owned** — every restored row belongs to the importing user; the
+  archived `user_id` is ignored.
+- **Fresh ids** — calendar events are restored with new ids (the id sequence
+  is global, so an archived id could belong to another user's row); the
+  other entities keep their ids.
+- **Domain rules** — restored calendar events must have a title, an `end_at`
+  after `start_at` and a duration of at most 24 hours.
+
+The workbook layout is versioned: `schema_version` is currently `2`; files of
+an older version are refused instead of being restored partially.
 
 ---
 
@@ -316,6 +410,16 @@ All routes are mounted under the `/api` prefix. "Public" routes need no token; "
 | PUT | /time-records/:id | Protected | Update record |
 | DELETE | /time-records/:id | Protected | Delete record |
 
+### Calendar — `/api/calendar-events`
+
+| Method | Path | Access | Description |
+|---|---|---|---|
+| POST | /calendar-events | Protected | Create event (optional weekly `recurrence`) |
+| GET | /calendar-events?from=&to= | Protected | List events overlapping the range |
+| GET | /calendar-events/:id | Protected | Get event |
+| PUT | /calendar-events/:id | Protected | Update event (`scope` in the body) |
+| DELETE | /calendar-events/:id?scope= | Protected | Delete event (`scope=series` removes the series) |
+
 ### Routine — `/api/routines`
 
 | Method | Path | Access | Description |
@@ -348,6 +452,13 @@ All routes are mounted under the `/api` prefix. "Public" routes need no token; "
 | POST | /screen-time/visits | Protected | Record a web visit |
 | GET | /screen-time/visits | Protected | List visits (domain/date filters) |
 | GET | /screen-time/stats | Protected | Aggregate time per domain |
+
+### Data — `/api/users/me/data`
+
+| Method | Path | Access | Description |
+|---|---|---|---|
+| GET | /data/export | Protected | Download the user's backup as XLSX |
+| POST | /data/import | Protected | Restore the user's data from an XLSX backup |
 
 ### System
 

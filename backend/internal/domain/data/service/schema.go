@@ -12,6 +12,7 @@ const (
 	SheetMeta              = "_meta"
 	SheetActivities        = "activities"
 	SheetTimeRecords       = "time_records"
+	SheetCalendarEvents    = "calendar_events"
 	SheetNotes             = "notes"
 	SheetRoutines          = "routines"
 	SheetRoutineActivities = "routine_activities"
@@ -22,7 +23,12 @@ const (
 
 // SchemaVersion identifies the workbook layout. Bump it (and adapt the
 // import) whenever the columns below change.
-const SchemaVersion = 1
+//
+// Version 2 adds the calendar_events sheet. Backups of version 1 are
+// refused instead of being restored without their events: a restore replaces
+// the user's data, so a file without the sheet would silently drop the
+// calendar.
+const SchemaVersion = 2
 
 // MetaKeys are the row keys used in the _meta sheet.
 const (
@@ -41,7 +47,10 @@ var (
 		"id", "user_id", "category", "description", "duration_minutes",
 		"created_at", "updated_at", "deleted_at",
 	}
-	NotesHeader = []string{
+	// CalendarEventsHeader is derived from the calendar model, so every
+	// column of the table is backed up (see calendar_events.go).
+	CalendarEventsHeader = calendarEventHeader()
+	NotesHeader          = []string{
 		"id", "user_id", "title", "content", "created_at", "updated_at", "deleted_at",
 	}
 	RoutinesHeader = []string{
@@ -69,6 +78,7 @@ var entitySheets = []struct {
 }{
 	{SheetActivities, ActivitiesHeader},
 	{SheetTimeRecords, TimeRecordsHeader},
+	{SheetCalendarEvents, CalendarEventsHeader},
 	{SheetNotes, NotesHeader},
 	{SheetRoutines, RoutinesHeader},
 	{SheetRoutineActivities, RoutineActivitiesHeader},

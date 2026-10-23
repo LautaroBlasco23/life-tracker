@@ -32,6 +32,24 @@ Developed initially with Vercel V0. Built with Next.js and TypeScript.
   - Unified create/edit form defaults to a normal activity; the checkbox
     switches it to reminder mode
 
+- **Time Tracking** (`/time`, two tabs)
+  - Records: live timer sessions and manual entries, per-category totals,
+    period + month/year/category filters
+  - Calendar: week grid (Monday start) for scheduled blocks. Click an empty
+    slot to create an event, click an event to edit or delete it; overlapping
+    events render side by side, and the current time is marked. Screens below
+    `md` show a single-day agenda with a day picker.
+  - Recurrence: the event form has a `Repeat` select (None / Weekly) and, for
+    a weekly event, the last date the series repeats on (up to 100
+    occurrences). Occurrences of a series are marked with a repeat icon and
+    can be edited or deleted alone or as a whole series.
+  - Overnight events: an explicit "ends the next day" toggle lets an event
+    end past midnight (the end time is never reinterpreted); the 24-hour
+    limit still applies.
+  - Mobile parity: the Expo app has the same two tabs (records / calendar);
+    the calendar shows a day picker + single-day agenda with the same form
+    (category, repeat, scope) reusing the shared calendar service.
+
 - **Finance Management**
   - Personal finance tracking interface
   - Backend integration in progress

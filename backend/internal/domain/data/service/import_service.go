@@ -12,6 +12,7 @@ import (
 	"life-tracker-backend/internal/domain/data/dto"
 
 	activityModel "life-tracker-backend/internal/domain/activity/model"
+	calendarModel "life-tracker-backend/internal/domain/calendar/model"
 	financeModel "life-tracker-backend/internal/domain/finance/model"
 	noteModel "life-tracker-backend/internal/domain/note/model"
 	routineModel "life-tracker-backend/internal/domain/routine/model"
@@ -70,6 +71,7 @@ func (s *BackupService) Restore(userID uint, data []byte) (*dto.RestoreCounts, e
 	return &dto.RestoreCounts{
 		Activities:        len(b.activities),
 		TimeRecords:       len(b.timeRecords),
+		CalendarEvents:    len(b.calendarEvents),
 		Notes:             len(b.notes),
 		Routines:          len(b.routines),
 		RoutineActivities: len(b.routineActivities),
@@ -104,6 +106,7 @@ func validateMeta(f *excelize.File) error {
 type parsedBackup struct {
 	activities        []activityModel.Activity
 	timeRecords       []timeModel.TimeRecord
+	calendarEvents    []calendarModel.CalendarEvent
 	notes             []noteModel.Note
 	routines          []routineModel.Routine
 	routineActivities []routineModel.RoutineActivity
@@ -185,6 +188,7 @@ func parseBackup(f *excelize.File) (*parsedBackup, error) {
 	for _, parse := range []func(*excelize.File, *parsedBackup, *parseState) error{
 		parseActivities,
 		parseTimeRecords,
+		parseCalendarEvents,
 		parseNotes,
 		parseRoutines,
 		parseRoutineActivities,
@@ -268,6 +272,30 @@ func parseTimeRecords(f *excelize.File, b *parsedBackup, p *parseState) error {
 		}
 		t.CreatedAt, t.UpdatedAt, t.DeletedAt = decTimestamps(p, SheetTimeRecords, i+2, row, sh)
 		b.timeRecords = append(b.timeRecords, t)
+	}
+	return nil
+}
+
+// parseCalendarEvents reads the calendar events of the file. A row that
+// breaks a rule of the calendar domain (empty title, end before start, or an
+// event longer than 24 hours) is reported like any other broken row: the
+// whole file is refused, nothing is restored.
+func parseCalendarEvents(f *excelize.File, b *parsedBackup, p *parseState) error {
+	sh, err := openSheet(f, SheetCalendarEvents, CalendarEventsHeader)
+	if err != nil {
+		return err
+	}
+	for i, row := range sh.rows {
+		event, err := decodeCalendarEvent(sh, row)
+		if err != nil {
+			p.addf(SheetCalendarEvents, i+2, "%v", err)
+			continue
+		}
+		if err := validateCalendarEvent(&event); err != nil {
+			p.addf(SheetCalendarEvents, i+2, "%v", err)
+			continue
+		}
+		b.calendarEvents = append(b.calendarEvents, event)
 	}
 	return nil
 }
@@ -507,6 +535,9 @@ func applyUserID(userID uint, b *parsedBackup) {
 	for i := range b.timeRecords {
 		b.timeRecords[i].UserID = userID
 	}
+	for i := range b.calendarEvents {
+		b.calendarEvents[i].UserID = userID
+	}
 	for i := range b.notes {
 		b.notes[i].UserID = userID
 	}
@@ -539,6 +570,7 @@ func (s *BackupService) restorePostgres(userID uint, b *parsedBackup) error {
 			&routineModel.Routine{},
 			&activityModel.Activity{},
 			&timeModel.TimeRecord{},
+			&calendarModel.CalendarEvent{},
 			&noteModel.Note{},
 		} {
 			if err := tx.Unscoped().Where("user_id = ?", userID).Delete(m).Error; err != nil {
@@ -552,6 +584,12 @@ func (s *BackupService) restorePostgres(userID uint, b *parsedBackup) error {
 		}
 		if err := insertRows(tx, b.timeRecords); err != nil {
 			return fmt.Errorf("time_records: %w", err)
+		}
+		// Calendar events are inserted without their archived id: the id
+		// sequence is global, so an archived id could already belong to
+		// another user's row.
+		if err := insertRows(tx, b.calendarEvents); err != nil {
+			return fmt.Errorf("calendar_events: %w", err)
 		}
 		if err := insertRows(tx, b.notes); err != nil {
 			return fmt.Errorf("notes: %w", err)

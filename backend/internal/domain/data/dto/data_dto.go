@@ -4,6 +4,7 @@ package dto
 type RestoreCounts struct {
 	Activities        int `json:"activities"`
 	TimeRecords       int `json:"timeRecords"`
+	CalendarEvents    int `json:"calendarEvents"`
 	Notes             int `json:"notes"`
 	Routines          int `json:"routines"`
 	RoutineActivities int `json:"routineActivities"`
