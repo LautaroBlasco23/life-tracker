@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.4](https://github.com/LautaroBlasco23/life-tracker/compare/v1.2.3...v1.2.4) (2026-10-23)
+
+
+### Documentation
+
+* restructure getting-started, backend and data-schemas pages ([#82](https://github.com/LautaroBlasco23/life-tracker/issues/82)) ([9994d16](https://github.com/LautaroBlasco23/life-tracker/commit/9994d16dd5b9541989e9ba37d72c606f52cc1884))
+
 ## [1.2.3](https://github.com/LautaroBlasco23/life-tracker/compare/v1.2.2...v1.2.3) (2026-10-23)
 
 

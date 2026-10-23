@@ -1,6 +1,6 @@
 {
   "name": "@life-tracker/shared",
-  "version": "1.2.3",
+  "version": "1.2.4",
   "private": true,
   "type": "module",
   "description": "Shared business layer (services, types, i18n) for the web and mobile clients",
