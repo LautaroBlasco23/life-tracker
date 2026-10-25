@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.3.0](https://github.com/LautaroBlasco23/life-tracker/compare/v1.2.3...v1.3.0) (2026-10-25)
+
+
+### Features
+
+* **time:** add calendar tab with weekly schedule grid ([#85](https://github.com/LautaroBlasco23/life-tracker/issues/85)) ([92d00e5](https://github.com/LautaroBlasco23/life-tracker/commit/92d00e5d0f6bd0ad73f7d71c9b3bb7a3e0064922))
+
+
+### Documentation
+
+* restructure getting-started, backend and data-schemas pages ([#82](https://github.com/LautaroBlasco23/life-tracker/issues/82)) ([9994d16](https://github.com/LautaroBlasco23/life-tracker/commit/9994d16dd5b9541989e9ba37d72c606f52cc1884))
+
+
+### Miscellaneous Chores
+
+* **make:** add test-e2e-ui local browser E2E target ([#83](https://github.com/LautaroBlasco23/life-tracker/issues/83)) ([ac604a6](https://github.com/LautaroBlasco23/life-tracker/commit/ac604a6a4e39db5b193a7052e3f324f209d3d1ae))
+* **make:** generate JWT_SECRET in setup and fail fast on placeholder secrets ([#84](https://github.com/LautaroBlasco23/life-tracker/issues/84)) ([f94b5ca](https://github.com/LautaroBlasco23/life-tracker/commit/f94b5ca0ef65a1d6aaa15239b6ee58ddf8388396))
+
 ## [1.2.3](https://github.com/LautaroBlasco23/life-tracker/compare/v1.2.2...v1.2.3) (2026-10-23)
 
 
