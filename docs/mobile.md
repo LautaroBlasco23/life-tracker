@@ -47,12 +47,12 @@ Requires a one-time toolchain setup, then a two-command build. Validated on Ubun
 
 The API base URL is resolved in `apps/mobile/lib/storage-init.ts`:
 
-1. **Profile-screen override** (stored in SQLite) — wins over everything.
+1. **Profile-screen override** (stored in SQLite, must start with `https://`) — wins over everything.
 2. **`EXPO_PUBLIC_API_URL`** baked into the JS bundle at build time.
 3. **Fallback:** the prod API (`https://lifetracker.lautaroblasco.com.ar/api`).
 
-- **Prod (default):** a plain `assembleRelease` with no env config bakes the prod URL — nothing to configure. HTTPS only, so the cleartext restriction never applies.
-- **Dev (emulator):** `apps/mobile/.env.development` sets `http://10.0.2.2:8080/api` and is loaded only when bundling in development mode (`expo start` / `npx expo run:android`). Release builds ignore it.
+- **Prod (default):** a plain `assembleRelease` with no env config bakes the prod URL — nothing to configure. Cleartext is handled by the custom prebuild plugin `apps/mobile/plugin/withCleartextManifest.js` (registered in `app.json`), which sets `android:usesCleartextTraffic` per build type (debug: true, release: false).
+- **Dev (emulator):** `apps/mobile/.env.example` (copy to `.env` if you want a bake) sets `http://10.0.2.2:8080/api`; the prebuild-generated project loads it when bundling in development mode (`expo start` / `npx expo run:android`). Release builds ignore it.
 
 The Profile-screen URL override is the escape hatch: a wrong bake is recoverable without a rebuild (but clear the override if it points somewhere stale — it beats the baked value).
 
@@ -104,11 +104,32 @@ npx eas-cli login                  # Expo account (create one at expo.dev)
 npx eas-cli build --platform android --profile preview
 ```
 
-The `preview` profile produces an APK for internal distribution. When the build finishes (~15–25 min) you get a QR code + URL to install directly on a device.
+The `preview` profile produces an APK for internal distribution. When the build finishes (~15–25 min) you get a QR code + URL to install directly on a device. The `production` profile produces the release app-bundle with the prod API URL baked in.
 
 > If you prefer a global install over `npx`, run `npm config set prefix ~/.npm-global && export PATH="$HOME/.npm-global/bin:$PATH"` once, then `npm install -g eas-cli`.
 
-## Development (debug build on a connected device/emulator)
+## App structure
+
+Routes live in `apps/mobile/app/` (expo-router): a tabs layout (`(app)/_layout.tsx`) with **activities**, **finance** (dashboard + transactions tabs), **notes**, **profile**, **social**, **time**; plus login / register / index and public profiles (`user/[username]`).
+
+- **UI primitives:** `components/ui/` (button, card, form-field, option-select, segmented-tabs, filter-modal, streak-badge, toast…) — always reuse before creating.
+- **Feature components:** `components/<feature>/` (activity, finance, profile, reminder, time).
+- **lib/:** `storage-init.ts` (must be the **first import** in the entry — installs the storage adapter + API URL before shared services init), `theme-provider.tsx` + `use-colors.ts`, `dolarapi.ts`, `data-backup.ts`, `filter-options.ts`, `format-time.ts`.
+- **Tokens:** `apps/mobile/tailwind.config.js` duplicates `theme-colors.ts` — keep in sync (see [../styles.md](../styles.md)).
+- **Tests:** jest-expo (`jest.config.js` + `jest.setup.js`) — streak badge + time formatting.
+
+## Dev loop (Windows emulator + WSL build)
+
+The primary documented loop is the root Makefile target, which bootstraps everything (emulator boot, prebuild if needed, APK install, API + Metro detached, app launch) and then offers an interactive key loop:
+
+```bash
+make mobile        # emulator + build + API + Metro + launch; [R] rebuilds, Enter relaunches, q quits
+make mobile-rebuild # rebuild the native app + reinstall (same as the [R] key)
+make mobile-logs    # tail API + Metro logs
+make mobile-stop    # stop what make mobile started
+```
+
+Alternatively, a plain debug build on a connected device/emulator:
 
 ```bash
 cd apps/mobile

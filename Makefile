@@ -34,6 +34,13 @@ GREEN := \033[1;32m
 DIM   := \033[2m
 RST   := \033[0m
 
+# Fixed dev JWT secret: every worktree points at the same compose `infra`
+# databases, so a token signed in one checkout must verify in all the others.
+# A per-worktree openssl value silently logs everyone out on worktree switch.
+# Value is intentionally NOT in backend's insecureSecrets; prod deployments
+# set their own secret and never source this file path.
+DEV_JWT_SECRET := dev-jwt-life-tracker-6b3f9c2e7d4a8150b2e6c9f3a7d1e5b0
+
 # Env file for docker commands: root .env when present, else .env.example (dev
 # defaults). Absolute so it survives recipe shells; consumed via --env-file
 # (variable substitution) and by scripts/migrate.sh.
@@ -42,9 +49,9 @@ ENV_FILE := $(if $(wildcard $(CURDIR)/.env),$(CURDIR)/.env,$(CURDIR)/.env.exampl
 # Compose wrapper (project name pinned in docker-compose.yml).
 COMPOSE := docker compose -f docker-compose.yml
 
-.PHONY: help components dev dev-container dev-full stop test test-only test-coverage \
+.PHONY: help components docs dev dev-container dev-full stop test test-only test-coverage \
 	test-js test-shared test-frontend test-mobile loadtest loadtest-% \
-	test-e2e \
+	test-e2e test-e2e-ui \
 	loadtest-stack-up loadtest-stack-down \
 	backend-dev backend-start setup install-tools code-check hooks \
 	fe-run-dev fe-build-dev fe-logs-dev fe-shell-dev fe-clean \
@@ -73,9 +80,13 @@ help:
 	@printf "    make test           backend tests — isolated test DB + race detector\n"
 	@printf "    make test-only      backend tests — reuses a running test DB\n"
 	@printf "    make test-e2e       backend essential E2E — production router + real auth\n"
+	@printf "    make test-e2e-ui    browser E2E — headed chromium, needs container lane\n"
 	@printf "    make test-coverage  backend tests + coverage profile (report-only)\n"
 	@printf "    make test-js        all JS/TS suites: shared + frontend + mobile\n"
 	@printf "    make loadtest       k6 full suite — also: loadtest-breakpoint / -soak / -tap\n"
+	@printf "\n"
+	@printf "$(GREEN)  DOCS$(RST)\n"
+	@printf "    make docs           build + open the docs page (docs/index.html, self-contained)\n"
 	@printf "\n"
 	@printf "$(DIM)  ── component-level ──────────────────────────────────────────────$(RST)\n"
 	@printf "\n"
@@ -124,6 +135,18 @@ components:
 	@printf "    make %-18s %s\n" "mobile-logs"      "tail API + Metro logs"
 	@printf "    make %-18s %s\n" "mobile-stop"      "stop what make mobile started (pidfiles)"
 
+# --- Docs ---
+#
+# docs/ markdown files are the source of truth; docs/build.js inlines them
+# (+ the vendored marked parser) into a single self-contained docs/index.html
+# that works over file://, styled like the app (see styles.md). Re-run `make
+# docs` after editing any markdown to regenerate and open the page.
+docs:
+	node docs/build.js
+	@xdg-open docs/index.html >/dev/null 2>&1 || \
+		explorer.exe "$$(wslpath -w docs/index.html)" >/dev/null 2>&1 || \
+		echo "✓ built docs/index.html — open it in a browser"
+
 # --- Run modes ---
 
 # Fast lane: backend hot-reloads with air on the host (config.Load() walks up
@@ -136,12 +159,23 @@ components:
 # Air (and other Go tooling) lives in GOPATH/bin via `make install-tools`.
 # Fail fast with the fix instead of starting the frontend and erroring later.
 CHECK_AIR = command -v air >/dev/null 2>&1 || { echo "air not found — run 'make install-tools'"; exit 1; };
+# Air dies at startup ('Process Exit with Code 1') before binding :8080 when
+# JWT_SECRET is a placeholder — the frontend would build fine and then fail
+# every fetch. Known-weak values are defined in backend/internal/config
+# (insecureSecrets); the ($(...)? form also matches an empty/missing value so
+# .env files seeded straight from .env.example are caught before air spawns.
+CHECK_ENV = grep -Eq '^JWT_SECRET=(your-secret-key-here|default-secret-change-this|dev-secret-change-me|changeme|secret)?$$' $(ENV_FILE) 2>/dev/null && { \
+		echo "JWT_SECRET is an insecure placeholder in $(notdir $(ENV_FILE)) — fix with:"; \
+		echo '  sed -i "s|^JWT_SECRET=.*|JWT_SECRET=dev-jwt-life-tracker-6b3f9c2e7d4a8150b2e6c9f3a7d1e5b0|" .env'; \
+		exit 1; \
+	} || true
 
 dev: setup db-up
 	@echo "==> fast lane: air (api :8080) + next dev (web :3000) + compose databases"
 	$(CHECK_AIR)
 	@echo "==> env file: $(notdir $(ENV_FILE))"
 	@[ -f "$(ENV_FILE)" ] || (echo ".env/.env.example not found — run 'make setup'"; exit 1)
+	$(CHECK_ENV)
 	@until docker exec golang_api_postgres pg_isready -U postgres >/dev/null 2>&1; do sleep 1; done
 	@[ -d frontend/node_modules ] || (echo "==> installing frontend deps"; cd frontend && npm install)
 	@echo "==> frontend: next dev on :3000 (NEXT_PUBLIC_API_URL -> :8080/api)"
@@ -214,7 +248,8 @@ setup:
 	@if [ ! -f .env ]; then \
 		echo "Creating .env from .env.example..."; \
 		cp .env.example .env; \
-		echo "✓ .env created. Review and update configuration if needed."; \
+		sed -i "s|^JWT_SECRET=.*|JWT_SECRET=$(DEV_JWT_SECRET)|" .env; \
+		echo "✓ .env created (JWT_SECRET set to the shared dev value). Review and update configuration if needed."; \
 	else \
 		echo "✓ .env already exists"; \
 	fi
@@ -237,6 +272,7 @@ hooks:
 
 backend-dev: hooks db-up
 	$(CHECK_AIR)
+	$(CHECK_ENV)
 	@until docker exec golang_api_postgres pg_isready -U postgres >/dev/null 2>&1; do sleep 1; done
 	# config.Load() walks up from backend/ and picks up the root .env.
 	cd backend && air -c .air.toml
@@ -250,6 +286,15 @@ test-e2e: db-test-up
 	TEST_EXIT=$$?; \
 	$(MAKE) -C $(CURDIR) db-test-down; \
 	exit $$TEST_EXIT
+
+# Browser E2E (Playwright, chromium) against the container lane
+# (`make dev-container` — nginx static export on :3000 proxying /api to the
+# backend). Runs headed so the browser is visible. CI keeps the headless
+# lane (`npm run test:e2e`); this target is local-dev only.
+test-e2e-ui:
+	@curl -sf http://localhost:3000 >/dev/null || \
+		(echo "container lane not up on :3000 — run 'make dev-container' first"; exit 1)
+	cd frontend && npx playwright test --headed
 
 # --- Tests ---
 
@@ -410,7 +455,7 @@ deploy-frontend: frontend-up
 #   - RN debug builds reach Metro through the emulator's host alias
 #     10.0.2.2:8081 (react-native's AndroidInfoHelpers emulator default);
 #   - the API is baked at bundle time as 10.0.2.2 (see
-#     apps/mobile/.env.development).
+#     apps/mobile/.env.example).
 #   - both aliases resolve to the Windows host loopback, which forwards
 #     into WSL ONLY with mirrored networking (`networkingMode=mirrored`
 #     in %USERPROFILE%\.wslconfig): NAT-mode forwarding is IPv6-only and
@@ -480,6 +525,7 @@ mobile:
 	else \
 		$(MAKE) --no-print-directory db-up; \
 		$(CHECK_AIR) \
+		$(CHECK_ENV) \
 		until docker exec golang_api_postgres pg_isready -U postgres >/dev/null 2>&1; do sleep 1; done; \
 		nohup setsid sh -c 'cd backend && exec air -c .air.toml' >/tmp/lifetracker-api.log 2>&1 & \
 		echo $$! > /tmp/lifetracker-api.pid; \
