@@ -51,7 +51,7 @@ COMPOSE := docker compose -f docker-compose.yml
 
 .PHONY: help components docs dev dev-container dev-full stop test test-only test-coverage \
 	test-js test-shared test-frontend test-mobile loadtest loadtest-% \
-	test-e2e \
+	test-e2e test-e2e-ui \
 	loadtest-stack-up loadtest-stack-down \
 	backend-dev backend-start setup install-tools code-check hooks \
 	fe-run-dev fe-build-dev fe-logs-dev fe-shell-dev fe-clean \
@@ -80,6 +80,7 @@ help:
 	@printf "    make test           backend tests — isolated test DB + race detector\n"
 	@printf "    make test-only      backend tests — reuses a running test DB\n"
 	@printf "    make test-e2e       backend essential E2E — production router + real auth\n"
+	@printf "    make test-e2e-ui    browser E2E — headed chromium, needs container lane\n"
 	@printf "    make test-coverage  backend tests + coverage profile (report-only)\n"
 	@printf "    make test-js        all JS/TS suites: shared + frontend + mobile\n"
 	@printf "    make loadtest       k6 full suite — also: loadtest-breakpoint / -soak / -tap\n"
@@ -285,6 +286,15 @@ test-e2e: db-test-up
 	TEST_EXIT=$$?; \
 	$(MAKE) -C $(CURDIR) db-test-down; \
 	exit $$TEST_EXIT
+
+# Browser E2E (Playwright, chromium) against the container lane
+# (`make dev-container` — nginx static export on :3000 proxying /api to the
+# backend). Runs headed so the browser is visible. CI keeps the headless
+# lane (`npm run test:e2e`); this target is local-dev only.
+test-e2e-ui:
+	@curl -sf http://localhost:3000 >/dev/null || \
+		(echo "container lane not up on :3000 — run 'make dev-container' first"; exit 1)
+	cd frontend && npx playwright test --headed
 
 # --- Tests ---
 
