@@ -7,3 +7,4 @@ export * from "./routine";
 export * from "./reminder";
 export * from "./note";
 export * from "./sticky-note";
+export * from "./calendar";
