@@ -42,13 +42,21 @@ export default function TimePage() {
       </PageHeader>
 
       {visited.records && (
-        <div className={view === 'records' ? 'max-w-4xl mx-auto p-4 md:p-6' : 'hidden'}>
+        <div
+          className={
+            view === 'records' ? 'max-w-4xl mx-auto p-4 md:p-6' : 'hidden'
+          }
+        >
           <RecordsView />
         </div>
       )}
 
       {visited.calendar && (
-        <div className={view === 'calendar' ? 'max-w-4xl mx-auto p-4 md:p-6' : 'hidden'}>
+        <div
+          className={
+            view === 'calendar' ? 'max-w-4xl mx-auto p-4 md:p-6' : 'hidden'
+          }
+        >
           <CalendarView />
         </div>
       )}
