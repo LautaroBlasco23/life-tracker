@@ -294,6 +294,12 @@ test-e2e: db-test-up
 test-e2e-ui:
 	@curl -sf http://localhost:3000 >/dev/null || \
 		(echo "container lane not up on :3000 — run 'make dev-container' first"; exit 1)
+	@CHROME=$$(cd frontend && node -e "try{process.stdout.write(require('@playwright/test').chromium.executablePath())}catch(e){process.exit(1)}" 2>/dev/null); \
+		if [ -z "$$CHROME" ] || [ ! -f "$$CHROME" ]; then \
+			echo "chromium not installed for Playwright."; \
+			echo "run: cd frontend && npx playwright install chromium"; \
+			exit 1; \
+		fi
 	cd frontend && npx playwright test --headed
 
 # --- Tests ---
