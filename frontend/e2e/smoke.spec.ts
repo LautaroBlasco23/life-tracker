@@ -15,6 +15,14 @@ test('env-config exposes the API URL and the app shell renders', async ({
   // NEXT_PUBLIC_API_URL must be present; on the full-stack lane it is '/api'
   // (same-origin proxy) — only assert the variable, not the value, so dev
   // servers with a different explicit base URL also pass this canary.
+  //
+  // /env-config.js is a container-lane artifact: the dev lane bakes
+  // NEXT_PUBLIC_API_URL at startup and doesn't serve the file, so the canary
+  // only runs when targeting the container lane (no PLAYWRIGHT_API_URL).
+  test.skip(
+    !!process.env.PLAYWRIGHT_API_URL,
+    'env-config.js is a container-lane artifact (dev lane bakes env at startup)'
+  );
   const env = await request.get('/env-config.js');
   expect(env.ok()).toBeTruthy();
   expect(await env.text()).toContain('NEXT_PUBLIC_API_URL');

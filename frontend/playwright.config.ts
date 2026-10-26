@@ -20,12 +20,19 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1,
   retries: process.env.CI ? 2 : 0,
+  // E2E_SLOWMO_MS>0 (e.g. `make test-e2e-ui E2E_SLOWMO_MS=400`) delays every
+  // Playwright operation so the headed browser is watchable; scale the per-test
+  // timeout with it so slowed runs don't hit the default 30s cap.
+  timeout: 30_000 + Number(process.env.E2E_SLOWMO_MS || 0) * 100,
   reporter: process.env.CI
     ? [['list'], ['html', { open: 'never' }]]
     : [['list'], ['html', { open: 'never' }]],
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000',
     trace: 'retain-on-failure',
+    launchOptions: {
+      slowMo: Number(process.env.E2E_SLOWMO_MS || 0),
+    },
   },
   expect: {
     timeout: 10_000,
