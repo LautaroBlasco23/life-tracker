@@ -2,7 +2,8 @@
 #
 # Deployment is plain docker compose at the repo root (docker-compose.yml +
 # nginx/ + scripts/); `make` / `make help` shows the main commands only;
-# `make components` lists the backend/frontend/databases/docker commands.
+# `make components` lists the backend/frontend/databases/docker commands and
+# `make tests` lists every test command.
 #
 # The run modes (see docker-compose.yml + scripts/ for the details). One mode
 # at a time; stop before switching (ports overlap):
@@ -49,10 +50,10 @@ ENV_FILE := $(if $(wildcard $(CURDIR)/.env),$(CURDIR)/.env,$(CURDIR)/.env.exampl
 # Compose wrapper (project name pinned in docker-compose.yml).
 COMPOSE := docker compose -f docker-compose.yml
 
-.PHONY: help components docs dev dev-container dev-full stop test test-only test-coverage \
-	test-js test-shared test-frontend test-mobile loadtest loadtest-% \
-	test-e2e test-e2e-ui \
-	loadtest-stack-up loadtest-stack-down \
+.PHONY: help components docs tests dev dev-container dev-full stop test \
+	test-backend test-backend-only test-backend-coverage test-backend-e2e \
+	test-web test-web-e2e test-web-e2e-ui test-shared test-mobile \
+	loadtest loadtest-% loadtest-stack-up loadtest-stack-down \
 	backend-dev backend-start setup install-tools code-check hooks \
 	fe-run-dev fe-build-dev fe-logs-dev fe-shell-dev fe-clean \
 	fe-docker-up fe-docker-down fe-docker-restart \
@@ -77,12 +78,10 @@ help:
 	@printf "    make stop           stops EVERYTHING, whichever mode is running\n"
 	@printf "\n"
 	@printf "$(GREEN)  TEST$(RST)\n"
-	@printf "    make test           backend tests — isolated test DB + race detector\n"
-	@printf "    make test-only      backend tests — reuses a running test DB\n"
-	@printf "    make test-e2e       backend essential E2E — production router + real auth\n"
-	@printf "    make test-e2e-ui    browser E2E — headed chromium, needs container lane\n"
-	@printf "    make test-coverage  backend tests + coverage profile (report-only)\n"
-	@printf "    make test-js        all JS/TS suites: shared + frontend + mobile\n"
+	@printf "    make test           all unit suites: backend · shared · web · mobile\n"
+	@printf "    make test-backend   backend unit/integration — full list: make tests\n"
+	@printf "    make test-web       web component tests — full list: make tests\n"
+	@printf "    make tests          every test command (unit · e2e · coverage)\n"
 	@printf "    make loadtest       k6 full suite — also: loadtest-breakpoint / -soak / -tap\n"
 	@printf "\n"
 	@printf "$(GREEN)  DOCS$(RST)\n"
@@ -92,6 +91,7 @@ help:
 	@printf "\n"
 	@printf "    Components: 🧠 backend · 🖥️  frontend · 🗄️  databases · 🐳 docker\n"
 	@printf "    Run $(GREEN)%s$(RST) to see the full list\n" "make components"
+	@printf "    Run $(GREEN)%s$(RST) for every test command (details: docs/tests.md)\n" "make tests"
 
 components:
 	@printf "\n"
@@ -279,52 +279,129 @@ backend-dev: hooks db-up
 
 # Essential E2E: production router + real JWT auth middleware against the
 # compose test DBs. Guarded by the `e2e` build tag, so the regular suite
-# (`make test`) stays fast. Does not truncate shared tables — uses unique
-# users per run, so it coexists with unit/integration runs on the same DBs.
-test-e2e: db-test-up
+# (`make test-backend`, part of the `make test` aggregate) stays fast. Does
+# not truncate shared tables — uses unique users per run, so it coexists with
+# unit/integration runs on the same DBs.
+test-backend-e2e: db-test-up
 	cd backend && ENVIRONMENT=test gotestsum --format=short-verbose -- -race -tags=e2e ./tests/e2e/...; \
 	TEST_EXIT=$$?; \
 	$(MAKE) -C $(CURDIR) db-test-down; \
 	exit $$TEST_EXIT
 
-# Browser E2E (Playwright, chromium) against the container lane
-# (`make dev-container` — nginx static export on :3000 proxying /api to the
-# backend). Runs headed so the browser is visible. CI keeps the headless
-# lane (`npm run test:e2e`); this target is local-dev only.
-test-e2e-ui:
-	@curl -sf http://localhost:3000 >/dev/null || \
-		(echo "container lane not up on :3000 — run 'make dev-container' first"; exit 1)
-	cd frontend && npx playwright test --headed
+# Browser E2E (Playwright, headed chromium). Prompts for the lane to target:
+#   [1] container lane (`make dev-container` — nginx static export on :3000
+#       proxying /api to the backend; what CI runs), or
+#   [2] dev lane (`make dev` — next dev on :3000, API on :8080 directly).
+# Runs headed so the browser is visible. CI keeps the headless container lane
+# (`npm run test:e2e`, also wrapped by `make test-web-e2e`); this target is
+# local-dev only.
+# E2E_SLOWMO_MS=<ms> delays every browser operation so the flow is watchable.
+test-web-e2e-ui:
+	@echo "E2E UI lane:"; \
+	echo "  [1] containers  make dev-container — nginx :3000 with /api proxy (what CI runs)"; \
+	echo "  [2] dev         make dev — next dev :3000, API on :8080 directly"; \
+	echo "  (slow it down: make test-web-e2e-ui E2E_SLOWMO_MS=400)"; \
+	printf "Select lane [1/2] (default 1): "; \
+	lane=$$(IFS= read -r l </dev/tty 2>/dev/null && echo "$$l" || echo 1); \
+	lane=$${lane:-1}; \
+	CHROME=$$(cd frontend && node -e "try{process.stdout.write(require('@playwright/test').chromium.executablePath())}catch(e){process.exit(1)}" 2>/dev/null); \
+	if [ -z "$$CHROME" ] || [ ! -f "$$CHROME" ]; then \
+		echo "chromium not installed for Playwright."; \
+		echo "run: cd frontend && npx playwright install chromium"; \
+		exit 1; \
+	fi; \
+	if [ "$$lane" = "2" ]; then \
+		curl -sf http://localhost:3000 >/dev/null || { echo "dev server not up on :3000 — run 'make dev' first"; exit 1; }; \
+		curl -sf http://localhost:8080/health >/dev/null || { echo "API not up on :8080 — run 'make dev' first"; exit 1; }; \
+		echo "==> dev lane: next dev :3000, API :8080 (direct, CORS wildcard)"; \
+		cd frontend && E2E_SLOWMO_MS=$(E2E_SLOWMO_MS) PLAYWRIGHT_API_URL=http://localhost:8080/api npx playwright test --headed; \
+	else \
+		curl -sf http://localhost:3000/env-config.js >/dev/null || { echo "container lane not up on :3000 (a dev server doesn't count) — run 'make dev-container' first"; exit 1; }; \
+		echo "==> container lane: nginx :3000 with /api proxy"; \
+		cd frontend && E2E_SLOWMO_MS=$(E2E_SLOWMO_MS) npx playwright test --headed; \
+	fi
 
 # --- Tests ---
+#
+# Naming convention: test-<component>[-<kind>], e.g. test-backend-e2e.
+# `make test` is the aggregate of every unit/component suite (no E2E — the
+# E2E/performance lanes need infrastructure and run slower; make lists them
+# all). The full command list: `make tests` or docs/tests.md.
 
-test: db-test-up
+# Unit-first ordering so failures surface before the slower backend suite
+# (which boots isolated Docker test DBs). No E2E inside — see `tests`.
+test: test-shared test-web test-mobile test-backend
+
+# Backend unit + integration suite against the isolated compose test DBs
+# (postgres :5433 / mongodb :27018 via backend/.env.test) + race detector.
+# Renamed from `test` so `test` could become the all-suites aggregate.
+test-backend: db-test-up
 	cd backend && ENVIRONMENT=test gotestsum --format=short-verbose -- -race -p 1 ./...; \
 	TEST_EXIT=$$?; \
 	$(MAKE) -C $(CURDIR) db-test-down; \
 	exit $$TEST_EXIT
 
-test-only:
+# Same suite against already-running test DBs (no up/down dance) — for a
+# fast loop next to a manual `make db-test-up`.
+test-backend-only:
 	cd backend && ENVIRONMENT=test gotestsum --format=short-verbose -- -race -p 1 ./...
 
-# Same suite as `test` plus a coverage profile (report-only; thresholds are
-# ratcheted against this baseline later).
-test-coverage: db-test-up
+# Same suite plus a coverage profile (report-only; thresholds are ratcheted
+# against this baseline later).
+test-backend-coverage: db-test-up
 	cd backend && ENVIRONMENT=test gotestsum --format=short-verbose -- -race -p 1 -coverprofile=./coverage.out ./...; \
 	TEST_EXIT=$$?; \
 	$(MAKE) -C $(CURDIR) db-test-down; \
 	go tool cover -func=./coverage.out | tail -1; \
 	exit $$TEST_EXIT
 
-# All JS/TS suites (shared + frontend + mobile). Each has its own config:
-# shared/frontend run vitest, mobile runs jest-expo (workspace-local).
-test-js: test-shared test-frontend test-mobile
-
+# Shared package unit tests (vitest, node env): pure TS consumed from source
+# by web and mobile, so one suite protects both consumers.
 test-shared:
 	npm test -w @life-tracker/shared
 
-test-frontend:
+# Web component tests: vitest + Testing Library under jsdom; the network is
+# never hit — @shared services are vi.mocked. Renamed from `test-frontend`
+# (user-facing names now match the test-web* family).
+test-web:
 	cd frontend && npm test
+
+# Web E2E, headless — the lane frontend-ci.yml runs. Playwright specs against
+# the full-stack container lane (nginx :3000 static export proxying /api to
+# the api container). Needs `make dev-container` up: a bare `next dev` server
+# on :3000 is NOT enough (no /env-config.js, no /api proxy). For a headed run
+# with lane selection, use `make test-web-e2e-ui`.
+test-web-e2e:
+	@curl -sf http://localhost:3000/env-config.js >/dev/null || (echo "container lane not up on :3000 (a dev server doesn't count) — run 'make dev-container' first"; exit 1)
+	@# A protected route must return 401 through the /api proxy: proves nginx is
+	@# proxying AND the backend is alive (the retry lane guards in CI use the
+	@# compose network; here everything must work from the host).
+	@code=$$(curl -s -o /dev/null -w '%{http_code}' http://localhost:3000/api/users/me); \
+	[ "$$code" = "401" ] || (echo "API not reachable through the /api proxy on :3000 (HTTP $$code) — check the containers ('docker ps', 'make dev-container' logs)"; exit 1)
+	cd frontend && npx playwright test
+
+# Mobile unit + component tests: jest-expo + React Native Testing Library.
+test-mobile:
+	npm run test -w apps/mobile
+
+# The full test command list that `make help` only samples. Printed here so
+# discovery doesn't require opening docs; docs/tests.md is the detailed
+# source of truth (commands, what each suite covers, conventions).
+tests:
+	@printf "\n"
+	@printf "$(GREEN)  Tests — every command$(RST)  (details in docs/tests.md)\n"
+	@printf "    make %-24s %s\n" "test" "all unit suites: shared · web · mobile · backend (no E2E)"
+	@printf "    make %-24s %s\n" "test-backend" "backend unit/integration — isolated test DBs + race detector"
+	@printf "    make %-24s %s\n" "test-backend-only" "backend suite against already-running test DBs (no up/down)"
+	@printf "    make %-24s %s\n" "test-backend-coverage" "backend suite + coverage profile (report-only)"
+	@printf "    make %-24s %s\n" "test-backend-e2e" "backend E2E — production router + real JWT (build tag e2e)"
+	@printf "    make %-24s %s\n" "test-web" "web component tests (vitest + Testing Library)"
+	@printf "    make %-24s %s\n" "test-web-e2e" "web E2E headless (Playwright) — needs 'make dev-container' up"
+	@printf "    make %-24s %s\n" "test-web-e2e-ui" "web E2E headed (Playwright) — prompts for lane, local only"
+	@printf "    make %-24s %s\n" "test-shared" "shared package unit tests (vitest, node env)"
+	@printf "    make %-24s %s\n" "test-mobile" "mobile unit + component tests (jest-expo + RNTL)"
+	@printf "    make %-24s %s\n" "loadtest" "k6 full suite (also loadtest-<scenario>) — see loadtest.md"
+	@printf "    make %-24s %s\n" "db-test-up/down/remove" "manage the backend test databases manually"
 
 # --- Load testing in CI ---
 
@@ -335,9 +412,6 @@ loadtest-stack-up:
 
 loadtest-stack-down:
 	$(MAKE) -C loadtest stack-down
-
-test-mobile:
-	npm run test -w apps/mobile
 
 # Delegate every `make loadtest-<target>` to loadtest/Makefile, forwarding
 # command-line variables (USERS=500, RATE=600, BASE_URL=..., ...).
