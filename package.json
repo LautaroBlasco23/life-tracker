@@ -1,6 +1,6 @@
 {
   "name": "life-tracker",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "private": true,
   "description": "Life Tracker monorepo. The web app (frontend/) is intentionally NOT part of the npm workspaces — it keeps its own self-contained install for CI/Docker.",
   "workspaces": [
