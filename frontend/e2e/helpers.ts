@@ -37,6 +37,12 @@ function baseUrl(ctx: APIRequestContext): string {
 }
 
 /**
+ * API root. Default is the container lane's same-origin nginx proxy; the dev
+ * lane (next dev + API on :8080) sets PLAYWRIGHT_API_URL instead.
+ */
+const API_ROOT = process.env.PLAYWRIGHT_API_URL || '/api';
+
+/**
  * Register a fresh user via the API (payload mirrors loadtest/common.js
  * userPayload; backend rules: username 3-30 chars, password min 6).
  * Unique per run, so reruns never hit "user already exists".
@@ -58,7 +64,10 @@ export async function registerUser(
     refreshToken: '',
   };
 
-  const response = await request.post(`${baseUrl(request)}/api/auth/register`, {
+  const url = API_ROOT.startsWith('http')
+    ? `${API_ROOT}/auth/register`
+    : `${baseUrl(request)}${API_ROOT}/auth/register`;
+  const response = await request.post(url, {
     data: {
       email: user.email,
       firstName: user.firstName,
