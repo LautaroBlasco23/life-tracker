@@ -37,7 +37,7 @@ nginx (lifetracker-web) ── serves the Next.js static export
               PostgreSQL + MongoDB
               (on the compose network)
 
-Mobile app / Chrome extension
+Mobile app
   └─ direct to http://<host>:8080/api  (bypass nginx)
 ```
 

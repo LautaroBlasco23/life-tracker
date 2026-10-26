@@ -22,7 +22,6 @@ the source of truth; `docs/index.html` is generated from it by `make docs`).
 | web (`frontend/`) | pure logic: calendar libs, palette parity | components/contexts with RTL + jsdom; `@shared` services mocked | — | Playwright (chromium) on the full-stack container lane | — |
 | shared (`packages/shared/`) | pure TS logic: theme tokens, i18n en/es parity, auth service — protects both consumers at once | — | — | — | — |
 | mobile (`apps/mobile/`) | pure logic: dates, input formatting | RNTL components; `className` is inert under jest, so tests assert behavior, not styling | — | none yet (Maestro deferred) | — |
-| chrome-extension | manifest sanity + tracker logic | — | — | — | — |
 
 ## Backend tests
 
@@ -134,7 +133,6 @@ PR CI is dependency-aware: each workflow's `paths:` filter triggers only the sui
 - `frontend-ci.yml` → prettier, `npm test` (vitest), **coverage report (artifact + job summary)**, `tsc --noEmit`, and the **`e2e` job** (Playwright essential suite on the full-stack container lane). Triggers on `frontend/**` + `packages/shared/**`.
 - `mobile-ci.yml` → type-check, `npm test` (jest-expo), shared package tests (vitest), expo export. Triggers on `apps/mobile/**` + `packages/shared/**` — so a shared-package change exercises both JS consumers.
 - `backend-ci.yml` → golangci-lint, integration suite **with coverage** against the compose test DBs (summary + artifact), **essential E2E suite** (build tag `e2e`), and the **`api-perf-smoke` job** (k6 `smoke.js` against the load-test stack's API; thresholds fail the PR). Triggers on `backend/**`, the compose/nginx/scripts files, `Makefile` — including the Makefile's test-target names.
-- `chrome-extension-ci.yml` → `npm ci` + vitest (unit + manifest sanity) + `node --check` parse of the extension scripts. Triggers on `chrome-extension/**`.
 - `nightly-loadtest.yml` → full k6 suite on a daily cron (`0 3 * * *`) + manual dispatch (`REMOTE_WRITE=0`, reports artifact). Heavy lanes are nightly-only; PRs get the smoke lane only.
 - `release.yml` / `pr-title.yml` unchanged (release-please + Conventional Commits enforcement).
 

@@ -198,19 +198,6 @@ function financeLifecycle(headers) {
   get('/api/finances/monthly-stats', headers, 'finance monthly-stats 2xx');
 }
 
-function screenTimeLifecycle(headers) {
-  const res = http.post(`${BASE_URL}/api/screen-time/visits`, JSON.stringify({
-    domain: 'example.com',
-    visitedAt: iso(),
-  }), { headers });
-  check(res, { 'screentime visit create 2xx': (r) => r.status === 201 });
-  const id = res.json('data.id');
-  if (id) {
-    get('/api/screen-time/visits?domain=example.com', headers, 'screentime visits list 2xx');
-    get('/api/screen-time/stats', headers, 'screentime stats 2xx');
-  }
-}
-
 function socialLifecycle(headers, otherHeaders, otherUsername, selfUsername, activityId) {
   // follow other -> other accepts -> verify -> unfollow
   post(`/api/follows/${otherUsername}`, {}, headers, 'social follow 2xx');
@@ -334,7 +321,6 @@ export default function () {
   timeLifecycle(headers);
   routineLifecycle(headers, anchorId);
   financeLifecycle(headers);
-  screenTimeLifecycle(headers);
   socialLifecycle(headers, otherHeaders, other.username, user.username, anchorId);
   userEndpoints(headers, user);
   authLifecycle();

@@ -261,25 +261,3 @@ Free-form time log (`time_records`, Postgres). No entity relationships — `cate
 **How following works** — following creates a `pending` request, or `accepted` directly when the target profile is public. The owner accepts/rejects pending requests. Visibility is enforced server-side (`visibility.go`): private content is visible only to the owner and accepted followers — the public profile shell (card + counts) is always returned, with `canViewContent` flagging whether the content lists are populated.
 
 **How subscriptions work** — subscribing to a public activity/routine **clones** it into the subscriber's space; `clonedId` points at the subscriber's own copy, so the source owner's edits don't propagate.
-
-## Screen time
-
-```
-+---------------------------+
-|    WebVisit (Mongo)       |
-|    userId, domain         |
-|    visitedAt              |
-+---------------------------+
-```
-
-```json
-{
-  "id": "68f0c3aae4b0a1b2c3d4e5f9",
-  "userId": 1,
-  "domain": "github.com",
-  "visitedAt": "2026-01-15T14:22:00Z"
-}
-```
-
-- Written by the Chrome extension (`POST /screen-time/visits`).
-- **No duration is stored** — stats aggregate visit counts per domain (`GET /screen-time/stats`).

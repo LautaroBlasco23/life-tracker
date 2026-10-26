@@ -11,7 +11,7 @@ Use this for the daily edit loop. It does not exercise the prod Dockerfile, the 
 ## 2. `make dev-container` — container mode
 
 ```
-  Browser                                 Mobile app / Chrome extension
+  Browser                                 Mobile app
       |                                       |
       | :3000                                 | :8080 (direct, bypasses nginx)
       v                                       v
@@ -31,7 +31,7 @@ Use this for the daily edit loop. It does not exercise the prod Dockerfile, the 
   (all containers on the compose network: infra_golang_api_network)
 ```
 
-Everything is a plain Docker container on a single compose network (`infra_golang_api_network`): the Go API (`:8080`), PostgreSQL (`:5432`), MongoDB (`:27017`), and the frontend. nginx serves the static Next.js export on `:3000` and proxies `/api/*` to the API container, so the browser talks same-origin and CORS never enters the picture. The mobile app and Chrome extension bypass nginx and hit the API directly on `:8080`. Migrations are **embedded in the API** and run automatically on every API (re)start; `make dev-container` additionally runs an explicit standalone migrate step (`scripts/migrate.sh`) inside the network after `compose up`.
+Everything is a plain Docker container on a single compose network (`infra_golang_api_network`): the Go API (`:8080`), PostgreSQL (`:5432`), MongoDB (`:27017`), and the frontend. nginx serves the static Next.js export on `:3000` and proxies `/api/*` to the API container, so the browser talks same-origin and CORS never enters the picture. The mobile app bypasses nginx and hits the API directly on `:8080`. Migrations are **embedded in the API** and run automatically on every API (re)start; `make dev-container` additionally runs an explicit standalone migrate step (`scripts/migrate.sh`) inside the network after `compose up`.
 
 This is the classic "compose up" deployment and the parity check that the prod-built image and export still work — the same command deploys the app on any host with Docker. Re-run it after changes (nothing watches files here).
 

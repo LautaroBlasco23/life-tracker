@@ -1,6 +1,6 @@
 # Life Tracker
 
-A personal life-tracking platform covering **habits & activities**, **finances**, **notes**, **time tracking**, and **screen time**. This repository is a monorepo that consolidates the previous separate projects (`life-tracker-backend`, `life-tracker-frontend`, `life-tracker-extension`) into a single codebase.
+A personal life-tracking platform covering **habits & activities**, **finances**, **notes**, and **time tracking**. This repository is a monorepo that consolidates the previous separate projects (`life-tracker-backend`, `life-tracker-frontend`, `life-tracker-extension`) into a single codebase.
 
 ---
 
@@ -8,9 +8,8 @@ A personal life-tracking platform covering **habits & activities**, **finances**
 
 | Directory | Project | Stack | Purpose |
 |---|---|---|---|
-| [`backend/`](./docs/backend.md) | Life Tracker API | Go, Gin, GORM, PostgreSQL, MongoDB, JWT | REST API with domain modules: auth, user, activity (habits), finance, note, time, routine, social, screentime |
+| [`backend/`](./docs/backend.md) | Life Tracker API | Go, Gin, GORM, PostgreSQL, MongoDB, JWT | REST API with domain modules: auth, user, activity (habits), finance, note, time, routine, social |
 | [`frontend/`](./docs/frontend.md) | Life Tracker Web App | Next.js, TypeScript, shadcn/ui | Web application for tracking activities, finances, time, notes, and profile |
-| [`chrome-extension/`](./docs/chrome-extension.md) | Life Tracker Screen Time Extension | JavaScript, Manifest V3 | Chrome extension that records visits to configured sites into the backend |
 | [`docker-compose.yml`](./docs/deployment-modes.md) + [`nginx/`](./nginx/), [`scripts/`](./scripts/) | Deployment | docker compose, nginx | Single compose file for the whole stack (api + databases + web); profiles for observability and load testing |
 | [`loadtest/`](./docs/loadtest.md) | Load testing | k6 (Docker), Prometheus remote write, Grafana | Stress tests: hundreds of req/s, multi-user scenarios, live dashboards |
 
@@ -38,7 +37,6 @@ All documentation lives in [`docs/`](./docs/). This root README covers only the 
 | [`docs/mobile.md`](./docs/mobile.md) | Android app: building the APK (local Gradle build or EAS) and development |
 | [`docs/backend.md`](./docs/backend.md) | Backend API: per-domain schemas, business logic, and the full HTTP API reference |
 | [`docs/frontend.md`](./docs/frontend.md) | Web app: features, tech stack, setup, and build commands |
-| [`docs/chrome-extension.md`](./docs/chrome-extension.md) | Screen time extension: how it works, configuration, install, troubleshooting |
 | [`docs/loadtest.md`](./docs/loadtest.md) | k6 load testing: test lanes, scenario matrix, live monitoring, cleanup |
 
 ---

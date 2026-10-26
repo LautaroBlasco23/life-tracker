@@ -9,7 +9,6 @@ Life Tracker is a personal life-tracking platform — habits & activities, routi
 | Backend API | The REST API every client talks to | Go (Gin), PostgreSQL + MongoDB, JWT | [backend.md](./backend.md) |
 | Web frontend | Browser app | Next.js 14 (static export), Tailwind v4, shadcn/ui | [frontend.md](./frontend.md) |
 | Mobile (Android) | Native app | Expo / React Native, expo-router, NativeWind | [mobile.md](./mobile.md) |
-| Chrome extension | Records browsing history into screen time | Manifest V3, plain JS | [chrome-extension.md](./chrome-extension.md) |
 | Shared packages | Business logic, services, types, i18n — reused by web + mobile | TypeScript (`packages/shared`) | — |
 
 Each app is self-contained; its doc covers the setup details. For how the pieces fit together (compose services, request flow, deployment), see [Architecture](./architecture.md).
@@ -46,4 +45,3 @@ All of them are idempotent — re-running a mode's command redeploys the backend
 - **Backend**: [`backend.md`](./backend.md) — `make backend-dev` runs the API with databases (air hot reload).
 - **Infrastructure**: the root `Makefile` (`make help`) owns every docker compose command. Compose file: `docker-compose.yml` at the repo root (api + postgres + mongodb + web; the observability and load-test stacks are compose *profiles* — `observability` and `loadtest` — so the plain `up` never starts them). nginx configs in `nginx/`, deploy/migrate scripts in `scripts/`.
 - **Frontend**: [`frontend.md`](./frontend.md) — install dependencies and run the Next.js dev server. The static export is served at `http://localhost:3000` via `make frontend-up` (nginx, `/api` proxied same-origin to the API container) and rebuilt into the web volume via `make deploy-frontend` (the `make dev-container` / `dev-full` lanes do this automatically).
-- **Chrome Extension**: [`chrome-extension.md`](./chrome-extension.md) — load as an unpacked extension pointing at a local backend.

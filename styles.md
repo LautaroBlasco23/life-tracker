@@ -1,8 +1,7 @@
 # Styles — Agent Guide for UI Work
 
 This is the contract for how UI should look across the web frontend
-(`frontend/`), the mobile app (`apps/mobile/`), and the chrome extension
-(`chrome-extension/`). The design language is **Warm Minimalism**: warm neutral
+(`frontend/`) and the mobile app (`apps/mobile/`). The design language is **Warm Minimalism**: warm neutral
 backgrounds, sage green as the primary accent, amber reserved for highlights,
 subtle borders instead of shadows, and full light/dark support. Read this
 before creating or modifying any component, layout, or styling. Humans: same
@@ -122,4 +121,3 @@ children.
 - Shared: `packages/shared/src/lib/theme-colors.ts` (+ `theme-colors.test.ts` contract/AA tests).
 - Web: `frontend/app/globals.css` (`:root`/`.dark` hex must match `theme-colors.ts` — `app/globals-parity.test.ts`), `@theme inline` token mapping, `frontend/contexts/theme-context.tsx` (class toggle + `system` preference; no runtime var injection), pre-paint theme script in `app/layout.tsx`.
 - Mobile: `apps/mobile/tailwind.config.js` (duplicates `theme-colors.ts`; keep in sync), `apps/mobile/lib/theme-provider.tsx`, `apps/mobile/lib/use-colors.ts` (token palette for non-Tailwind props).
-- Chrome extension: light-only `:root` variables in `chrome-extension/popup.html`, mirroring the light palette.
