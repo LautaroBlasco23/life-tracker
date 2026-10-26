@@ -4,6 +4,16 @@ A personal life-tracking platform covering **habits & activities**, **finances**
 
 ---
 
+## App Images
+
+| Login | Activities | Notes |
+|:-:|:-:|:-:|
+| ![Login](docs/images/login.png) | ![Activities](docs/images/activities.png) | ![Notes](docs/images/notes.png) |
+| **Finance** | **Time Tracker** | **Profile** |
+| ![Finance](docs/images/finance.png) | ![Time Tracker](docs/images/time.png) | ![Profile](docs/images/profile.png) |
+
+---
+
 ## Repository Structure
 
 | Directory | Project | Stack | Purpose |
