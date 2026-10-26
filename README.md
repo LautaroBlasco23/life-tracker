@@ -2,15 +2,25 @@
 
 A personal life-tracking platform covering **habits & activities**, **finances**, **notes**, and **time tracking**. This repository is a monorepo that consolidates the previous separate projects (`life-tracker-backend`, `life-tracker-frontend`, `life-tracker-extension`) into a single codebase.
 
+## Quick Start
+
+```bash
+make setup   # copies .env.example → .env
+make dev     # API :8080 (air hot-reload) + web :3000 + postgres + mongodb
+make stop    # stop the stack (required before switching run modes)
+```
+
+Run `make` (or `make help`) for the main commands and see [`docs/getting-started.md`](./docs/getting-started.md) for details on all three run modes.
+
 ---
 
 ## App Images
 
 | Login | Activities | Notes |
 |:-:|:-:|:-:|
-| ![Login](docs/images/login.png) | ![Activities](docs/images/activities.png) | ![Notes](docs/images/notes.png) |
+| <img src="docs/images/login.png" width="320" alt="Login" /> | <img src="docs/images/activities.png" width="320" alt="Activities" /> | <img src="docs/images/notes.png" width="320" alt="Notes" /> |
 | **Finance** | **Time Tracker** | **Profile** |
-| ![Finance](docs/images/finance.png) | ![Time Tracker](docs/images/time.png) | ![Profile](docs/images/profile.png) |
+| <img src="docs/images/finance.png" width="320" alt="Finance" /> | <img src="docs/images/time.png" width="320" alt="Time Tracker" /> | <img src="docs/images/profile.png" width="320" alt="Profile" /> |
 
 ---
 
@@ -20,10 +30,10 @@ A personal life-tracking platform covering **habits & activities**, **finances**
 |---|---|---|---|
 | [`backend/`](./docs/backend.md) | Life Tracker API | Go, Gin, GORM, PostgreSQL, MongoDB, JWT | REST API with domain modules: auth, user, activity (habits), finance, note, time, routine, social |
 | [`frontend/`](./docs/frontend.md) | Life Tracker Web App | Next.js, TypeScript, shadcn/ui | Web application for tracking activities, finances, time, notes, and profile |
-| [`docker-compose.yml`](./docs/deployment-modes.md) + [`nginx/`](./nginx/), [`scripts/`](./scripts/) | Deployment | docker compose, nginx | Single compose file for the whole stack (api + databases + web); profiles for observability and load testing |
+| [`apps/mobile/`](./docs/mobile.md) | Life Tracker Mobile App | Expo, React Native, NativeWind | Android app sharing services, types, and i18n with the web app |
+| [`packages/shared/`](./packages/shared/) | Shared packages | TypeScript | Code shared by web + mobile: services, types, lib, i18n |
+| [`docker-compose.yml`](./docs/deployment-modes.md) · [`nginx/`](./nginx/) · [`scripts/`](./scripts/) | Deployment | docker compose, nginx | Single compose file for the whole stack (api + databases + web); profiles for observability and load testing |
 | [`loadtest/`](./docs/loadtest.md) | Load testing | k6 (Docker), Prometheus remote write, Grafana | Stress tests: hundreds of req/s, multi-user scenarios, live dashboards |
-
-All documentation lives in [`docs/`](./docs/). This root README covers only the monorepo architecture and shared concerns.
 
 ### Conventions
 
@@ -35,6 +45,8 @@ All documentation lives in [`docs/`](./docs/). This root README covers only the 
 ---
 
 ## Documentation
+
+All documentation lives in [`docs/`](./docs/). This root README covers only the monorepo architecture and shared concerns.
 
 | Doc | Contents |
 |---|---|
