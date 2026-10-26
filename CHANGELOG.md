@@ -1,5 +1,18 @@
 # Changelog
 
+## [2.0.1](https://github.com/LautaroBlasco23/life-tracker/compare/v2.0.0...v2.0.1) (2026-10-26)
+
+
+### Bug Fixes
+
+* **frontend:** honor PLAYWRIGHT_API_URL and E2E_SLOWMO_MS in e2e suite ([#91](https://github.com/LautaroBlasco23/life-tracker/issues/91)) ([5c896c3](https://github.com/LautaroBlasco23/life-tracker/commit/5c896c34b64dc1a84c960b5bdd694370929d06c0))
+
+
+### Documentation
+
+* add app images section to README ([#92](https://github.com/LautaroBlasco23/life-tracker/issues/92)) ([c848178](https://github.com/LautaroBlasco23/life-tracker/commit/c8481783d0b9e8b1d67904044dde01e4c26eeb97))
+* improve README onboarding for new developers ([#94](https://github.com/LautaroBlasco23/life-tracker/issues/94)) ([8366631](https://github.com/LautaroBlasco23/life-tracker/commit/83666315855a3d909a4743cfac044c6c8d9ecdee))
+
 ## [2.0.0](https://github.com/LautaroBlasco23/life-tracker/compare/v1.3.0...v2.0.0) (2026-10-26)
 
 
