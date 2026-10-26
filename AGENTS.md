@@ -21,7 +21,7 @@ app, Go backend API, Chrome extension, shared packages, and deployment.
   deploy/migrate `scripts/`.
 - `loadtest/` — k6 suite (own Makefile).
 - `docs/` — per-area documentation (`frontend.md`, `mobile.md`, `backend.md`,
-  `architecture.md`, `ci-cd.md`, `testing.md`, …). `make docs` regenerates and
+  `architecture.md`, `ci-cd.md`, `tests.md`, …). `make docs` regenerates and
   opens `docs/index.html` — a self-contained viewer built from the markdown
   (source of truth stays the `.md` files; `docs/build.js` inlines them).
 - `Makefile` (root) — single entry point for all commands; `make help` lists them.
@@ -53,8 +53,9 @@ app, Go backend API, Chrome extension, shared packages, and deployment.
 ## Commands
 
 - Root Makefile is the entry point: `make dev`, `make stop`, `make test`
-  (backend), `make code-check` (gofumpt + golangci-lint), `make mobile` /
-  `mobile-rebuild`, `make setup` (copies `.env.example` → `.env`).
+  (all unit suites — backend, shared, web, mobile; full list via `make tests`),
+  `make code-check` (gofumpt + golangci-lint), `make mobile` / `mobile-rebuild`,
+  `make setup` (copies `.env.example` → `.env`).
 - `frontend/`: `npm run dev`, `lint`, `type-check`, `format` (Prettier — CI gate).
 - `apps/mobile/`: `npm run start`, `type-check`, `export:android`.
 - Never read or commit `.env*` contents.

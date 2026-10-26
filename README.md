@@ -34,7 +34,7 @@ All documentation lives in [`docs/`](./docs/). This root README covers only the 
 | [`docs/deployment-modes.md`](./docs/deployment-modes.md) | The three deployment modes (`make dev`, `dev-container`, `dev-full`) with architecture diagrams |
 | [`docs/architecture.md`](./docs/architecture.md) | Container architecture: services, request flow, observability and deployment |
 | [`docs/ci-cd.md`](./docs/ci-cd.md) | GitHub Actions workflows (backend/frontend CI) and the required repository secrets |
-| [`docs/testing.md`](./docs/testing.md) | Backend integration tests and k6 load testing with live Grafana monitoring |
+| [`docs/tests.md`](./docs/tests.md) | Backend integration tests and k6 load testing with live Grafana monitoring |
 | [`docs/mobile.md`](./docs/mobile.md) | Android app: building the APK (local Gradle build or EAS) and development |
 | [`docs/backend.md`](./docs/backend.md) | Backend API: per-domain schemas, business logic, and the full HTTP API reference |
 | [`docs/frontend.md`](./docs/frontend.md) | Web app: features, tech stack, setup, and build commands |

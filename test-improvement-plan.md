@@ -144,6 +144,40 @@ Status: [x]
       (retention 14); stack stopped after run.
 - [ ] Pin `grafana/k6:latest` (unpinned, matches loadtest/Makefile today).
 
+## Phase 6 — test-target namespace + docs restructure
+
+Status: [x] (Makefile renames, CI call sites, docs/tests.md — executed
+2026-10-25; decided in plan session: `make test` = all unit suites (no E2E),
+component vocabulary is `web` over `frontend`, full list via `make tests`
++ docs, chrome extension stays outside the Makefile).
+
+- [x] Consistent `test-<component>[-<kind>]` namespace in the root Makefile:
+      `test-backend[-only|-coverage|-e2e]` (renames of test/test-only/
+      test-coverage/test-e2e), `test-web[-e2e|-e2e-ui]` (renames of
+      test-frontend/test-e2e-ui), `test-shared`/`test-mobile` unchanged.
+      `test` redefined as the aggregate `test-shared test-web test-mobile
+      test-backend` (unit-first ordering so failures surface before the slow
+      backend suite). `test-js` dropped (superseded by the aggregate); no
+      old-name aliases kept — clean cut.
+- [x] New `test-web-e2e` target: headless Playwright against the container
+      lane (the frontend-ci `e2e` job's lane), fail-fast curl guards (must see
+      `/env-config.js`, not just a listener on :3000 — a dev server doesn't
+      count; plus API health through the `/api` proxy).
+- [x] New `tests` target: full printed list of every test command (pattern of
+      `make components`); `make help` TEST section slimmed to test /
+      test-backend / test-web / tests / loadtest.
+- [x] CI call sites: `backend-ci.yml` now runs `make test-backend-coverage`
+      and `make test-backend-e2e`. frontend-ci unchanged (manages its own
+      lane around inline `npm run test:e2e`; switching it to `make
+      test-web-e2e` left as a possible follow-up).
+- [x] Docs restructured: `docs/testing.md` → `docs/tests.md` (title "Tests"),
+      new top matter: approach + navigation, per-project "test kinds" matrix,
+      per-project lead-ins explaining what each suite kind is/covers; all
+      command names updated. References updated: `docs/build.js` (list + nav),
+      `docs/getting-started.md`, `docs/frontend.md`, `docs/ci-cd.md`,
+      `AGENTS.md`, `README.md`. `CHANGELOG.md` untouched (release-please).
+- [x] `make docs` regenerated `docs/index.html`.
+
 ## Coverage gates
 
 Decision locked with user: report-only everywhere (backend Go coverage in
@@ -273,4 +307,5 @@ until suites mature; revisit when baseline stabilizes.
 - chrome-extension release automation (version stamping, workspace/repo
   release-please wiring) — open.
 - `reminder` repository tests — open.
-- Document the backend e2e build-tag invocation in docs/testing.md.
+- Document the backend e2e build-tag invocation — done: docs/tests.md
+  documents `make test-backend-e2e` and `make tests` lists it (Phase 6).

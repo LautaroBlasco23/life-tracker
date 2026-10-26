@@ -80,7 +80,7 @@ Developed initially with Vercel V0. Built with Next.js and TypeScript.
   - Form validation with Zod schemas
   - Responsive design
   - i18n (EN/ES) via the shared `LanguageProvider` (`@shared`)
-  - Vitest unit tests + Playwright E2E (see [testing.md](./testing.md))
+  - Vitest unit tests + Playwright E2E (see [tests.md](./tests.md))
 
 ---
 
@@ -247,7 +247,7 @@ make deploy-frontend  # rebuild the export and copy it into the running containe
 ## Tests
 
 - Unit: `npm test` (Vitest, jsdom) — theme context, auth guard, theme toggle, `globals-parity` (palette hex parity with `theme-colors.ts`)
-- E2E: `npm run test:e2e` (Playwright) — auth guard, login, notes CRUD, smoke (see [testing.md](./testing.md))
+- E2E: `npm run test:e2e` (Playwright) — auth guard, login, notes CRUD, smoke (see [tests.md](./tests.md))
 - Coverage: `npm run test:coverage`
 
 ---

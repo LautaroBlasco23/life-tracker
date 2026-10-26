@@ -30,7 +30,7 @@ const PAGES = [
   ['chrome-extension', 'Chrome Extension'],
   ['deployment-modes', 'Deployment Modes'],
   ['styles', 'Styles (UI contract)'],
-  ['testing', 'Testing'],
+  ['tests', 'Tests'],
   ['loadtest', 'Load Testing'],
   ['ci-cd', 'CI/CD'],
 ];
@@ -283,7 +283,7 @@ const html = `<!doctype html>
     ['Start', ['getting-started', 'architecture']],
     ['Apps', ['frontend', 'mobile', 'chrome-extension']],
     ['Backend', ['backend', 'data-schemas']],
-    ['Reference', ['deployment-modes', 'styles', 'testing', 'loadtest', 'ci-cd']],
+    ['Reference', ['deployment-modes', 'styles', 'tests', 'loadtest', 'ci-cd']],
   ];
   var html = '';
   GROUPS.forEach(function (g) {
