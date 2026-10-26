@@ -14,16 +14,6 @@ Run `make` (or `make help`) for the main commands and see [`docs/getting-started
 
 ---
 
-## App Images
-
-| Login | Activities | Notes |
-|:-:|:-:|:-:|
-| <img src="docs/images/login.png" width="320" alt="Login" /> | <img src="docs/images/activities.png" width="320" alt="Activities" /> | <img src="docs/images/notes.png" width="320" alt="Notes" /> |
-| **Finance** | **Time Tracker** | **Profile** |
-| <img src="docs/images/finance.png" width="320" alt="Finance" /> | <img src="docs/images/time.png" width="320" alt="Time Tracker" /> | <img src="docs/images/profile.png" width="320" alt="Profile" /> |
-
----
-
 ## Repository Structure
 
 | Directory | Project | Stack | Purpose |
@@ -60,6 +50,34 @@ All documentation lives in [`docs/`](./docs/). This root README covers only the 
 | [`docs/backend.md`](./docs/backend.md) | Backend API: per-domain schemas, business logic, and the full HTTP API reference |
 | [`docs/frontend.md`](./docs/frontend.md) | Web app: features, tech stack, setup, and build commands |
 | [`docs/loadtest.md`](./docs/loadtest.md) | k6 load testing: test lanes, scenario matrix, live monitoring, cleanup |
+
+---
+
+## App Images
+
+**Login**
+
+![Login](docs/images/login.png)
+
+**Activities**
+
+![Activities](docs/images/activities.png)
+
+**Notes**
+
+![Notes](docs/images/notes.png)
+
+**Finance**
+
+![Finance](docs/images/finance.png)
+
+**Time Tracker**
+
+![Time Tracker](docs/images/time.png)
+
+**Profile**
+
+![Profile](docs/images/profile.png)
 
 ---
 
