@@ -21,7 +21,7 @@
 //
 // Out of scope: handler-level edge cases (unit suites cover controllers/
 //
-//	services/repos), MongoDB-backed flows (screentime, finance),
+//	services/repos), MongoDB-backed flows (finance),
 //	floci/Lambda proxying, TLS/network transport — httptest serves
 //	in-process with no listener.
 //

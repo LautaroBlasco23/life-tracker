@@ -27,7 +27,6 @@ const PAGES = [
   ['data-schemas', 'Data Schemas'],
   ['frontend', 'Frontend'],
   ['mobile', 'Mobile'],
-  ['chrome-extension', 'Chrome Extension'],
   ['deployment-modes', 'Deployment Modes'],
   ['styles', 'Styles (UI contract)'],
   ['tests', 'Tests'],
@@ -281,7 +280,7 @@ const html = `<!doctype html>
   var toc = document.getElementById('toc');
   var GROUPS = [
     ['Start', ['getting-started', 'architecture']],
-    ['Apps', ['frontend', 'mobile', 'chrome-extension']],
+    ['Apps', ['frontend', 'mobile']],
     ['Backend', ['backend', 'data-schemas']],
     ['Reference', ['deployment-modes', 'styles', 'tests', 'loadtest', 'ci-cd']],
   ];

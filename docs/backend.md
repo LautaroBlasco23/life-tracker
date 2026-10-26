@@ -32,7 +32,7 @@ internal/
 | Storage | Domains | Why |
 |---|---|---|
 | PostgreSQL (GORM) | auth (+ refresh tokens), user, activity, reminder, note, note-group, time, routine, social | Relational, relational queries (follows, subscriptions, ownership) |
-| MongoDB (mongo-driver) | activity records, finance (transactions/payments), screentime visits (also read by `data` for export) | Document data, write-heavy time-series-like records |
+| MongoDB (mongo-driver) | activity records, finance (transactions/payments) | Document data, write-heavy time-series-like records |
 
 Migrations are versioned SQL files under `internal/database/migrations/` (naming convention `{6-digit-number}_{description}.{up|down}.sql`).
 
@@ -496,27 +496,6 @@ Public profile view (`GET /users/:username/profile`) — content is only populat
 - **Visibility** — `visibility.go` enforces profile/content privacy: private content is only visible to the owner or accepted followers.
 - **Subscriptions** — subscribe to another user's public activity or routine; the subscription clones the source into the subscriber's space (`clonedId`).
 
-### Screen Time — `domain/screentime`
-
-**Schema** (`web_visits`, Mongo): `userId`, `domain`, `visitedAt`.
-
-**Example** — `POST /screen-time/visits` (from the Chrome extension):
-
-```json
-{ "domain": "github.com", "visitedAt": "2026-01-15T14:22:00Z" }
-```
-
-Stats (`GET /screen-time/stats`) aggregate visit counts per domain:
-
-```json
-{ "domain": "github.com", "count": 142 }
-```
-
-**Logic**
-- `POST /visits` — records a visit (from the Chrome extension).
-- `GET /visits` — filterable by domain and date range.
-- `GET /stats` — aggregate **visit count** per domain (the model stores no duration).
-
 ### Data — `domain/data`
 
 Full-account backup: **Excel export/import** of the user's data (excelize), reading from PostgreSQL + MongoDB collections.
@@ -713,14 +692,6 @@ All routes are mounted under the `/api` prefix. "Public" routes need no token; "
 | GET | /subscriptions | Protected | My subscriptions |
 | DELETE | /subscriptions/:id | Protected | Unsubscribe |
 | GET | /users/:username/profile | Public | Public profile view |
-
-### Screen Time — `/api/screen-time`
-
-| Method | Path | Access | Description |
-|---|---|---|---|
-| POST | /screen-time/visits | Protected | Record a web visit |
-| GET | /screen-time/visits | Protected | List visits (domain/date filters) |
-| GET | /screen-time/stats | Protected | Aggregate visit count per domain |
 
 ### Data — `/api/users/me/data`
 
