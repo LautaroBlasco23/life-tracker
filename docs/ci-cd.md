@@ -20,10 +20,6 @@ GitHub Actions workflows live in `.github/workflows/` at the **repository root**
 
 - PR gate (unconditional on PRs; path-filtered on pushes for `apps/mobile/**` + `packages/shared/**` + `scripts/**` + the workflow file): type-check, jest-expo unit tests, shared package vitest tests, a prod dependency audit (`npm audit`), and expo Android export (bundle build as validation).
 
-## `chrome-extension-ci.yml`
-
-- PR gate on `chrome-extension/**`: `npm ci` + vitest (pure-logic unit tests + manifest sanity) + `node --check` parse of the extension scripts.
-
 ## `nightly-loadtest.yml`
 
 - Full k6 suite (smoke → read/write-heavy → auth-storm → mixed-rhythms → features) via root `make loadtest` on a daily cron (`0 3 * * *`), also manual (`workflow_dispatch`). Each k6 script's thresholds gate the run; k6 JSON reports are uploaded as an artifact. Observability streaming disabled (`REMOTE_WRITE=0`).
@@ -43,7 +39,7 @@ GitHub Actions workflows live in `.github/workflows/` at the **repository root**
 
 ## Merge ruleset (`main`)
 
-Repository ruleset on `main`: PRs required (any merge method), branch deletion and force-push blocked, and the following required status checks. Backend/front/mobile CI have **no paths filters on `pull_request`** (unlike `chrome-extension-ci.yml`, which is path-scoped and not required) because the ruleset blocks merges while any required context is unreported:
+Repository ruleset on `main`: PRs required (any merge method), branch deletion and force-push blocked, and the following required status checks. Backend/front/mobile CI have **no paths filters on `pull_request`** because the ruleset blocks merges while any required context is unreported:
 
 | Required check | Workflow |
 |---|---|

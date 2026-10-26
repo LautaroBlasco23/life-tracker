@@ -15,7 +15,7 @@ security issue, please **do not open a public issue or PR with details**:
    will reach out.
 
 Please include reproduction steps and affected component (backend / frontend /
-mobile / chrome-extension / infra). Fixes are prioritized for issues affecting
+mobile / infra). Fixes are prioritized for issues affecting
 the deployed API and the published Docker images.
 
 ## Scope notes
