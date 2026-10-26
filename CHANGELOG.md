@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.0.0](https://github.com/LautaroBlasco23/life-tracker/compare/v1.3.0...v2.0.0) (2026-10-26)
+
+
+### ⚠ BREAKING CHANGES
+
+* remove Chrome extension and screen-time API ([#89](https://github.com/LautaroBlasco23/life-tracker/issues/89))
+
+### Code Refactoring
+
+* consistent test-&lt;component&gt; targets and docs/tests restructure ([#88](https://github.com/LautaroBlasco23/life-tracker/issues/88)) ([d32f451](https://github.com/LautaroBlasco23/life-tracker/commit/d32f451a5823575a1fe4fc6358578563b3c31c06))
+* remove Chrome extension and screen-time API ([#89](https://github.com/LautaroBlasco23/life-tracker/issues/89)) ([23a1406](https://github.com/LautaroBlasco23/life-tracker/commit/23a140647f7156f57b8ff75d5fbbf30b1a096cde))
+
 ## [1.3.0](https://github.com/LautaroBlasco23/life-tracker/compare/v1.2.3...v1.3.0) (2026-10-25)
 
 
