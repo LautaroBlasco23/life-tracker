@@ -73,6 +73,7 @@ help:
 	@printf "    make dev-container  container mode: API :8080 · postgres · mongo · web :3000\n"
 	@printf "    make dev-full       container mode + observability: Prometheus :9090 · Grafana :3001\n"
 	@printf "    make mobile         mobile dev loop: emulator + API + Metro · [R] rebuilds native app\n"
+	@printf "    make build-apk      release APK for a physical phone (arm64-v8a; APK_ABI=all for universal)\n"
 	@printf "\n"
 	@printf "$(GREEN)  STOP$(RST)\n"
 	@printf "    make stop           stops EVERYTHING, whichever mode is running\n"
@@ -688,6 +689,28 @@ mobile-rebuild:
 	$(ADB) reverse tcp:8081 tcp:8081
 	$(ADB) shell monkey -p $(ANDROID_PKG) 1 >/dev/null 2>&1
 	@echo "✓ reinstalled + relaunched"
+
+# Build a release APK for a physical phone. Signed with the debug
+# keystore (installable anywhere, not Play-Store ready). Release builds
+# ignore apps/mobile/.env — the prod API URL is baked in (see
+# apps/mobile/.env.example). ABI defaults to arm64-v8a (any modern
+# phone); use APK_ABI=all for a universal APK. Rebuilds are incremental;
+# changes to app.json / native deps need a clean prebuild first
+# (npx expo prebuild --platform android --clean --no-install).
+APK_ABI ?= arm64-v8a
+
+build-apk:
+	@if [ ! -d apps/mobile/android ]; then \
+		echo "==> prebuild (android/ missing)"; \
+		cd apps/mobile && npx expo prebuild --platform android --no-install; \
+	fi
+	@echo "==> assembleRelease ($(APK_ABI) only)"
+	(cd apps/mobile/android && ./gradlew :app:assembleRelease -PreactNativeArchitectures=$(APK_ABI))
+	@apk=$$(realpath apps/mobile/android/app/build/outputs/apk/release/app-release.apk); \
+	echo "✓ APK built: $$apk"; \
+	echo "  size: $$(du -h "$$apk" | cut -f1)"; \
+	echo "  install (USB): adb install -r $$apk"; \
+	echo "  install (LAN): serve this dir with 'python3 -m http.server 8899' and open http://<machine-LAN-IP>:8899/app-release.apk on the phone"
 
 # Tail the detached mobile processes' logs (Ctrl-C here is safe — it only
 # ends the tail).
