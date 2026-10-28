@@ -626,7 +626,7 @@ mobile:
 	else \
 		$(MAKE) --no-print-directory db-up; \
 		$(CHECK_AIR) \
-		$(CHECK_ENV) \
+		$(CHECK_ENV); \
 		until docker exec golang_api_postgres pg_isready -U postgres >/dev/null 2>&1; do sleep 1; done; \
 		nohup setsid sh -c 'cd backend && exec air -c .air.toml' >/tmp/lifetracker-api.log 2>&1 & \
 		echo $$! > /tmp/lifetracker-api.pid; \
