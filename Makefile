@@ -557,7 +557,7 @@ else
 ANDROID_HOME ?= $(HOME)/Android/Sdk
 ADB ?= $(ANDROID_HOME)/platform-tools/adb
 EMU ?= $(ANDROID_HOME)/emulator/emulator
-APK_CONV = cat
+APK_CONV = echo
 # prebuild + gradlew need ANDROID_HOME in the environment, not just here.
 export ANDROID_HOME
 endif
