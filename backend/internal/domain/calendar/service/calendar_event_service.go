@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"sort"
+	"strings"
 	"time"
 
 	"life-tracker-backend/internal/domain/calendar/dto"
@@ -70,7 +72,7 @@ func (s *CalendarService) CreateEvent(userID uint, req *dto.CreateCalendarEventR
 // All occurrences are written in a single transaction: a failure half way
 // through must not leave a partial series behind.
 func (s *CalendarService) createRecurringEvent(userID uint, req *dto.CreateCalendarEventRequest, loc *time.Location) (*dto.CalendarEventResponse, error) {
-	occurrences, err := buildOccurrences(userID, req, loc)
+	occurrences, weekdays, err := buildOccurrences(userID, req, loc)
 	if err != nil {
 		return nil, err
 	}
@@ -83,6 +85,7 @@ func (s *CalendarService) createRecurringEvent(userID uint, req *dto.CreateCalen
 	rule := dto.RecurrenceRuleWeekly
 	interval := recurrenceInterval(req.Recurrence)
 	until := *req.Recurrence.Until
+	weekdaysEcho := strings.Join(weekdays, ",")
 
 	for i := range occurrences {
 		index := i
@@ -91,6 +94,7 @@ func (s *CalendarService) createRecurringEvent(userID uint, req *dto.CreateCalen
 		occurrences[i].RecurrenceRule = &rule
 		occurrences[i].RecurrenceUntil = &until
 		occurrences[i].RecurrenceInterval = &interval
+		occurrences[i].RecurrenceWeekdays = &weekdaysEcho
 	}
 
 	if err := s.repo.WithinTransaction(func(txRepo repository.CalendarEventRepository) error {
@@ -295,63 +299,140 @@ func (s *CalendarService) deleteSeries(userID, eventID uint) error {
 }
 
 // buildOccurrences materializes the occurrences of a weekly rule. Every
-// occurrence keeps the weekday and the time of day of the first one, and the
-// series stops at `until`.
+// occurrence keeps the time of day of the first one, repeats on the week days
+// of the rule (default: the first occurrence's weekday), and the series stops
+// at `until`.
 //
 // The step is applied on the wall clock in the user's timezone (not by adding
 // 7*24h to the instant): a class at 10:00 stays at 10:00 after a DST change.
 // `loc` may be nil, in which case UTC is used.
-func buildOccurrences(userID uint, req *dto.CreateCalendarEventRequest, loc *time.Location) ([]model.CalendarEvent, error) {
+//
+// It returns the occurrences plus the normalized day names (sorted, lowercase,
+// de-duplicated) used to expand the series, so callers can persist the echo.
+func buildOccurrences(userID uint, req *dto.CreateCalendarEventRequest, loc *time.Location) ([]model.CalendarEvent, []string, error) {
 	recurrence := req.Recurrence
 	if recurrence == nil {
-		return nil, errors.New("recurrence is required")
+		return nil, nil, errors.New("recurrence is required")
 	}
 	if recurrence.Rule != dto.RecurrenceRuleWeekly {
-		return nil, errors.New("unsupported recurrence rule")
+		return nil, nil, errors.New("unsupported recurrence rule")
 	}
 	if recurrence.Until == nil {
-		return nil, errors.New("recurrence until is required for weekly events")
+		return nil, nil, errors.New("recurrence until is required for weekly events")
 	}
 
 	interval := recurrenceInterval(recurrence)
 	if interval < 1 || interval > maxRecurrenceIntervalWeeks {
-		return nil, fmt.Errorf("recurrence interval must be between 1 and %d weeks", maxRecurrenceIntervalWeeks)
+		return nil, nil, fmt.Errorf("recurrence interval must be between 1 and %d weeks", maxRecurrenceIntervalWeeks)
 	}
 
 	until := *recurrence.Until
 	if until.Before(req.StartAt) {
-		return nil, errors.New("recurrence until must not be before the event start")
+		return nil, nil, errors.New("recurrence until must not be before the event start")
 	}
 
 	if loc == nil {
 		loc = time.UTC
 	}
 
-	duration := req.EndAt.Sub(req.StartAt)
-	step := daysPerWeek * interval
 	localStart := req.StartAt.In(loc)
-
-	occurrences := make([]model.CalendarEvent, 0, 1)
-	for index := 0; ; index++ {
-		start := localStart.AddDate(0, 0, index*step).UTC()
-		if start.After(until) {
-			break
-		}
-		if len(occurrences) >= maxOccurrencesPerSeries {
-			return nil, fmt.Errorf("recurring event exceeds the maximum of %d occurrences", maxOccurrencesPerSeries)
-		}
-
-		occurrences = append(occurrences, model.CalendarEvent{
-			UserID:      userID,
-			Title:       req.Title,
-			Description: req.Description,
-			Category:    req.Category,
-			StartAt:     start,
-			EndAt:       start.Add(duration),
-		})
+	weekdays, err := normalizeWeekdays(recurrence.Weekdays, localStart)
+	if err != nil {
+		return nil, nil, err
 	}
 
-	return occurrences, nil
+	duration := req.EndAt.Sub(req.StartAt)
+	step := daysPerWeek * interval
+	startOffset := weekdayOffset(localStart)
+
+	// Candidates are generated week by week, days in ascending order, so the
+	// sequence is strictly increasing: the first candidate past `until` ends
+	// the whole series. Candidates of the starting week that fall before the
+	// event start (selected days earlier in that week) are skipped.
+	occurrences := make([]model.CalendarEvent, 0, len(weekdays)*2)
+	for weeks := 0; ; weeks++ {
+		for _, dayOffset := range weekdayOffsets(weekdays) {
+			start := localStart.AddDate(0, 0, weeks*step+dayOffset-startOffset).UTC()
+			if start.Before(req.StartAt) {
+				continue
+			}
+			if start.After(until) {
+				return occurrences, weekdays, nil
+			}
+			if len(occurrences) >= maxOccurrencesPerSeries {
+				return nil, nil, fmt.Errorf("recurring event exceeds the maximum of %d occurrences", maxOccurrencesPerSeries)
+			}
+
+			occurrences = append(occurrences, model.CalendarEvent{
+				UserID:      userID,
+				Title:       req.Title,
+				Description: req.Description,
+				Category:    req.Category,
+				StartAt:     start,
+				EndAt:       start.Add(duration),
+			})
+		}
+	}
+}
+
+// weekdayNames maps the Monday-based offset (0-6) returned by weekdayOffset
+// to the day name used on the API surface.
+var weekdayNames = [7]string{
+	"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
+}
+
+var weekdayNameOffsets = func() map[string]int {
+	offsets := make(map[string]int, len(weekdayNames))
+	for offset, name := range weekdayNames {
+		offsets[name] = offset
+	}
+	return offsets
+}()
+
+// weekdayOffset maps a time.Time to its position in the week starting on
+// Monday (Monday=0 … Sunday=6), independently of time.Time's Sunday-based
+// Weekday().
+func weekdayOffset(t time.Time) int {
+	return (int(t.Weekday()) + 6) % 7
+}
+
+// normalizeWeekdays validates the requested day names and returns them as
+// sorted, de-duplicated offsets. An empty list defaults to the weekday of
+// `localStart`, preserving the behavior of rules without weekdays.
+func normalizeWeekdays(raw []string, localStart time.Time) ([]string, error) {
+	if len(raw) == 0 {
+		return []string{weekdayNames[weekdayOffset(localStart)]}, nil
+	}
+
+	offsets := make([]int, 0, len(raw))
+	seen := make(map[int]bool, len(raw))
+	for _, name := range raw {
+		offset, ok := weekdayNameOffsets[strings.ToLower(strings.TrimSpace(name))]
+		if !ok {
+			return nil, fmt.Errorf("unsupported recurrence weekday %q", name)
+		}
+		if seen[offset] {
+			continue
+		}
+		seen[offset] = true
+		offsets = append(offsets, offset)
+	}
+	sort.Ints(offsets)
+
+	names := make([]string, len(offsets))
+	for i, offset := range offsets {
+		names[i] = weekdayNames[offset]
+	}
+	return names, nil
+}
+
+// weekdayOffsets maps normalized day names back to their numeric offsets.
+func weekdayOffsets(weekdays []string) []int {
+	offsets := make([]int, len(weekdays))
+	for i, name := range weekdays {
+		offsets[i] = weekdayNameOffsets[name]
+	}
+	return offsets
 }
 
 // recurrenceInterval returns the number of weeks between two occurrences.
