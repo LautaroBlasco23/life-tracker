@@ -13,7 +13,7 @@ GitHub Actions workflows live in `.github/workflows/` at the **repository root**
 - **`lint` job**: PR gate (unconditional — see Merge ruleset; path-filtered on pushes touching `frontend/**` + `packages/shared/**`) — prettier check, vitest unit tests, **coverage report** (totals to the job summary + html artifact; report-only), `tsc --noEmit`, and a **prod dependency audit** (`node scripts/audit-prod.mjs`).
 - **`e2e` job**: spins up the full-stack container lane (`make dev-container`: postgres + mongodb + api + nginx static export with the `/api` proxy on :3000) and runs the Playwright essential suite (`frontend/e2e/` — auth guard, UI login, notes CRUD, deploy canary). Playwright HTML report uploaded on failure. Essential-only: deeper E2E is follow-up work.
 - **`build-export` job**: runs `next build` with `output: 'export'`, asserting `out/index.html` is produced.
-- **`build-and-push` job**: runs **only on `vX.Y.Z` tags** — builds and pushes the frontend image to Docker Hub (`lautaroblasco1998/lifetracker-frontend`) tagged `X.Y.Z`, `X.Y` and `latest`, then smoke-tests the pushed image.
+- **`build-and-push` job**: runs **only on `vX.Y.Z` tags** — builds and pushes the frontend image to Docker Hub (`<dockerhub-username>/lifetracker-frontend`) tagged `X.Y.Z`, `X.Y` and `latest`, then smoke-tests the pushed image.
 - **`smoke` job**: after `build-and-push`, pulls `:latest` (the just-pushed release image) and verifies nginx serving, env injection, deep-link routes (`/notes`, `/finance/`), the `GATEWAY_UPSTREAM` nginx var and the `/api` proxy.
 
 ## `mobile-ci.yml`

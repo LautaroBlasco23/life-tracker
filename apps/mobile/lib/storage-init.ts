@@ -75,7 +75,7 @@ if (storedApiUrl?.startsWith('https://')) {
   // phone app. Dev builds set EXPO_PUBLIC_API_URL (see .env.example);
   // the Profile-screen override (stored 'apiUrl') wins over both.
   setApiUrl(
-    process.env.EXPO_PUBLIC_API_URL ?? 'https://lifetracker.lautaroblasco.com.ar/api',
+    process.env.EXPO_PUBLIC_API_URL ?? 'https://api.example.com/api',
   );
 }
 
