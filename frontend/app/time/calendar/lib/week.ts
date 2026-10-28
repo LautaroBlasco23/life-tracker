@@ -1,4 +1,5 @@
 import { addDays, addWeeks, startOfWeek } from 'date-fns';
+import type { DayOfWeek } from '@shared/types/activity';
 
 /** ISO week: the grid starts on Monday. */
 export const WEEK_STARTS_ON = 1 as const;
@@ -191,4 +192,52 @@ export function minutesFromOffset(
 ): number {
   if (columnHeight <= 0) return 0;
   return snapMinutes(Math.floor((offsetY / columnHeight) * MINUTES_PER_DAY));
+}
+
+/** Week day names indexed by `Date.getDay()` (Sunday=0). */
+const WEEKDAY_NAMES: DayOfWeek[] = [
+  'sunday',
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+];
+
+/** The `DayOfWeek` name of a date, used to seed the weekday checkboxes. */
+export function weekdayName(date: Date): DayOfWeek {
+  return WEEKDAY_NAMES[date.getDay()];
+}
+
+/**
+ * The times of an event dropped with a drag inside the week grid. The target
+ * day comes from the column, the start time from the drop offset, and the
+ * original duration is preserved.
+ */
+export function dropEventTimes(input: {
+  /** `yyyy-MM-dd` of the column the event was dropped on. */
+  dayValue: string;
+  /** Vertical offset, in pixels, inside that column. */
+  offsetY: number;
+  columnHeight: number;
+  /** Preserved `endAt - startAt` of the pre-drag event. */
+  durationMs: number;
+}): { startAt: string; endAt: string } | null {
+  // The bottom edge clamps to 23:59 <input type="time"> semantics; longer
+  // events simply spill into the next day, as overnight events already do.
+  const startMinutes = Math.min(
+    minutesFromOffset(input.offsetY, input.columnHeight),
+    MINUTES_PER_DAY - 1
+  );
+  const start = combineDateAndTime(
+    input.dayValue,
+    toTimeInputValue(dateAtMinutes(new Date(), startMinutes))
+  );
+  if (Number.isNaN(start.getTime())) return null;
+
+  return {
+    startAt: start.toISOString(),
+    endAt: new Date(start.getTime() + input.durationMs).toISOString(),
+  };
 }

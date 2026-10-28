@@ -877,6 +877,8 @@
     "repeatNone": "Ninguna",
     "repeatWeekly": "Semanal",
     "repeatUntil": "Repetir hasta",
+    "repeatWeekdays": "Se repite los",
+    "repeatDaysRequired": "Elegí al menos un día para la serie semanal",
     "repeatUntilRequired": "Elegí la última fecha de la serie",
     "repeatUntilBeforeStart": "La fecha final no puede ser anterior a la fecha del evento",
     "repeatLocked": "La repetición se define al crear el evento",
