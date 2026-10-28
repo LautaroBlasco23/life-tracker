@@ -426,7 +426,7 @@ loadtest-%:
 
 fe-docker-up:
 	cd frontend && docker build \
-		--build-arg NEXT_PUBLIC_API_URL=https://api-lifetracker.lautaroblasco.com/api \
+		--build-arg NEXT_PUBLIC_API_URL=https://api.example.com/api \
 		-t nextjs-app:latest .
 	cd frontend && docker run -d \
 		--name nextjs-app \
