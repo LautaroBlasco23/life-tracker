@@ -49,9 +49,9 @@ The API base URL is resolved in `apps/mobile/lib/storage-init.ts`:
 
 1. **Profile-screen override** (stored in SQLite, must start with `https://`) — wins over everything.
 2. **`EXPO_PUBLIC_API_URL`** baked into the JS bundle at build time.
-3. **Fallback:** the prod API (`https://lifetracker.lautaroblasco.com.ar/api`).
+3. **Fallback:** `https://api.example.com/api` — a placeholder.
 
-- **Prod (default):** a plain `assembleRelease` with no env config bakes the prod URL — nothing to configure. Cleartext is handled by the custom prebuild plugin `apps/mobile/plugin/withCleartextManifest.js` (registered in `app.json`), which sets `android:usesCleartextTraffic` per build type (debug: true, release: false).
+- **Prod:** the real API URL lives **only** in git-ignored `apps/mobile/.env` (`EXPO_PUBLIC_API_URL=https://your-domain.com/api`); it is baked into the bundle at build time. For EAS cloud builds, set it as an environment variable in EAS (`eas env:push --environment production`) instead of in `eas.json`. Cleartext is handled by the custom prebuild plugin `apps/mobile/plugin/withCleartextManifest.js` (registered in `app.json`), which sets `android:usesCleartextTraffic` per build type (debug: true, release: false).
 - **Dev (emulator):** `apps/mobile/.env.example` (copy to `.env` if you want a bake) sets `http://10.0.2.2:8080/api`; the prebuild-generated project loads it when bundling in development mode (`expo start` / `npx expo run:android`). Release builds ignore it.
 
 The Profile-screen URL override is the escape hatch: a wrong bake is recoverable without a rebuild (but clear the override if it points somewhere stale — it beats the baked value).

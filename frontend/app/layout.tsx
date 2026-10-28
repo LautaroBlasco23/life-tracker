@@ -23,7 +23,7 @@ const themeInitScript = `(function(){try{var t=localStorage.getItem('theme');var
 export const metadata: Metadata = {
   title: 'Lifetracker',
   description: 'Lifetracker app',
-  generator: 'lautaroblasco.com',
+  generator: 'example.com',
   icons: {
     icon: '/favicon.ico',
     shortcut: '/favicon.ico',
