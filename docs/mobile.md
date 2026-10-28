@@ -4,14 +4,17 @@ The Android app lives in [`apps/mobile/`](../apps/mobile/) and shares business l
 
 ## Building the APK (local Gradle build)
 
-Requires a one-time toolchain setup, then a two-command build. Validated on Ubuntu 24.04 (WSL2), JDK 21, Expo SDK 57 / RN 0.86.
+Requires a one-time toolchain setup, then a two-command build. Validated on Ubuntu 24.04 (WSL2) and Fedora (native Linux), JDK 21, Expo SDK 57 / RN 0.86.
 
 ### One-time toolchain setup
 
-1. **JDK** (AGP 8.x needs JDK 17+; 21 is the Ubuntu 24.04 default):
+1. **JDK** (AGP 8.x needs JDK 17+; 21 is recommended):
 
    ```bash
+   # Ubuntu (WSL2 or native)
    sudo apt update && sudo apt install -y openjdk-21-jdk
+   # Fedora (native Linux)
+   sudo dnf install -y java-21-openjdk-devel
    ```
 
 2. **Android cmdline-tools** (no sudo):
@@ -118,7 +121,7 @@ Routes live in `apps/mobile/app/` (expo-router): a tabs layout (`(app)/_layout.t
 - **Tokens:** `apps/mobile/tailwind.config.js` duplicates `theme-colors.ts` — keep in sync (see [../styles.md](../styles.md)).
 - **Tests:** jest-expo (`jest.config.js` + `jest.setup.js`) — streak badge + time formatting.
 
-## Dev loop (Windows emulator + WSL build)
+## Dev loop (make mobile)
 
 The primary documented loop is the root Makefile target, which bootstraps everything (emulator boot, prebuild if needed, APK install, API + Metro detached, app launch) and then offers an interactive key loop:
 
@@ -128,6 +131,13 @@ make mobile-rebuild # rebuild the native app + reinstall (same as the [R] key)
 make mobile-logs    # tail API + Metro logs
 make mobile-stop    # stop what make mobile started
 ```
+
+The target auto-detects the host by the presence of `wslpath` (exists only inside WSL); force a mode with `WSL=1` or `WSL=0`:
+
+- **WSL2:** the emulator runs on the Windows host (Android Studio AVD) while Gradle, Metro and the API stay in WSL — see the note in the root `Makefile` for the mirrored-networking requirement.
+- **Native Linux (Fedora, etc.):** adb/emulator come from `ANDROID_HOME` (default `~/Android/Sdk`) with KVM acceleration; `10.0.2.2` reaches the host loopback directly. Set `JAVA_HOME` if the default JDK isn't 21. An API already running in Docker containers is detected and reused (`✓ API already on :8080`).
+
+If the default AVD (`Pixel_9`) isn't present on the machine, the first AVD from `emulator -list-avds` is used instead — override with `ANDROID_AVD=<name>`.
 
 Alternatively, a plain debug build on a connected device/emulator:
 

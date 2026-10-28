@@ -32,7 +32,7 @@ Run modes from the repository root (one at a time; `make stop` stops whichever i
 | `make dev` | Fast lane (host) | air hot-reload on the host (`:8080`) + postgres + mongodb in compose + `next dev` (`:3000`). No app containers, no observability. | API `:8080/api`, app `:3000` |
 | `make dev-container` | Container | API container + postgres + mongodb + frontend (nginx proxies `/api` → `:8080`). No observability. | API `:8080/api`, app `:3000` |
 | `make dev-full` | Container + observability | Same as `make dev-container` plus Prometheus, Grafana, Loki, Promtail, node-exporter. | + Prometheus `:9090`, Grafana `:3001`, Loki `:3100` |
-| `make mobile` | Mobile dev loop | Android emulator (Windows) + API (`:8080`) + Metro (`:8081`) + app launch; `[R]` rebuilds the native app. | app on emulator, API `:8080/api` |
+| `make mobile` | Mobile dev loop | Android emulator (auto-detected: Windows AVD under WSL2, local `ANDROID_HOME` emulator on native Linux) + API (`:8080`) + Metro (`:8081`) + app launch; `[R]` rebuilds the native app. | app on emulator, API `:8080/api` |
 
 All of them are idempotent — re-running a mode's command redeploys the backend and frontend with the latest code, so it doubles as the restart command (`make dev` needs no restart at all: air and `next dev` pick up changes live). See [Deployment Modes](./deployment-modes.md) for the full description of each mode, and [mobile.md](./mobile.md) for the mobile loop.
 
