@@ -612,7 +612,7 @@ mobile:
 	@if ! $(ADB) shell pm list packages $(ANDROID_PKG) 2>/dev/null | grep -q "$(ANDROID_PKG)"; then \
 		if [ ! -f apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk ]; then \
 			echo "==> assembleDebug ($(ANDROID_ABI) only)"; \
-			cd apps/mobile/android && ./gradlew :app:assembleDebug -PreactNativeArchitectures=$(ANDROID_ABI); \
+			(cd apps/mobile/android && ./gradlew :app:assembleDebug -PreactNativeArchitectures=$(ANDROID_ABI)); \
 		fi; \
 		echo "==> installing app-debug.apk"; \
 		$(ADB) install -r "$$($(APK_CONV) $$(realpath apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk))"; \
@@ -682,7 +682,7 @@ mobile-rebuild:
 		echo "✓ android/ is newer than app.json/assets/plugin — skipping prebuild"; \
 	fi
 	@echo "==> assembleDebug ($(ANDROID_ABI) only)"
-	cd apps/mobile/android && ./gradlew :app:assembleDebug -PreactNativeArchitectures=$(ANDROID_ABI)
+	(cd apps/mobile/android && ./gradlew :app:assembleDebug -PreactNativeArchitectures=$(ANDROID_ABI))
 	@echo "==> reinstalling app-debug.apk"
 	$(ADB) install -r "$$($(APK_CONV) $$(realpath apps/mobile/android/app/build/outputs/apk/debug/app-debug.apk))"
 	$(ADB) reverse tcp:8081 tcp:8081
