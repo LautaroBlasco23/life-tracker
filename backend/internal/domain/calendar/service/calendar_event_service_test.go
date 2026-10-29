@@ -17,6 +17,7 @@ package service
 import (
 	"fmt"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -576,6 +577,125 @@ func TestRecurrenceKeepsLocalTimeAcrossDST(t *testing.T) {
 
 	// The first occurrence is before the transition (15:00 UTC), the second
 	// after it (14:00 UTC) - one hour less in UTC, same time on the clock.
+	assert.Equal(t, 15, events[0].StartAt.UTC().Hour())
+	assert.Equal(t, 14, events[1].StartAt.UTC().Hour())
+}
+
+// TestCreateRecurringEventWithWeekdays covers weekly series that repeat on
+// several week days, the persisted echo of the normalized day list, and the
+// validation feedback drawn from bad day names.
+func TestCreateRecurringEventWithWeekdays(t *testing.T) {
+	svc := getTestService(t)
+	userID := uint(88)
+
+	// 2026-10-19 is a Monday; until is exactly four busy weeks later.
+	start := monday()
+	until := start.AddDate(0, 0, 27)
+
+	req := weeklyRequest(until)
+	// Unsorted, with a duplicate: the series must receive a clean list.
+	req.Recurrence.Weekdays = []string{"friday", "wednesday", "monday", "monday"}
+	created, err := svc.CreateEvent(userID, req, time.UTC)
+	require.NoError(t, err)
+	require.NotNil(t, created)
+	require.NotNil(t, created.RecurrenceWeekdays)
+	assert.Equal(t, "monday,wednesday,friday", *created.RecurrenceWeekdays)
+
+	events, err := svc.GetEvents(userID, nil)
+	require.NoError(t, err)
+	require.Len(t, events, 12) // 3 week days × 4 weeks
+
+	dayOffsets := []int{0, 2, 4} // monday, wednesday, friday
+	for i, event := range events {
+		expected := start.AddDate(0, 0, (i/3)*7+dayOffsets[i%3])
+		assert.True(t, expected.Equal(event.StartAt),
+			"occurrence %d must start at %s local, got %s", i, expected, event.StartAt)
+		weekday := strings.ToLower(event.StartAt.Weekday().String())
+		assert.Contains(t, []string{"monday", "wednesday", "friday"}, weekday,
+			"occurrence %s must land on a selected day", event.StartAt)
+	}
+
+	t.Run("an_unknown_day_name_is_rejected", func(t *testing.T) {
+		req := weeklyRequest(until)
+		req.Recurrence.Weekdays = []string{"funday"}
+		_, err := svc.CreateEvent(userID+1, req, time.UTC)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "unsupported recurrence weekday")
+	})
+
+	t.Run("omitted_weekdays_repeat_on_the_start_day_like_before", func(t *testing.T) {
+		resp, err := svc.CreateEvent(userID+2, weeklyRequest(until), time.UTC)
+		require.NoError(t, err)
+		require.NotNil(t, resp.RecurrenceWeekdays)
+		assert.Equal(t, "monday", *resp.RecurrenceWeekdays)
+
+		events, err := svc.GetEvents(userID+2, nil)
+		require.NoError(t, err)
+		require.Len(t, events, 4)
+		for i, event := range events {
+			assert.True(t, start.AddDate(0, 0, 7*i).Equal(event.StartAt), "occurrence %d", i)
+		}
+	})
+}
+
+// TestRecurrenceWeekdaysKeepLocalTimeAcrossDST verifies that a multi-week-day
+// series keeps its wall-clock time across a DST transition: the Sunday
+// occurrences after 2026-03-08 in New York (spring forward) stay at 10:00.
+func TestRecurrenceWeekdaysKeepLocalTimeAcrossDST(t *testing.T) {
+	svc := getTestService(t)
+
+	loc, err := time.LoadLocation("America/New_York")
+	require.NoError(t, err)
+
+	// 2026-03-02 10:00 in New York (EST, UTC-5) = 15:00 UTC. The Sundays are
+	// generated from the same wall clock and must survive the DST shift.
+	start := time.Date(2026, time.March, 2, 15, 0, 0, 0, time.UTC)
+	end := start.Add(2 * time.Hour)
+	until := start.AddDate(0, 0, 25) // Mar 27, after the last Sunday occurrence
+
+	req := &dto.CreateCalendarEventRequest{
+		Title:    "Gym sessions",
+		Category: "Exercise",
+		StartAt:  start,
+		EndAt:    end,
+		Recurrence: &dto.CalendarRecurrenceRequest{
+			Rule: dto.RecurrenceRuleWeekly,
+			// Some week days of the user, unsorted, plus Sunday, which is the
+			// day whose wall clock the DST change moves.
+			Weekdays: []string{"sunday", "monday"},
+			Until:    &until,
+		},
+	}
+
+	created, err := svc.CreateEvent(uint(78), req, loc)
+	require.NoError(t, err)
+	require.NotNil(t, created)
+	require.NotNil(t, created.RecurrenceWeekdays)
+	assert.Equal(t, "monday,sunday", *created.RecurrenceWeekdays)
+
+	events, err := svc.GetEvents(78, &dto.CalendarEventFilter{From: &start, To: &until})
+	require.NoError(t, err)
+
+	// Mondays 2, 9, 16, 23 and Sundays 8, 15, 22 - seven occurrences in
+	// chronological order.
+	require.Len(t, events, 7)
+
+	for i, event := range events {
+		local := event.StartAt.In(loc)
+		weekday := local.Weekday()
+		expectedDay := time.Monday
+		if i%2 == 1 {
+			expectedDay = time.Sunday
+		}
+		assert.Equal(t, expectedDay, weekday, "occurrence %d (%s)", i, event.StartAt)
+		assert.Equal(t, 10, local.Hour(), "occurrence %d (%s) must stay at 10:00 local", i, event.StartAt)
+		assert.Equal(t, 0, local.Minute())
+		assert.True(t, event.StartAt.Add(2*time.Hour).Equal(event.EndAt), "occurrence %d duration", i)
+	}
+
+	// The generated wall clock pair around the DST transition is special:
+	// Monday 2026-03-02 (EST) at 15:00 UTC, the next event Sunday 2026-03-08
+	// at 14:00 UTC - one hour less in UTC for the same 10:00 on the clock.
 	assert.Equal(t, 15, events[0].StartAt.UTC().Hour())
 	assert.Equal(t, 14, events[1].StartAt.UTC().Hour())
 }

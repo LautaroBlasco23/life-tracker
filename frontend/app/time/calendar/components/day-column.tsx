@@ -2,6 +2,7 @@
 
 import { useMemo } from 'react';
 import type { CalendarEvent } from '@shared/types/calendar';
+import { useDroppable } from '@dnd-kit/core';
 import { cn } from '@/lib/utils';
 import { layoutDayEvents } from '../lib/layout';
 import {
@@ -11,6 +12,7 @@ import {
   isToday,
   minutesFromMidnight,
   minutesFromOffset,
+  toDateInputValue,
 } from '../lib/week';
 import { EventBlock } from './event-block';
 
@@ -19,6 +21,8 @@ interface DayColumnProps {
   events: CalendarEvent[];
   /** Current time, refreshed by the parent once a minute. */
   now: Date;
+  /** Prefix for dnd ids, unique per rendered grid. */
+  idPrefix: string;
   onSlotClick: (day: Date, minutes: number) => void;
   onEventClick: (event: CalendarEvent) => void;
 }
@@ -27,11 +31,15 @@ export function DayColumn({
   day,
   events,
   now,
+  idPrefix,
   onSlotClick,
   onEventClick,
 }: DayColumnProps) {
   const positioned = useMemo(() => layoutDayEvents(events, day), [events, day]);
   const today = isToday(day);
+  const { setNodeRef, isOver } = useDroppable({
+    id: `${idPrefix}-${toDateInputValue(day)}`,
+  });
 
   const handleColumnClick = (event: React.MouseEvent<HTMLDivElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -40,10 +48,12 @@ export function DayColumn({
 
   return (
     <div
+      ref={setNodeRef}
       onClick={handleColumnClick}
       className={cn(
         'relative flex-1 border-l border-border first:border-l-0',
-        today && 'bg-primary/[0.03]'
+        today && 'bg-primary/[0.03]',
+        isOver && 'bg-primary/[0.08]'
       )}
       data-day={day.toDateString()}
     >
@@ -65,6 +75,7 @@ export function DayColumn({
             laneCount={laneCount}
             topPercent={topPercent}
             heightPercent={heightPercent}
+            dndId={`${idPrefix}-${event.id}`}
             onClick={() => onEventClick(event)}
           />
         )
