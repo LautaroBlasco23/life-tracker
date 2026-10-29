@@ -3,6 +3,18 @@
 import { useMemo, useState } from 'react';
 import type { CalendarEvent, CalendarEventScope } from '@shared/types/calendar';
 import { calendarService } from '@shared/services/calendar-service';
+import {
+  DndContext,
+  DragOverlay,
+  KeyboardSensor,
+  PointerSensor,
+  closestCorners,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+} from '@dnd-kit/core';
+import { sortableKeyboardCoordinates } from '@dnd-kit/sortable';
 import { DeleteModal } from '@/components/ui/card/delete-modal';
 import { Label } from '@/components/ui/label';
 import {
@@ -18,12 +30,17 @@ import { useTranslations } from '@shared/contexts/language-context';
 import { CalendarToolbar } from '../calendar/components/calendar-toolbar';
 import { WeekGrid } from '../calendar/components/week-grid';
 import {
+  clearEventDragged,
+  markEventDragged,
+} from '../calendar/components/event-block';
+import {
   CalendarEventModal,
   type EventDefaults,
 } from '../calendar/modal/calendar-event-modal';
 import { useWeekEvents } from '../calendar/hooks/use-week-events';
 import {
   MINUTES_PER_DAY,
+  dropEventTimes,
   formatDayLabel,
   formatTimeRange,
   getWeekDays,
@@ -37,6 +54,26 @@ import {
 const DEFAULT_EVENT_START_MINUTES = 9 * 60;
 const DEFAULT_EVENT_DURATION_MINUTES = 60;
 
+/**
+ * Splits a dnd id like "week-12" or "day-2026-10-27" into its grid prefix
+ * (unique per rendered grid) and its value (event id or column date).
+ */
+function splitDndId(id: string): { prefix: string; value: string } {
+  const separator = id.indexOf('-');
+  if (separator < 0) return { prefix: '', value: id };
+  return { prefix: id.slice(0, separator), value: id.slice(separator + 1) };
+}
+
+/** The dnd setup of the calendar grid: pointer drags (6px) + keyboard. */
+function useCalendarSensors() {
+  return useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+}
+
 export function CalendarView() {
   const t = useTranslations('calendar');
   const tCommon = useTranslations('common');
@@ -47,6 +84,67 @@ export function CalendarView() {
   const [selectedDay, setSelectedDay] = useState<Date>(() => new Date());
 
   const { events, isLoading, reload } = useWeekEvents(weekStart);
+
+  const [draggingEvent, setDraggingEvent] = useState<CalendarEvent | null>(
+    null
+  );
+  const sensors = useCalendarSensors();
+
+  const onDragStart = (dragStart: DragStartEvent) => {
+    const event = events.find((e) => {
+      const { prefix, value } = splitDndId(String(dragStart.active.id));
+      return prefix !== '' && Number(value) === e.id;
+    });
+    if (event) markEventDragged(event.id);
+    setDraggingEvent(event ?? null);
+  };
+
+  const onDragEnd = (dragEnd: DragEndEvent) => {
+    setDraggingEvent(null);
+    clearEventDragged();
+
+    const over = dragEnd.over;
+    if (!over) return;
+
+    const eventId = splitDndId(String(dragEnd.active.id));
+    const target = splitDndId(String(over.id));
+    const event = events.find((e) => Number(eventId.value) === e.id);
+    if (!event || eventId.prefix === '' || target.prefix !== eventId.prefix) {
+      return;
+    }
+
+    // Time comes from where the dragged block ends up inside the column,
+    // not from the pointer: keeps duration and 30-minute snapping.
+    const translated = dragEnd.active.rect.current.translated;
+    const columnRect = over.rect;
+    if (!translated || !columnRect || columnRect.height <= 0) return;
+
+    const original = new Date(event.startAt).getTime();
+    const times = dropEventTimes({
+      dayValue: target.value,
+      offsetY: translated.top - columnRect.top,
+      columnHeight: columnRect.height,
+      durationMs: new Date(event.endAt).getTime() - original,
+    });
+    if (!times) return;
+    // Dropping back on the same slot is a no-op, not a request.
+    if (new Date(times.startAt).getTime() === original) return;
+
+    calendarService
+      .updateEvent(
+        event.id,
+        { startAt: times.startAt, endAt: times.endAt },
+        'occurrence'
+      )
+      .then(() => reload())
+      .catch((error) =>
+        showToast({
+          title: t('failedToSave'),
+          description: error instanceof Error ? error.message : undefined,
+          variant: 'destructive',
+        })
+      );
+  };
 
   const [modalOpen, setModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEvent | null>(null);
@@ -173,21 +271,52 @@ export function CalendarView() {
       </div>
 
       <div className="hidden md:block">
-        <WeekGrid
-          days={days}
-          events={events}
-          onSlotClick={openCreateModal}
-          onEventClick={openEditModal}
-        />
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+          onDragCancel={() => {
+            setDraggingEvent(null);
+            clearEventDragged();
+          }}
+        >
+          <WeekGrid
+            days={days}
+            events={events}
+            idPrefix="week"
+            onSlotClick={openCreateModal}
+            onEventClick={openEditModal}
+          />
+          <DragOverlay dropAnimation={null}>
+            {draggingEvent ? (
+              <div className="rounded-md border border-border bg-surface px-2.5 py-1 text-xs font-medium text-foreground shadow-lg">
+                {draggingEvent.title}
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       </div>
 
       <div className="md:hidden">
-        <WeekGrid
-          days={[selectedDay]}
-          events={events}
-          onSlotClick={openCreateModal}
-          onEventClick={openEditModal}
-        />
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragStart={onDragStart}
+          onDragEnd={onDragEnd}
+          onDragCancel={() => {
+            setDraggingEvent(null);
+            clearEventDragged();
+          }}
+        >
+          <WeekGrid
+            days={[selectedDay]}
+            events={events}
+            idPrefix="singleDay"
+            onSlotClick={openCreateModal}
+            onEventClick={openEditModal}
+          />
+        </DndContext>
       </div>
 
       <p className="mt-3 text-xs text-muted-foreground">

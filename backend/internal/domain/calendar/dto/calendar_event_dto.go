@@ -14,12 +14,15 @@ const RecurrenceRuleWeekly = "weekly"
 
 // CalendarRecurrenceRequest describes the recurrence of a new event. Only
 // "weekly" is supported; `until` is required and bounds the last occurrence.
-// The rule and the interval are validated by the service, which returns a
-// precise error message.
+// The rule, interval and weekdays are validated by the service, which returns
+// a precise error message.
 type CalendarRecurrenceRequest struct {
 	Rule     string     `json:"rule" binding:"required"`
 	Interval *int       `json:"interval,omitempty"`
 	Until    *time.Time `json:"until,omitempty"`
+	// Week day names the series repeats on (e.g. ["monday","friday"]).
+	// An omitted list defaults to the start date's weekday.
+	Weekdays []string `json:"weekdays,omitempty"`
 }
 
 type CreateCalendarEventRequest struct {
@@ -56,6 +59,10 @@ type CalendarEventResponse struct {
 	RecurrenceRule     *string    `json:"recurrenceRule,omitempty"`
 	RecurrenceUntil    *time.Time `json:"recurrenceUntil,omitempty"`
 	RecurrenceInterval *int       `json:"recurrenceInterval,omitempty"`
+	// Comma-separated day names the series repeats on, e.g.
+	// "monday,wednesday". Echoed for clients; the series is already
+	// materialized as one row per occurrence.
+	RecurrenceWeekdays *string `json:"recurrenceWeekdays,omitempty"`
 }
 
 // CalendarEventFilter selects events overlapping [From, To). Both bounds are

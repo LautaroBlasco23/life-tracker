@@ -20,7 +20,7 @@ permissions:
   contents: read
 
 env:
-  DOCKER_IMAGE: lautaroblasco1998/lifetracker-frontend
+  DOCKER_IMAGE: <dockerhub-username>/lifetracker-frontend
   REGISTRY: docker.io
 
 jobs:
@@ -132,7 +132,7 @@ jobs:
     steps:
       - name: Smoke-test pushed image
         run: |
-          IMAGE="lautaroblasco1998/lifetracker-frontend:latest"
+          IMAGE="<dockerhub-username>/lifetracker-frontend:latest"
           docker pull "$IMAGE"
           # serve on :3000 inside the container (EXPOSE 3000); publish it so
           # curl can reach it from the runner

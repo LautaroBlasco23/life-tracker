@@ -14,7 +14,7 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://lifetracker.lautaroblasco.com.ar/api"
+        "EXPO_PUBLIC_API_URL": "https://api.example.com/api"
       }
     }
   }

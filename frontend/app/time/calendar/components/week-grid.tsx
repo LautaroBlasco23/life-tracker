@@ -18,6 +18,8 @@ const DEFAULT_SCROLL_HOUR = 7;
 interface WeekGridProps {
   days: Date[];
   events: CalendarEvent[];
+  /** Prefix for dnd ids; each rendered grid needs its own to keep them unique. */
+  idPrefix?: string;
   onSlotClick: (day: Date, minutes: number) => void;
   onEventClick: (event: CalendarEvent) => void;
   className?: string;
@@ -26,6 +28,7 @@ interface WeekGridProps {
 export function WeekGrid({
   days,
   events,
+  idPrefix = 'week',
   onSlotClick,
   onEventClick,
   className,
@@ -109,6 +112,7 @@ export function WeekGrid({
               day={day}
               events={events}
               now={now}
+              idPrefix={idPrefix}
               onSlotClick={onSlotClick}
               onEventClick={onEventClick}
             />
