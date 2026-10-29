@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.1.0](https://github.com/LautaroBlasco23/life-tracker/compare/v2.0.1...v2.1.0) (2026-10-28)
+
+
+### Features
+
+* **calendar:** week day selection for weekly series and drag-and-drop rescheduling ([#105](https://github.com/LautaroBlasco23/life-tracker/issues/105)) ([b2ed20d](https://github.com/LautaroBlasco23/life-tracker/commit/b2ed20d7a871e15fe196efd39cc5abf1390b80a7))
+
+
+### Documentation
+
+* stack README screenshots full-width below the fold ([#95](https://github.com/LautaroBlasco23/life-tracker/issues/95)) ([b0457c9](https://github.com/LautaroBlasco23/life-tracker/commit/b0457c92a1c4b53217ed9c78c8965b24f57aafcc))
+
+
+### Miscellaneous Chores
+
+* replace personal domains and Docker Hub handle with placeholders ([#106](https://github.com/LautaroBlasco23/life-tracker/issues/106)) ([d309fb4](https://github.com/LautaroBlasco23/life-tracker/commit/d309fb450b48e8c94b10d01aa3b802ee6a12cdc8))
+
 ## [2.0.1](https://github.com/LautaroBlasco23/life-tracker/compare/v2.0.0...v2.0.1) (2026-10-26)
 
 
