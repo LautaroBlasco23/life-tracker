@@ -1,5 +1,15 @@
 # Changelog
 
+## [2.1.1](https://github.com/LautaroBlasco23/life-tracker/compare/v2.1.0...v2.1.1) (2026-10-30)
+
+
+### Miscellaneous Chores
+
+* **deps-dev:** bump @types/node from 22.18.6 to 26.6.5 in /frontend ([#103](https://github.com/LautaroBlasco23/life-tracker/issues/103)) ([35e3396](https://github.com/LautaroBlasco23/life-tracker/commit/35e3396ab6daf5bd626b1a131f801e91aac1eb81))
+* **deps:** bump react-native-gesture-handler from 2.32.0 to 3.4.0 ([#100](https://github.com/LautaroBlasco23/life-tracker/issues/100)) ([63e3372](https://github.com/LautaroBlasco23/life-tracker/commit/63e3372ffc4ef1593869ab55807a248870d7f756))
+* **deps:** bump the go-minor-patch group in /backend with 5 updates ([#104](https://github.com/LautaroBlasco23/life-tracker/issues/104)) ([649c4e1](https://github.com/LautaroBlasco23/life-tracker/commit/649c4e1397838ddb191c31557531cc11ad47b538))
+* **deps:** bump the npm-minor-patch group across 1 directory with 3 updates ([#99](https://github.com/LautaroBlasco23/life-tracker/issues/99)) ([d1ad014](https://github.com/LautaroBlasco23/life-tracker/commit/d1ad0144061a9e4d7b7774b871deae6d19e7b841))
+
 ## [2.1.0](https://github.com/LautaroBlasco23/life-tracker/compare/v2.0.1...v2.1.0) (2026-10-28)
 
 
