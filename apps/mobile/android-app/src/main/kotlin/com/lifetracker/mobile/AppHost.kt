@@ -2,22 +2,25 @@ package com.lifetracker.mobile
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.lifetracker.domain.auth.AuthRepository
 import com.lifetracker.core.network.SessionEvents
+import com.lifetracker.domain.auth.AuthRepository
 import com.lifetracker.feature.activities.ActivitiesScreen
 import com.lifetracker.feature.auth.LoginScreen
 import com.lifetracker.feature.auth.RegisterScreen
+import com.lifetracker.feature.finance.FinanceDashboardScreen
+import com.lifetracker.feature.finance.FinanceTransactionsScreen
+import com.lifetracker.feature.notes.NotesScreen
+import com.lifetracker.feature.profile.BackupScreen
+import com.lifetracker.feature.profile.ProfileScreen
+import com.lifetracker.feature.social.PublicProfileScreen
+import com.lifetracker.feature.social.SocialScreen
 import com.lifetracker.feature.time.TimeScreen
-import dagger.hilt.android.lifecycle.HiltViewModel
-import javax.inject.Inject
 
 object Routes {
     const val LOGIN = "login"
@@ -78,13 +81,47 @@ fun AppHost(auth: AuthRepository, sessionEvents: SessionEvents) {
                 onBack = { navController.popBackStack() },
             )
         }
-        composable(Routes.ACTIVITIES) { ActivitiesScreen(onNavigate = { mapNavKey(it).let(navController::navigate) }) }
-        composable(Routes.TIME) { TimeScreen(onNavigate = { mapNavKey(it).let(navController::navigate) }) }
+        composable(Routes.ACTIVITIES) {
+            ActivitiesScreen(onNavigate = { navController.navigate(mapNavKey(it)) })
+        }
+        composable(Routes.TIME) {
+            TimeScreen(onNavigate = { navController.navigate(mapNavKey(it)) })
+        }
+        composable(Routes.NOTES) {
+            NotesScreen(onNavigate = { navController.navigate(mapNavKey(it)) })
+        }
+        composable(Routes.FINANCE_DASHBOARD) {
+            FinanceDashboardScreen(onNavigate = { navController.navigate(mapNavKey(it)) })
+        }
+        composable(Routes.FINANCE_TRANSACTIONS) {
+            FinanceTransactionsScreen(onNavigate = { navController.navigate(mapNavKey(it)) })
+        }
+        composable(Routes.SOCIAL) {
+            SocialScreen(
+                onNavigate = { navController.navigate(mapNavKey(it)) },
+                onOpenProfile = { username ->
+                    navController.navigate("user/$username")
+                },
+            )
+        }
+        composable(Routes.PROFILE) {
+            ProfileScreen(
+                onLogout = { navController.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } } },
+                onNavigate = { navController.navigate(mapNavKey(it)) },
+            )
+        }
+        composable(Routes.BACKUP) {
+            BackupScreen(onBack = { navController.popBackStack() })
+        }
         composable(
             route = Routes.PUBLIC_PROFILE,
             arguments = listOf(navArgument("username") { type = NavType.StringType }),
         ) { entry ->
-            // Wired in Wave 3 (social feature).
+            PublicProfileScreen(
+                username = entry.arguments?.getString("username").orEmpty(),
+                onBack = { navController.popBackStack() },
+                onNavigate = { navController.navigate(mapNavKey(it)) },
+            )
         }
     }
 }

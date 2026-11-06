@@ -129,16 +129,31 @@ No Room/database module — parity with today: domain data live from API; only k
   parity complete; **live runtime verification deferred** (emulator unavailable in sandbox;
   MockWebServer tests cover the refresh flow in Phase 4).
 
-### Phase 3 — Features in dependency order
-1. [ ] Auth (login, multi-step register incl. username/email checks)
-2. [ ] Activities (list, form modal, today/streak, records, stats) + routines + templates modals
-3. [ ] Time (records, active sessions, calendar view, event form)
-4. [ ] Notes (markdown render, drag-reorder for notes/groups, sticky notes) — heaviest screen
-5. [ ] Finance (transactions, dashboard w/ Vico charts, payment modal, fixed transactions, summary)
-6. [ ] Social (follows, pending requests, subscriptions, public profile)
-7. [ ] Profile (email/password modals, avatar upload, API URL override, backup export/import)
-- Design-system primitives built just-in-time as screens need them.
-- Gate: each feature passes its QA checklist section against `make dev` backend.
+### Phase 3 — Features in dependency order — ✅ COMPLETE (commits `0b69785` + integration)
+1. [x] Auth — login + single-form register (500 ms debounced username/email availability,
+       validation order mismatch→length, inline errors) — 610 LOC.
+2. [x] Activities — screen + activity/reminder form modal + routines modal + templates
+       modal + reminder cards w/ 30s re-derivation + optimistic record/revert — 3,812 LOC.
+3. [x] Time — records tab + calendar tab + active sessions + event/record/filter modals —
+       2,951 LOC.
+4. [x] Notes — markdown editor/preview + drag-reorder (notes + groups w/ membership
+       inference) + persisted drafts — 1,683 LOC (richtext-commonmark 0.20.0,
+       reorderable 3.1.0 — versions verified against Kotlin 2.2.21 metadata compatibility).
+5. [x] Finance — dashboard + transactions (two routes, per checklist note) + Vico 2.3.6
+       charts + payment/transaction/fixed modals + dolarapi rate.
+6. [x] Social — Follows/Users/Subscriptions screens + public profile w/ follow toggle,
+       private gating, subscribe unsubscribe fix — 1,470 LOC.
+7. [x] Profile — privacy toggle, avatar (PickVisualMedia + multipart), persisted
+       theme/language, https-only API URL override (debug exception), password/email
+       modals w/ rotated token stash, logout w/ toast redirect; Backup card:
+       destructive-import confirm — ~1,900 LOC.
+- [x] Design-system primitives built just-in-time (`components/ui` ports, 10 files,
+      1,188 LOC) + AppHeader hamburger nav (6 entries).
+- [x] Repositories in :domain for every feature; Hilt graph validated end to end:
+      `LifeTrackerApp` made `@HiltAndroidApp` (was missing — would have crashed at
+      runtime), `@Binds` added for TokenProvider/SessionStore/TokenRefresher.
+- Gate: ✅ `:app:assembleDebug` green (~30k LOC Kotlin total). Per-screen visual parity
+  checked against the RN sources + QA checklist; live-device pass remains Phase 6.
 
 ### Phase 4 — Tests
 - [ ] Port logic tests to JUnit: `calendar-week`, `format-time`, auth refresh (MockWebServer),

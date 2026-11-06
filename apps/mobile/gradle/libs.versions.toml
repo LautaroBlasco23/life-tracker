@@ -13,6 +13,8 @@ datastore = "1.2.1"
 serializationJson = "1.9.0"
 junit = "4.13.2"
 
+vico = "2.3.6"
+
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
@@ -50,3 +52,15 @@ okhttp-logging = { group = "com.squareup.okhttp3", name = "logging-interceptor" 
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serializationJson" }
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version = "1.10.2" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
+# Notes feature: markdown rendering (latest stable; 1.0.0-alpha* pins Kotlin 2.3 stdlib).
+richtext-commonmark = { module = "com.halilibo.compose-richtext:richtext-commonmark", version = "0.20.0" }
+# Notes feature: LazyColumn drag-reorder.
+reorderable = { module = "sh.calvin.reorderable:reorderable", version = "3.1.0" }
+
+# ---- appended by the finance port (charts) ----
+# Vico 2.3.6 is the newest line compatible with the locked toolchain
+# (Kotlin 2.2.21 / Compose BOM 2025.09.01): 2.4.x requires kotlin-stdlib 2.3.0,
+# 2.5.x 2.4.0, 3.3.1 2.4.10 — all newer than the compiler can consume.
+# Evidence: repo1 .module files (compose-2.4.4 / 2.5.2 / compose-m3-3.3.1)
+# vs compose-m3-2.3.6 (stdlib 2.2.21, androidx.compose.material3 versionless).
+vico-compose-m3 = { group = "com.patrykandpatrick.vico", name = "compose-m3", version.ref = "vico" }

@@ -80,9 +80,9 @@ class SettingsRepository @Inject constructor(@ApplicationContext private val con
     val language: Flow<String> = context.dataStore.data.map { it[KEY_LANGUAGE] ?: "en" }
     val theme: Flow<String> = context.dataStore.data.map { it[KEY_THEME] ?: "system" }
 
-    suspend fun setApiUrl(url: String) = context.dataStore.edit { it[KEY_API_URL] = url }
-    suspend fun setLanguage(code: String) = context.dataStore.edit { it[KEY_LANGUAGE] = code }
-    suspend fun setTheme(value: String) = context.dataStore.edit { it[KEY_THEME] = value }
+    suspend fun setApiUrl(url: String) { context.dataStore.edit { it[KEY_API_URL] = url } }
+    suspend fun setLanguage(code: String) { context.dataStore.edit { it[KEY_LANGUAGE] = code } }
+    suspend fun setTheme(value: String) { context.dataStore.edit { it[KEY_THEME] = value } }
 
     /** Blocking read for OkHttp module use (router thread); "" means "no override". */
     fun currentApiUrlBlocking(): String = blocking { it[KEY_API_URL] ?: "" }

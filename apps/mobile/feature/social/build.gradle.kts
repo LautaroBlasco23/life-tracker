@@ -2,6 +2,8 @@ plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.hilt)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -19,6 +21,20 @@ android {
 dependencies {
     implementation(project(":core:designsystem"))
     implementation(project(":core:i18n"))
+    // Domain repositories (FollowsRepository, UsersRepository, SubscriptionsRepository) + session.
+    implementation(project(":domain"))
+    // Network model types surfaced through the repositories.
+    implementation(project(":core:network"))
+
+    // Icons (material-icons-extended) — matches the other feature ports.
+    implementation(libs.compose.material.icons)
+
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.compiler)
+    // hiltViewModel() composable accessor for @HiltViewModel screen models.
+    implementation(libs.hilt.navigation.compose)
+    implementation(libs.lifecycle.viewmodel.compose)
+    implementation(libs.lifecycle.runtime.compose)
 }
 
 
