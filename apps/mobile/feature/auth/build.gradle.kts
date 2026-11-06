@@ -2,6 +2,8 @@ plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.hilt)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -19,6 +21,15 @@ android {
 dependencies {
     implementation(project(":core:designsystem"))
     implementation(project(":core:i18n"))
+    implementation(project(":domain"))
+    // AuthRepository's public API (`Result<UserResponse>`) exposes core.network types.
+    implementation(project(":core:network"))
+
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.compiler)
+    implementation(libs.hilt.navigation.compose)
+    implementation(libs.lifecycle.viewmodel.compose)
+    implementation(libs.lifecycle.runtime.compose)
 }
 
 

@@ -14,6 +14,8 @@ import com.lifetracker.core.designsystem.ThemeController
 import com.lifetracker.core.designsystem.ThemePreference
 import com.lifetracker.core.i18n.I18n
 import com.lifetracker.core.storage.SettingsRepository
+import com.lifetracker.domain.auth.AuthRepository
+import com.lifetracker.core.network.SessionEvents
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -25,16 +27,18 @@ import javax.inject.Inject
 class MainActivity : ComponentActivity() {
 
     @Inject lateinit var settings: SettingsRepository
+    @Inject lateinit var auth: AuthRepository
+    @Inject lateinit var sessionEvents: SessionEvents
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         installSplashScreen()
         enableEdgeToEdge()
-        setContent { SettingsBridge() }
+        setContent { SettingsBridge(auth, sessionEvents) }
     }
 
     @Composable
-    private fun SettingsBridge() {
+    private fun SettingsBridge(auth: AuthRepository, sessionEvents: SessionEvents) {
         val themePref by settings.theme.collectAsState(initial = "system")
         val lang by settings.language.collectAsState(initial = "en")
 
@@ -49,6 +53,6 @@ class MainActivity : ComponentActivity() {
             I18n.Language.entries.firstOrNull { it.code == lang }?.let { I18n.setLanguage(it) }
         }
 
-        LifeTrackerTheme { AppHost() }
+        LifeTrackerTheme { AppHost(auth, sessionEvents) }
     }
 }

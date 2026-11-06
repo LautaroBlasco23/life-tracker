@@ -1,22 +1,23 @@
 package com.lifetracker.mobile
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import com.lifetracker.feature.activities.ActivitiesPlaceholder
-import com.lifetracker.feature.auth.LoginPlaceholder
-import com.lifetracker.feature.auth.RegisterPlaceholder
-import com.lifetracker.feature.finance.FinanceDashboardPlaceholder
-import com.lifetracker.feature.finance.FinanceTransactionsPlaceholder
-import com.lifetracker.feature.notes.NotesPlaceholder
-import com.lifetracker.feature.profile.BackupPlaceholder
-import com.lifetracker.feature.profile.ProfilePlaceholder
-import com.lifetracker.feature.social.PublicProfilePlaceholder
-import com.lifetracker.feature.social.SocialPlaceholder
-import com.lifetracker.feature.time.TimePlaceholder
+import com.lifetracker.domain.auth.AuthRepository
+import com.lifetracker.core.network.SessionEvents
+import com.lifetracker.feature.activities.ActivitiesScreen
+import com.lifetracker.feature.auth.LoginScreen
+import com.lifetracker.feature.auth.RegisterScreen
+import com.lifetracker.feature.time.TimeScreen
+import dagger.hilt.android.lifecycle.HiltViewModel
+import javax.inject.Inject
 
 object Routes {
     const val LOGIN = "login"
@@ -32,30 +33,64 @@ object Routes {
     const val PUBLIC_PROFILE = "user/{username}"
 }
 
+/** RN hamburger entry keys (screens call `onNavigate("<key>")`) → nav routes. */
+private fun mapNavKey(key: String): String = when (key) {
+    "activities" -> Routes.ACTIVITIES
+    "time" -> Routes.TIME
+    "notes" -> Routes.NOTES
+    "finance/dashboard" -> Routes.FINANCE_DASHBOARD
+    "finance/transactions" -> Routes.FINANCE_TRANSACTIONS
+    "social" -> Routes.SOCIAL
+    "profile" -> Routes.PROFILE
+    else -> Routes.ACTIVITIES
+}
+
 /**
- * One nav graph mirroring today's expo-router structure: Stack-only with the
- * custom header/hamburger nav inked in Phase 3 as a shared scaffold.
+ * Port of the RN app routing (`index.tsx` gate + expo-router structure):
+ * Stack-only nav; start at /activities when authenticated, /login otherwise;
+ * force-logout events (refresh chain exhausted) snap the user back to login.
  */
 @Composable
-fun AppHost() {
+fun AppHost(auth: AuthRepository, sessionEvents: SessionEvents) {
     val navController = rememberNavController()
 
-    NavHost(navController = navController, startDestination = Routes.LOGIN) {
-        composable(Routes.LOGIN) { LoginPlaceholder() }
-        composable(Routes.REGISTER) { RegisterPlaceholder() }
-        composable(Routes.ACTIVITIES) { ActivitiesPlaceholder() }
-        composable(Routes.TIME) { TimePlaceholder() }
-        composable(Routes.NOTES) { NotesPlaceholder() }
-        composable(Routes.FINANCE_DASHBOARD) { FinanceDashboardPlaceholder() }
-        composable(Routes.FINANCE_TRANSACTIONS) { FinanceTransactionsPlaceholder() }
-        composable(Routes.SOCIAL) { SocialPlaceholder() }
-        composable(Routes.PROFILE) { ProfilePlaceholder() }
-        composable(Routes.BACKUP) { BackupPlaceholder() }
+    LaunchedEffect(Unit) {
+        sessionEvents.loggedOut.collect {
+            navController.navigate(Routes.LOGIN) {
+                popUpTo(0) { inclusive = true }
+            }
+        }
+    }
+
+    NavHost(
+        navController = navController,
+        startDestination = if (auth.isAuthenticated) Routes.ACTIVITIES else Routes.LOGIN,
+    ) {
+        composable(Routes.LOGIN) {
+            LoginScreen(
+                onLoginSuccess = { navigateMain(navController) },
+                onNavigateToRegister = { navController.navigate(Routes.REGISTER) },
+            )
+        }
+        composable(Routes.REGISTER) {
+            RegisterScreen(
+                onRegisterSuccess = { navigateMain(navController) },
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(Routes.ACTIVITIES) { ActivitiesScreen(onNavigate = { mapNavKey(it).let(navController::navigate) }) }
+        composable(Routes.TIME) { TimeScreen(onNavigate = { mapNavKey(it).let(navController::navigate) }) }
         composable(
             route = Routes.PUBLIC_PROFILE,
             arguments = listOf(navArgument("username") { type = NavType.StringType }),
         ) { entry ->
-            PublicProfilePlaceholder(username = entry.arguments?.getString("username").orEmpty())
+            // Wired in Wave 3 (social feature).
         }
+    }
+}
+
+private fun navigateMain(navController: NavHostController) {
+    navController.navigate(Routes.ACTIVITIES) {
+        popUpTo(0) { inclusive = true }
     }
 }
