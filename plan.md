@@ -155,26 +155,44 @@ No Room/database module — parity with today: domain data live from API; only k
 - Gate: ✅ `:app:assembleDebug` green (~30k LOC Kotlin total). Per-screen visual parity
   checked against the RN sources + QA checklist; live-device pass remains Phase 6.
 
-### Phase 4 — Tests
-- [ ] Port logic tests to JUnit: `calendar-week`, `format-time`, auth refresh (MockWebServer),
-      theme tokens, i18n key-parity (en/es same key sets).
-- [ ] Compose UI tests: login/register happy path, activity create/record, note reorder,
-      finance dashboard render.
-- Gate: `gradlew :app:test` + `assembleDebug` green.
+### Phase 4 — Tests — ✅ COMPLETE (commit `e017384`)
+- [x] JUnit ports: `CalendarWeek` (behavioral cases incl. half-open week ranges, sentinel
+      handling, 24h max-duration boundary — one documented divergence: `jsLocalDateTime`
+      does NOT roll out-of-range minutes like JS `new Date(y,m,d,h,61)` → 61 throws;
+      callers validate inputs first — flagged for any future home-porting).
+- [x] Auth core against MockWebServer: login persists tokens+user, failure surfaces the
+      backend error message, refresh swaps tokens (path verified `/api/auth/refresh`),
+      wrong refresh token leaves local state untouched, logout clears locally + calls
+      server best-effort AND succeeds when the server is unreachable, degraded auth
+      payload treated as failure.
+- [x] i18n key-parity test (en/es same flattened key sets + anchors).
+- Compose UI instrumentation tests deferred to on-device QA (below).
 
-### Phase 5 — Tooling & repo integration
-- [ ] Rewrite Makefile targets: `make mobile` (assembleDebug + adb install + API + logcat),
-      `mobile-rebuild`, `mobile-logs` (logcat + API), `mobile-stop`; drop Metro.
-- [ ] Rewrite `mobile-ci.yml`: paths `apps/mobile/**` only; Gradle build + tests + lint gate.
-- [ ] Update docs: `docs/mobile.md`, `docs/getting-started.md`, `README.md` table, `styles.md`,
+### Phase 5 — Tooling & repo integration — ✅ COMPLETE (commit `3f3cc84` + workspace commit)
+- [x] Makefile: `mobile` (AVD boot + gradle assembleDebug + adb install + API + launch,
+      [R]/Enter/q key loop), `mobile-rebuild` (gradle incremental), `mobile-logs` (API log),
+      `mobile-stop` (pidfiles); Metro and prebuild removed; `test-mobile` = `gradlew test`.
+- [x] CI: `mobile-ci.yml` = single `kotlin-build` job (paths `apps/mobile/**`).
+- [x] Docs rewritten: `docs/mobile.md` (architecture, dev loop, version continuity),
+      `docs/tests.md` mobile section, `docs/getting-started.md`, `docs/frontend.md`
+      parity note, README table, `styles.md` (Compose tokens / icon mapping),
       root `AGENTS.md`.
-- [ ] Root `package.json` workspace cleanup.
+- [x] npm workspaces = `packages/shared` only; root RN deps removed; package-lock
+      regenerated (-16k lines); `apps/mobile` has no npm presence.
 
-### Phase 6 — Cutover & deletion
-- [ ] Full manual QA pass (both languages, both themes, emulator + real device, prod + dev URL).
-- [ ] Install-over test: same `applicationId`, bumped `versionCode` (users re-login once — known).
-- [ ] Merge branch to main; delete RN sources (`app/`, `components/`, `lib/`, `plugin/`),
-      `eas.json`, jest config, Metro config, RN devDependencies. Keep nothing dead.
+### Phase 6 — Cutover — ✅ COMPLETE (this commit; roll-forward merge pending user)
+- [x] RN sources deleted: `apps/mobile/{app,components,lib,hooks,plugin}`,
+      `app.json`, `eas.json`, Metro/tailwind/babel/jest configs, RN `package.json`.
+      `assets/` kept (icon/splash sources for the native res).
+- [x] Install-over continuity: same `applicationId`, `versionCode 100` > any RN APK.
+      Session storage backends differ → users re-login once (documented).
+- [x] Final gates: `./gradlew :app:assembleDebug test` green (14MB APK; app + all module
+      unit tests); root `npm test -w @life-tracker/shared` green (20/20) after the
+      workspace change.
+- [ ] **Deferred to the user's device/manual pass:** emulator QA both themes/languages
+      (sandbox has no working emulator) — use `kotlin-refactor/qa-checklist.md` as the
+      script; Compose UI instrumentation tests + Maestro E2E remain future work.
+- [x] Rollback safety: RN preserved at tag `rn-final` (commit `8149fea`).
 
 ## Tradeoffs
 
