@@ -8,7 +8,7 @@ Life Tracker is a personal life-tracking platform — habits & activities, routi
 |---|---|---|---|
 | Backend API | The REST API every client talks to | Go (Gin), PostgreSQL + MongoDB, JWT | [backend.md](./backend.md) |
 | Web frontend | Browser app | Next.js 14 (static export), Tailwind v4, shadcn/ui | [frontend.md](./frontend.md) |
-| Mobile (Android) | Native app | Expo / React Native, expo-router, NativeWind | [mobile.md](./mobile.md) |
+| Mobile (Android) | Native app | Kotlin (Jetpack Compose), Gradle multi-module | [mobile.md](./mobile.md) |
 | Shared packages | Business logic, services, types, i18n — reused by web + mobile | TypeScript (`packages/shared`) | — |
 
 Each app is self-contained; its doc covers the setup details. For how the pieces fit together (compose services, request flow, deployment), see [Architecture](./architecture.md).
@@ -32,7 +32,7 @@ Run modes from the repository root (one at a time; `make stop` stops whichever i
 | `make dev` | Fast lane (host) | air hot-reload on the host (`:8080`) + postgres + mongodb in compose + `next dev` (`:3000`). No app containers, no observability. | API `:8080/api`, app `:3000` |
 | `make dev-container` | Container | API container + postgres + mongodb + frontend (nginx proxies `/api` → `:8080`). No observability. | API `:8080/api`, app `:3000` |
 | `make dev-full` | Container + observability | Same as `make dev-container` plus Prometheus, Grafana, Loki, Promtail, node-exporter. | + Prometheus `:9090`, Grafana `:3001`, Loki `:3100` |
-| `make mobile` | Mobile dev loop | Android emulator (Windows) + API (`:8080`) + Metro (`:8081`) + app launch; `[R]` rebuilds the native app. | app on emulator, API `:8080/api` |
+| `make mobile` | Mobile dev loop | Android emulator (Windows) + API (`:8080`) + gradle debug APK1`) + app launch; `[R]` rebuilds the native app. | app on emulator, API `:8080/api` |
 
 All of them are idempotent — re-running a mode's command redeploys the backend and frontend with the latest code, so it doubles as the restart command (`make dev` needs no restart at all: air and `next dev` pick up changes live). See [Deployment Modes](./deployment-modes.md) for the full description of each mode, and [mobile.md](./mobile.md) for the mobile loop.
 

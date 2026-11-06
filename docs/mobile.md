@@ -1,137 +1,72 @@
 # Mobile App (Android)
 
-The Android app lives in [`apps/mobile/`](../apps/mobile/) and shares business logic (services, types, i18n) with the web frontend via [`packages/shared/`](../packages/shared/). Stack: Expo SDK 57, React Native, expo-router, NativeWind.
+> **Rewritten in Kotlin (Jetpack Compose)** — the React Native/Expo app was replaced by a
+> native Android app. See `plan.md` in the `mobile-app-refactor` worktree history for the
+> migration design; the `rn-final` git tag preserves the last RN release for rollback.
 
-## Building the APK (local Gradle build)
+The Android app lives in [`apps/mobile/`](../apps/mobile/) — a **Gradle multi-module Kotlin
+project** (AGP 8.10 / Kotlin 2.2 / Compose) that talks to the Go backend through a generated
+Retrofit layer.
 
-Requires a one-time toolchain setup, then a two-command build. Validated on Ubuntu 24.04 (WSL2), JDK 21, Expo SDK 57 / RN 0.86.
+## Layout
 
-### One-time toolchain setup
+```
+apps/mobile/
+├── android-app/          # :app — MainActivity, Application, nav graph (Routes), splash, icons
+├── core/
+│   ├── network/          # Retrofit interfaces (endpoints/), wire models (model/), OkHttp
+│   │                     # runtime: dynamic base-URL override, Bearer + X-Timezone,
+│   │                     # refresh-on-401 SessionAuthenticator (single-flight)
+│   ├── storage/          # SecureStore (EncryptedSharedPreferences tokens/user) + DataStore
+│   │                     # SettingsRepository (apiUrl, language, theme)
+│   ├── designsystem/     # theme tokens (Warm Minimalism, ported from shared theme-colors)
+│   │                     # + primitives: LbButton/Card/TextField/OptionSelect/SegmentedTabs/
+│   │                     #   ModalSheet/DeleteConfirm, ToastHost, AppHeader hamburger nav
+│   └── i18n/             # Translator over messages/{en,es}.json assets, runtime switch
+├── domain/               # Repositories per feature (Retrofit-backed) + pure logic (domain/lib)
+└── feature/<feature>/    # Compose screens + Hilt ViewModels: auth, activities, time, notes,
+                          # finance, social, profile
+```
 
-1. **JDK** (AGP 8.x needs JDK 17+; 21 is the Ubuntu 24.04 default):
+Shared business logic STAYS TypeScript in [`packages/shared/`](../packages/shared/) for the
+web app only; the mobile Kotlin copies exist inside this project (DTo shapes documented in
+the migration's `kotlin-refactor/api-contract.md` — the Go DTOs are the real contract).
 
-   ```bash
-   sudo apt update && sudo apt install -y openjdk-21-jdk
-   ```
-
-2. **Android cmdline-tools** (no sudo):
-
-   ```bash
-   mkdir -p ~/Android/Sdk/cmdline-tools
-   curl -sSL -o /tmp/tools.zip \
-     https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip
-   unzip -q /tmp/tools.zip -d /tmp/
-   mv /tmp/cmdline-tools ~/Android/Sdk/cmdline-tools/latest
-   ```
-
-3. **Environment variables** — append to `~/.bashrc`, then `source ~/.bashrc`:
-
-   ```bash
-   export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
-   export ANDROID_HOME=$HOME/Android/Sdk
-   export PATH=$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$JAVA_HOME/bin:$PATH
-   ```
-
-4. **Licenses + SDK components**:
-
-   ```bash
-   yes | sdkmanager --licenses
-   sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0"
-   ```
-
-   The exact component versions come from React Native: check
-   `node_modules/react-native/gradle/libs.versions.toml` (`compileSdk`, `buildTools`) —
-   currently 36 / 36.0.0 for RN 0.86. Re-check there whenever RN bumps.
-
-### Build modes
-
-The API base URL is resolved in `apps/mobile/lib/storage-init.ts`:
-
-1. **Profile-screen override** (stored in SQLite, must start with `https://`) — wins over everything.
-2. **`EXPO_PUBLIC_API_URL`** baked into the JS bundle at build time.
-3. **Fallback:** `https://api.example.com/api` — a placeholder.
-
-- **Prod:** the real API URL lives **only** in git-ignored `apps/mobile/.env` (`EXPO_PUBLIC_API_URL=https://your-domain.com/api`); it is baked into the bundle at build time. For EAS cloud builds, set it as an environment variable in EAS (`eas env:push --environment production`) instead of in `eas.json`. Cleartext is handled by the custom prebuild plugin `apps/mobile/plugin/withCleartextManifest.js` (registered in `app.json`), which sets `android:usesCleartextTraffic` per build type (debug: true, release: false).
-- **Dev (emulator):** `apps/mobile/.env.example` (copy to `.env` if you want a bake) sets `http://10.0.2.2:8080/api`; the prebuild-generated project loads it when bundling in development mode (`expo start` / `npx expo run:android`). Release builds ignore it.
-
-The Profile-screen URL override is the escape hatch: a wrong bake is recoverable without a rebuild (but clear the override if it points somewhere stale — it beats the baked value).
-
-### Build
+## Building & running
 
 ```bash
-cd apps/mobile
-npx expo prebuild --platform android --no-install   # generates android/ (git-ignored)
-cd android
-./gradlew :app:assembleRelease
+make mobile          # boots the Windows AVD, gradlew :app:assembleDebug, adb install,
+                     # starts the API (:8080), launches the app; [R] rebuild + reinstall,
+                     # Enter relaunches, q quits
+make mobile-rebuild  # incremental gradle build + reinstall
+make mobile-logs     # tail the API log
+make mobile-stop     # stop the detached API
 ```
 
-First run downloads Gradle + Maven deps (~1–2 GB) and takes ~12 min; subsequent runs are incremental and much faster. No device or emulator is needed for `assembleRelease` (unlike `npx expo run:android`, which is the dev loop).
+Dev API URL: Profile → API URL override → `http://10.0.2.2:8080/api` (debug builds accept
+cleartext to `10.0.2.2` via `network_security_config.xml`; release builds are https-only).
+Without the override the app talks to the baked production `BuildConfig.API_BASE_URL`.
 
-### Output location
+Version continuity: `applicationId com.lifetracker.mobile`; `versionCode 100` must stay
+above any RN APK ever installed (users keep their app install; sessions reset once).
 
-The APK lands at:
-
-```
-apps/mobile/android/app/build/outputs/apk/release/app-release.apk
-```
-
-Note: `apps/mobile/android/` is git-ignored (generated by prebuild), so the APK is not committed — it is recreated by each build. Copy it somewhere stable if you want to keep an artifact:
+## Tests
 
 ```bash
-cp apps/mobile/android/app/build/outputs/apk/release/app-release.apk ~/Downloads/lifetracker.apk
+make test-mobile     # Kotlin unit tests (all Gradle modules):
+                     # auth MockWebServer flow, calendar-week port, i18n key parity
+cd apps/mobile && ./gradlew :app:assembleDebug   # compile gate
 ```
 
-Signing: with no release keystore configured, the Expo template falls back to the auto-generated `debug.keystore` — installable on any device, **not** suitable for the Play Store.
+CI: `.github/workflows/mobile-ci.yml` (`kotlin-build` job — assembleDebug + unit tests).
 
-### Installing on a phone (from WSL2)
+## Architecture rules
 
-WSL2 has no USB passthrough by default, so the simplest path is serving the APK over the LAN:
-
-```bash
-cd apps/mobile/android/app/build/outputs/apk/release
-python3 -m http.server 8899
-```
-
-Then on the phone, browse to `http://<machine-LAN-IP>:8899/app-release.apk` and install (Android will ask to allow "install unknown apps").
-
-## EAS cloud build (alternative)
-
-No local toolchain needed; requires an Expo account and waits in the build queue:
-
-```bash
-cd apps/mobile
-npx eas-cli login                  # Expo account (create one at expo.dev)
-npx eas-cli build --platform android --profile preview
-```
-
-The `preview` profile produces an APK for internal distribution. When the build finishes (~15–25 min) you get a QR code + URL to install directly on a device. The `production` profile produces the release app-bundle with the prod API URL baked in.
-
-> If you prefer a global install over `npx`, run `npm config set prefix ~/.npm-global && export PATH="$HOME/.npm-global/bin:$PATH"` once, then `npm install -g eas-cli`.
-
-## App structure
-
-Routes live in `apps/mobile/app/` (expo-router): a tabs layout (`(app)/_layout.tsx`) with **activities**, **finance** (dashboard + transactions tabs), **notes**, **profile**, **social**, **time**; plus login / register / index and public profiles (`user/[username]`).
-
-- **UI primitives:** `components/ui/` (button, card, form-field, option-select, segmented-tabs, filter-modal, streak-badge, toast…) — always reuse before creating.
-- **Feature components:** `components/<feature>/` (activity, finance, profile, reminder, time).
-- **lib/:** `storage-init.ts` (must be the **first import** in the entry — installs the storage adapter + API URL before shared services init), `theme-provider.tsx` + `use-colors.ts`, `dolarapi.ts`, `data-backup.ts`, `filter-options.ts`, `format-time.ts`.
-- **Tokens:** `apps/mobile/tailwind.config.js` duplicates `theme-colors.ts` — keep in sync (see [../styles.md](../styles.md)).
-- **Tests:** jest-expo (`jest.config.js` + `jest.setup.js`) — streak badge + time formatting.
-
-## Dev loop (Windows emulator + WSL build)
-
-The primary documented loop is the root Makefile target, which bootstraps everything (emulator boot, prebuild if needed, APK install, API + Metro detached, app launch) and then offers an interactive key loop:
-
-```bash
-make mobile        # emulator + build + API + Metro + launch; [R] rebuilds, Enter relaunches, q quits
-make mobile-rebuild # rebuild the native app + reinstall (same as the [R] key)
-make mobile-logs    # tail API + Metro logs
-make mobile-stop    # stop what make mobile started
-```
-
-Alternatively, a plain debug build on a connected device/emulator:
-
-```bash
-cd apps/mobile
-npx expo run:android
-```
+- **Theme**: edit `core/designsystem/src/main/kotlin/.../AppColors.kt` (the Kotlin mirror of
+  `packages/shared/src/lib/theme-colors.ts` keep both in sync; WCAG AA pairs enforced by the
+  shared test after every change).
+- **i18n**: `I18n.t("group.key")` with `{param}` interpolation via `t()`; runtime es/en switch.
+- **Networking**: all backend access via the Retrofit interfaces in `core/network/endpoints`;
+  auth/refresh handling is centralized — never hand-roll token retries.
+- **New screens**: route in `android-app/.../AppHost.kt` (`Routes` + `mapNavKey`), screen in
+  its `feature/<name>` module, ViewModel via `@HiltViewModel`; AppHeader carries the nav.

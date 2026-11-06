@@ -3,60 +3,16 @@ name: Mobile CI
 on:
   push:
     branches: [main]
-    paths: ["apps/mobile/**", "packages/shared/**", "scripts/**", ".github/workflows/mobile-ci.yml"]
+    paths: ["apps/mobile/**", ".github/workflows/mobile-ci.yml"]
   pull_request:
     # No paths filter — see frontend-ci.yml.
     branches: [main]
 
-# Least privilege: these jobs only read code and never need write scopes.
+# Least privilege: this job only reads code and never needs write scopes.
 permissions:
   contents: read
 
 jobs:
-  # RN app in CI until the Kotlin rewrite cutover (plan.md Phase 6).
-  type-check-and-export:
-    name: type-check-and-export
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: "22"
-          cache: npm
-          cache-dependency-path: package-lock.json
-
-      # Root workspace install covers apps/mobile + packages/shared.
-      # frontend/ is intentionally NOT a workspace (self-contained npm ci).
-      - name: Install dependencies
-        run: npm install
-
-      - name: Type-check
-        working-directory: apps/mobile
-        run: npm run type-check
-
-      - name: Unit tests (jest-expo)
-        working-directory: apps/mobile
-        run: npm test
-
-      - name: Shared package tests (vitest)
-        run: npm test -w @life-tracker/shared
-
-      # Supply-chain gate: fail on known high/critical vulns in the
-      # production dependency tree. Wraps `npm audit` with an allowlist
-      # (see scripts/audit-prod.mjs for the rationale — --omit=dev is
-      # unreliable at a workspace root, and several RN/Expo advisories
-      # have no fixed release yet).
-      - name: Dependency audit (npm audit)
-        run: node scripts/audit-prod.mjs
-
-      - name: Export Android bundle
-        working-directory: apps/mobile
-        run: npx expo export --platform android
-
-  # Native Kotlin rewrite (apps/mobile/ Gradle project) — becomes the only
-  # mobile job at cutover, when the RN job above is deleted.
   kotlin-build:
     name: kotlin-build
     runs-on: ubuntu-latest
@@ -74,4 +30,4 @@ jobs:
 
       - name: Build + unit tests (all modules)
         working-directory: apps/mobile
-        run: ./gradlew :app:assembleDebug :app:testDebugUnitTest
+        run: ./gradlew :app:assembleDebug :app:testDebugUnitTest test
