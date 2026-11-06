@@ -20,6 +20,8 @@ dependencies {
     implementation(platform(libs.compose.bom))
     implementation(libs.compose.runtime)
     api(libs.kotlinx.serialization.json)
+
+    testImplementation(libs.junit)
 }
 
 

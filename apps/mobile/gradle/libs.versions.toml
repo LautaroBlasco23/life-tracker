@@ -49,8 +49,10 @@ retrofit-kotlinx = { group = "com.squareup.retrofit2", name = "converter-kotlinx
 okhttp-bom = { group = "com.squareup.okhttp3", name = "okhttp-bom", version = "5.5.1" }
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp" }
 okhttp-logging = { group = "com.squareup.okhttp3", name = "logging-interceptor" }
+okhttp-mockwebserver = { group = "com.squareup.okhttp3", name = "mockwebserver3-junit4", version = "5.5.1" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serializationJson" }
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version = "1.10.2" }
+kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version = "1.10.2" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 # Notes feature: markdown rendering (latest stable; 1.0.0-alpha* pins Kotlin 2.3 stdlib).
 richtext-commonmark = { module = "com.halilibo.compose-richtext:richtext-commonmark", version = "0.20.0" }
