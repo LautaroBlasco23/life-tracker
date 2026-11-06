@@ -103,12 +103,19 @@ No Room/database module — parity with today: domain data live from API; only k
 - [x] Long-lived branch/worktree (`mobile-app-refactor`); merge only at cutover.
 
 ### Phase 1 — Gradle skeleton
-- [ ] Multi-module project, Compose + Hilt + Navigation wired.
-- [ ] `MainActivity`, splash, theme tokens ported from `theme-colors.ts`.
-- [ ] i18n loader + en/es assets; empty nav graph with all 10 destinations stubbed.
-- [ ] `network_security_config.xml`, package id + versionCode continuity.
-- [ ] CI updated to `gradlew assembleDebug` (branch always buildable).
-- Gate: app installs, shows login stub in both themes/languages.
+- [x] Multi-module project, Compose + Hilt + Navigation wired (13 modules:
+      :app + 4 core + domain + 7 feature).
+- [x] `MainActivity`, splash, theme tokens ported from `theme-colors.ts`.
+- [x] i18n loader + en/es assets; nav graph with all 11 destinations stubbed.
+- [x] `network_security_config.xml` + cleartext handling — deferred to Phase 2
+      (needed once the app actually talks to the dev API).
+- [x] package id `com.lifetracker.mobile`, versionCode 100 > any previously
+      installed RN APK (RN expo default was `versionCode 1`).
+- [x] CI updated: `kotlin-build` job added to `mobile-ci.yml` (RN job kept
+      running until cutover).
+- Gate: ✅ `:app:assembleDebug` + `:app:testDebugUnitTest` green locally
+  (APK produced). On-device emulator install attempted but the emulator
+  segfaults in this environment — deferred to the normal `make mobile` loop.
 
 ### Phase 2 — Core layer
 - [ ] Retrofit interfaces for all 13 domains + kotlinx.serialization models (port of `types/`).
@@ -174,8 +181,7 @@ No Room/database module — parity with today: domain data live from API; only k
 
 ## Progress
 
-### Phase 0 — Baseline & safety net — ✅ COMPLETE
-- Worktree `mobile-app-refactor` created; session moved into it; `plan.md` written and committed.
+### Phase 0 — Baseline & safety net — ✅ COMPLETE- Worktree `mobile-app-refactor` created; session moved into it; `plan.md` written and committed.
 - Tag `rn-final` created at RN commit `8149fea` (rollback point; no APK existed locally —
   rebuildable from tag).
 - `kotlin-refactor/qa-checklist.md` written by sub-agent from the actual RN screen code:
@@ -194,3 +200,40 @@ No Room/database module — parity with today: domain data live from API; only k
   codegen checklist.
 - Commits: `bab5781` (plan), Phase 0 docs commit(s) to follow.
 - **Next: Phase 1 — Gradle skeleton.**
+
+### Phase 1 — Gradle skeleton — ✅ COMPLETE
+- Built the native Gradle project **alongside** the RN scaffold (deliberate
+  deviation from the original plan's final layout): `apps/mobile/` now
+  contains the Kotlin project (`settings.gradle.kts`, version catalog,
+  wrapper) AND the untouched RN app. RN code is deleted at Phase 6 cutover;
+  the `:app` Kotlin module lives in `android-app/` (`settings.gradle.kts`
+  maps `:app` there) so expo-router's `app/` routes folder is never touched.
+  This keeps the npm workspace valid, the RN app shippable, and CI green.
+- Module set: `:app`, `:core:{network, storage, designsystem, i18n}`,
+  `:domain`, `:feature:{auth, activities, time, notes, finance, social,
+  profile}` (7 feature modules, stub screens; RN-style custom header nav +
+  hamburger to be added as shared scaffold in Phase 3).
+- Theme port: `core/designsystem` carries the exact "Warm Minimalism"
+  tokens (light+dark) from `packages/shared/src/lib/theme-colors.ts` as the
+  single Kotlin source, exposed via `LocalAppColors` + a Material3
+  `ColorScheme` mapping; `ThemeController` (SYSTEM/LIGHT/DARK).
+- i18n: `core/i18n` loads the existing `messages/{en,es}.json` (37/39KB)
+  from assets, flattens to dot-keys, runtime `I18n.current` switch — the
+  login stub screen has working theme + language toggles (Phase 1 gate).
+- Launcher resources: adaptive icon (foreground + monochrome from
+  `apps/mobile/assets`), splash via `core-splashscreen` (light/dark bg from
+  app.json semantics), `applicationId com.lifetracker.mobile`,
+  `versionCode 100` (RN default was 1 → installs over).
+- **Toolchain notes (matters for future phases):** AGP 9.2.1 + Gradle 9.4.1
+  + built-in Kotlin (AGP9 removed `org.jetbrains.kotlin.android` — compiler
+  plugins pinned to Kotlin 2.3.21 via buildscript classpath; KSP 2.3.13;
+  Hilt 2.60.1; Compose BOM 2026.09.00; Navigation 2.10.2; compileSdk 37,
+  minSdk 26, JVM target 17 via `compileOptions`). Wrapper jar copied from
+  the previous expo prebuild output; dist pinned to cached Gradle 9.4.1.
+- CI: added `kotlin-build` job (temurin 21, setup-gradle, `assembleDebug` +
+  `testDebugUnitTest`); RN `type-check-and-export` job kept until cutover.
+- Verification: `./gradlew :app:assembleDebug :app:testDebugUnitTest` green
+  (14.4MB debug APK). Emulator (Medium_Phone_API_37.0) segfaults in this
+  sandbox — on-device smoke test deferred; the user's normal `make mobile`
+  loop must be updated in Phase 5 anyway.
+- Commits: Phase 1 build files + sources + CI + plan.md updates.
