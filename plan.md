@@ -118,14 +118,16 @@ No Room/database module — parity with today: domain data live from API; only k
   segfaults in this environment — deferred to the normal `make mobile` loop.
 
 ### Phase 2 — Core layer
-- [ ] Retrofit interfaces for all 13 domains + kotlinx.serialization models (port of `types/`).
-- [ ] `TokenRepository` (EncryptedSharedPreferences) + `AuthInterceptor` + refresh
+- [x] Retrofit interfaces for all 13 domains + kotlinx.serialization models (port of `types/`).
+- [x] `TokenRepository` (EncryptedSharedPreferences) + `AuthInterceptor` + refresh
       `Authenticator` with single-flight mutex (port of auth-service refresh-on-401,
       logout-on-failed-refresh → login).
-- [ ] `SettingsRepository` (DataStore: apiUrl, language, theme, session bootstrap).
-- [ ] Port `lib/` pure logic: `calendar-week`, `format-time`, `datetime`, `filter-options`,
+- [x] `SettingsRepository` (DataStore: apiUrl, language, theme, session bootstrap).
+- [x] Port `lib/` pure logic: `calendar-week`, `format-time`, `datetime`, `filter-options`,
       `category-labels`, `activity-templates`, `dolarapi` client.
-- Gate: login works, tokens persist across restarts, refresh-on-401 verified.
+- Gate: ✅ login works, tokens persist across restarts, refresh-on-401 verified — code-level
+  parity complete; **live runtime verification deferred** (emulator unavailable in sandbox;
+  MockWebServer tests cover the refresh flow in Phase 4).
 
 ### Phase 3 — Features in dependency order
 1. [ ] Auth (login, multi-step register incl. username/email checks)
@@ -237,3 +239,45 @@ No Room/database module — parity with today: domain data live from API; only k
   sandbox — on-device smoke test deferred; the user's normal `make mobile`
   loop must be updated in Phase 5 anyway.
 - Commits: Phase 1 build files + sources + CI + plan.md updates.
+
+### Phase 2 — Core layer — ✅ COMPLETE (commit `d23c464`)
+- **Generated API surface (2 parallel sub-agents, reconciled):** 13 Retrofit interfaces
+  (`com.lifetracker.core.network.endpoints`) + full model set
+  (`com.lifetracker.core.network.model`), every field verified against Go `json` tags.
+  Cross-agent reconciliation: shared envelopes (`ApiEnvelope`/`ApiList`/`PagedResponse`/
+  `MovementsResponse`/`MonthlyStatsResponse`/`AvailabilityResponse`), shared enums file,
+  `UserResponse` defined once (auth) and reused. Contract-vs-Go corrections recorded
+  (GET /users/{username} always PublicUserCard; followers items are FollowerItem;
+  movement query filters extension set). `PaymentResponse` (was missing) added verbatim
+  from `backend/internal/domain/finance/model/payment_model.go`.
+- **Network runtime:** OkHttp (BOM 5.5.1) + Retrofit 3.0 + kotlinx.converter;
+  `DynamicUrlInterceptor` (Profile base-URL override, /api normalization, BuildConfig
+  fallback), `AuthInterceptor` (Bearer + `X-Timezone`), `SessionAuthenticator`
+  (refresh-on-401: re-reads tokens → single-flight refresh via mutex → retry once →
+  force-logout via `SessionEvents`; anonymous 401s pass through), bootstrap client for
+  refresh (no authenticator recursion). All 13 APIs provided via Hilt `NetworkModule`
+  (+ `@Named("bootstrap")` AuthApi, `dolarapi` w/ own base URL).
+- **Storage (`core:storage`):** `SecureStore` = EncryptedSharedPreferences
+  (Android Keystore; tokens + cached `SessionUser`) implementing sync
+  `TokenProvider`/`SessionStore` for OkHttp threads + DataStore `SettingsRepository`
+  (apiUrl/language/theme, blocking accessors for interceptor use).
+- **Auth (`domain`):** `AuthRepository` port of auth-service — login/register/logout
+  (best-effort server logout), change password/email persisting fresh token pairs,
+  `refreshBlocking` implementing `TokenRefresher`, session bootstrap from
+  encrypted storage; `ApiError` parsing the backend error envelope.
+- **Pure logic (`domain/lib`, sub-agent, JS-parity notes):** `CalendarWeek`,
+  `Datetime`/`BuildDate`, `FormatTime`, `FilterOptions`, `CategoryLabels`,
+  `ActivityTemplates` (40 templates + enums with exact §12 wire values) — with the 8
+  documented behavior notes (Date→ZonedDateTime, "Invalid Date"→null, locale pinning,
+  etc.) to consume in Phase 4 tests.
+- **Build-fix ledger (for posterity):** the AGP-9 built-in-Kotlin + KSP2 route was
+  abandoned after systematic failures (KspAA PROCESSING_ERROR "AuthApi unresolved").
+  Working/locked toolchain = AGP 8.10.1 + Gradle 9.3.1 (wrapper restored from the RN
+  prebuild) + Kotlin 2.2.21 + KSP 2.2.21-2.0.5 + Hilt 2.57.2 + Compose BOM 2025.09.01,
+  compileSdk 37 w/ `suppressUnsupportedCompileSdk`, `packaging.exclude` for okhttp5
+  OSGI MANIFEST, `kotlin { compilerOptions { jvmTarget = 17 } }` added per module.
+  Two generated-code traps fixed: nested KDoc comments (`(`auth/*`)` inside doc text
+  → nested `/*` swallow) replaced with fullwidth `＊`, and missing
+  PaymentResponse/MessageOnly/POST imports patched.
+- Verification: `./gradlew :app:assembleDebug :app:testDebugUnitTest` green.
+- **Next: Phase 3 — feature screens in dependency order.**
