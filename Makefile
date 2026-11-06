@@ -60,6 +60,7 @@ COMPOSE := docker compose -f docker-compose.yml
 	db-up db-down db-remove db-test-up db-test-down db-test-remove \
 	frontend-up frontend-down \
 	mobile mobile-rebuild mobile-logs mobile-stop \
+	e2e-mobile api-up \
 	monitoring-up monitoring-down dev-migrate deploy-frontend
 
 .DEFAULT_GOAL := help
@@ -72,7 +73,8 @@ help:
 	@printf "    make dev            fast lane: air (api :8080) · next dev (web :3000) · compose db\n"
 	@printf "    make dev-container  container mode: API :8080 · postgres · mongo · web :3000\n"
 	@printf "    make dev-full       container mode + observability: Prometheus :9090 · Grafana :3001\n"
-	@printf "    make mobile         mobile dev loop: emulator + API + gradle install · [R] rebuild app\n"
+	@printf "    make %-18s %s\n" "mobile" "mobile dev loop: emulator + API + gradle install · [R] rebuild app"
+	@printf "    make %-18s %s\n" "e2e-mobile" "Maestro smoke e2e: boots emulator + API + app, runs the flow"
 	@printf "\n"
 	@printf "$(GREEN)  STOP$(RST)\n"
 	@printf "    make stop           stops EVERYTHING, whichever mode is running\n"
@@ -576,19 +578,7 @@ mobile:
 	$(WIN_ADB) install -r "$$(wslpath -w $$(realpath apps/mobile/android-app/build/outputs/apk/debug/app-debug.apk))"
 	@$(WIN_ADB) reverse tcp:8080 tcp:8080 >/dev/null 2>&1
 	@echo "==> mobile dev mode (detached): API :8080 + $(ANDROID_PKG)"
-	@if curl -sf --connect-timeout 1 -m 2 http://localhost:8080/health >/dev/null 2>&1; then \
-		echo "✓ API already on :8080"; \
-	else \
-		$(MAKE) --no-print-directory db-up; \
-		$(CHECK_AIR) \
-		$(CHECK_ENV) \
-		until docker exec golang_api_postgres pg_isready -U postgres >/dev/null 2>&1; do sleep 1; done; \
-		nohup setsid sh -c 'cd backend && exec air -c .air.toml' >/tmp/lifetracker-api.log 2>&1 & \
-		echo $$! > /tmp/lifetracker-api.pid; \
-		ok=0; for i in $$(seq 1 60); do curl -sf --connect-timeout 1 -m 2 http://localhost:8080/health >/dev/null 2>&1 && ok=1 && break; sleep 1; done; \
-		[ "$$ok" = 1 ] || { echo "✗ API did not come up — tail /tmp/lifetracker-api.log"; exit 1; }; \
-		echo "✓ API on :8080 (log: /tmp/lifetracker-api.log)"; \
-	fi; \
+	@$(MAKE) --no-print-directory api-up
 	$(WIN_ADB) shell monkey -p $(ANDROID_PKG) 1 >/dev/null 2>&1; \
 	echo "✓ $(ANDROID_PKG) launched — Kotlin edits: make mobile-rebuild or [R]"; \
 	echo "  dev API note: Profile ⚙ API URL → http://10.0.2.2:8080/api"; \
@@ -645,3 +635,77 @@ mobile-stop:
 		fi; \
 	done; \
 	[ "$$stopped" = 1 ] || echo "nothing to stop (no pidfiles found)"
+
+# --- Mobile e2e (Maestro) — local Linux emulator + local API ---
+#
+# `make e2e-mobile` is the pre-push gate: boots the Linux AVD, builds a debug
+# APK with the local API URL baked in (core/network reads the `apiBaseUrl`
+# Gradle property; normal builds keep the production URL), installs it and
+# runs apps/mobile/e2e/flows/smoke.yaml via Maestro. Requires Android SDK
+# (ANDROID_HOME) and Maestro (install: curl -Ls get.maestro.mobile.dev | bash).
+# The flow registers a throwaway user against the local API (unique per run),
+# walks the hamburger nav, then logs back in with clean app state.
+#
+# Unlike the `mobile` target (Windows adb.exe via WSL interop), this drives
+# the Linux SDK directly.
+
+E2E_AVD      ?= Medium_Phone_API_37.0
+ANDROID_ROOT ?= $(if $(ANDROID_HOME),$(ANDROID_HOME),$(HOME)/Android/Sdk)
+E2E_ADB      ?= $(ANDROID_ROOT)/platform-tools/adb
+E2E_EMU      ?= $(ANDROID_ROOT)/emulator/emulator
+MAESTRO_BIN  ?= $(HOME)/.maestro/bin/maestro
+E2E_API_URL  ?= http://10.0.2.2:8080/api
+E2E_PASS     ?= E2eOnly!2026pass
+
+# Ensure the dev API is healthy on :8080 (start db + air if not). Extracted
+# from the inline block in `make mobile`; the two stay behaviorally in sync.
+api-up:
+	@if curl -sf --connect-timeout 1 -m 2 http://localhost:8080/health >/dev/null 2>&1; then \
+		echo "✓ API already on :8080"; \
+	else \
+		$(MAKE) --no-print-directory db-up; \
+		$(CHECK_AIR) \
+		$(CHECK_ENV); \
+		until docker exec golang_api_postgres pg_isready -U postgres >/dev/null 2>&1; do sleep 1; done; \
+		nohup setsid sh -c 'cd backend && exec air -c .air.toml' >/tmp/lifetracker-api.log 2>&1 & \
+		echo $$! > /tmp/lifetracker-api.pid; \
+		ok=0; for i in $$(seq 1 60); do curl -sf --connect-timeout 1 -m 2 http://localhost:8080/health >/dev/null 2>&1 && ok=1 && break; sleep 1; done; \
+		[ "$$ok" = 1 ] || { echo "✗ API did not come up — tail /tmp/lifetracker-api.log"; exit 1; }; \
+		echo "✓ API on :8080 (log: /tmp/lifetracker-api.log)"; \
+	fi
+
+e2e-mobile:
+	@if [ ! -x "$(MAESTRO_BIN)" ]; then \
+		echo "✗ maestro not found at $(MAESTRO_BIN) — install:"; \
+		echo "    curl -Ls \"https://get.maestro.mobile.dev\" | bash"; \
+		exit 1; \
+	fi
+	@if [ "$$($(E2E_ADB) get-state 2>/dev/null)" != "device" ]; then \
+		echo "==> no device attached — starting AVD $(E2E_AVD)"; \
+		nohup "$(E2E_EMU)" -avd $(E2E_AVD) >/dev/null 2>&1 & \
+	fi; \
+	ok=0; for i in $$(seq 1 120); do \
+		[ "$$($(E2E_ADB) shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ] && ok=1 && break; \
+		sleep 2; \
+	done; \
+	[ "$$ok" = 1 ] || { echo "✗ $(E2E_AVD) did not boot within ~4 min — check Device Manager"; exit 1; }; \
+	echo "✓ emulator booted"
+	@echo "==> assembleDebug (apiBaseUrl=$(E2E_API_URL))"
+	cd apps/mobile && ./gradlew :app:assembleDebug -PapiBaseUrl=$(E2E_API_URL)
+	@echo "==> installing app-debug.apk"
+	@$(E2E_ADB) install -r "$$(realpath apps/mobile/android-app/build/outputs/apk/debug/app-debug.apk)" || { \
+		echo "==> install failed (likely another machine's debug signature) — uninstalling + retrying"; \
+		$(E2E_ADB) uninstall $(ANDROID_PKG) >/dev/null 2>&1; \
+		$(E2E_ADB) install "$$(realpath apps/mobile/android-app/build/outputs/apk/debug/app-debug.apk)"; \
+	}
+	@$(MAKE) --no-print-directory api-up
+	@echo "==> maestro smoke flow"
+	ts=$$(date +%s); \
+	MAESTRO_CLI_NO_ANALYTICS=1 \
+	MAESTRO_E2E_USER="e2e_$$ts" \
+	MAESTRO_E2E_EMAIL="e2e_$$ts@test.local" \
+	MAESTRO_E2E_PASS="$(E2E_PASS)" \
+	$(MAESTRO_BIN) test apps/mobile/e2e/flows/smoke.yaml; \
+	status=$$?; \
+	[ $$status = 0 ] && echo "✓ mobile e2e passed — safe to commit/push"; \
+	exit $$status

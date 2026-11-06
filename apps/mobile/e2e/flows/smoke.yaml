@@ -1,0 +1,78 @@
+# Smoke e2e for the Android app (Maestro).
+# Run via `make e2e-mobile`, which boots the emulator, starts the local API on
+# :8080, and installs a debug APK whose API_BASE_URL is baked to
+# http://10.0.2.2:8080/api (debug builds allow cleartext to 10.0.2.2).
+#
+# Env (set by the Makefile): MAESTRO_E2E_USER, MAESTRO_E2E_EMAIL, MAESTRO_E2E_PASS.
+# Flow: clean state → register a throwaway user → main app → hamburger nav to
+# Notes/Social → back → clean state again → login with the same user → main app.
+# Tap/assert text comes from packages/shared/src/messages/en.json (mobile i18n
+# mirrors the shared strings).
+
+appId: com.lifetracker.mobile
+name: mobile smoke — register · nav · login
+
+- runFlow:
+    when:
+      visible: "Open menu"
+    commands:
+      - assertVisible: "unexpected-precondition"   # never runs; placeholder for future shared steps
+
+# ---------------------------------------------------------------- step 1: clean launch
+- launchApp:
+    clearState: true
+- assertVisible: "Sign in"
+- assertVisible: "Don't have an account?"
+
+# ---------------------------------------------------------------- step 2: register
+- tapOn: "Don't have an account?"
+- assertVisible: "Create account"
+
+# Fields are plain-decorated BasicTextFields: tap the visible placeholder to
+# focus, then type. Placeholder disappears once the field is filled.
+- tapOn: "John"
+- inputText: "E2e"
+- tapOn: "Doe"
+- inputText: "Test"
+- tapOn: "john_doe"
+- inputText: "${MAESTRO_E2E_USER}"
+- tapOn: "john@example.com"
+- inputText: "${MAESTRO_E2E_EMAIL}"
+- tapOn: "Create a password"
+- inputText: "${MAESTRO_E2E_PASS}"
+- tapOn: "Confirm your password"
+- inputText: "${MAESTRO_E2E_PASS}"
+
+# Submit — the availability checks (500 ms debounce) hit the local API, a
+# timeout here means the baked base URL doesn't reach the host API.
+- tapOn: "Sign up"
+- assertVisible: "Activities"
+
+# ---------------------------------------------------------------- step 3: hamburger nav
+# AppHeader carries a hamburger (contentDescription "Open menu"); the drawer
+# lists the feature nav entries. Cross one screen and come back.
+- assertVisible: "Open menu"
+- tapOn: "Open menu"
+- tapOn: "Notes"
+- assertVisible: "Notes"
+
+- tapOn: "Open menu"
+- tapOn: "Social"
+- assertVisible: "Social"
+
+- tapOn: "Open menu"
+- tapOn: "Activities"
+- assertVisible: "Activities"
+
+# ---------------------------------------------------------------- step 4: login with the new user
+# A clean relaunch wipes the session token (SecureStore) and lands on login.
+- launchApp:
+    clearState: true
+- assertVisible: "Sign in"
+
+- tapOn: "Enter your username or email"
+- inputText: "${MAESTRO_E2E_USER}"
+- tapOn: "Enter your password"
+- inputText: "${MAESTRO_E2E_PASS}"
+- tapOn: "Sign in"
+- assertVisible: "Activities"

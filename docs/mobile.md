@@ -56,6 +56,11 @@ above any RN APK ever installed (users keep their app install; sessions reset on
 make test-mobile     # Kotlin unit tests (all Gradle modules):
                      # auth MockWebServer flow, calendar-week port, i18n key parity
 cd apps/mobile && ./gradlew :app:assembleDebug   # compile gate
+make e2e-mobile      # pre-push smoke gate (Maestro): boots the local AVD,
+                     # starts the API, installs a debug APK baked to
+                     # http://10.0.2.2:8080/api, then apps/mobile/e2e/flows/smoke.yaml:
+                     # register throwaway user → hamburger nav → login (needs the
+                     # Android SDK on ANDROID_HOME + Maestro in ~/.maestro/bin).
 ```
 
 CI: `.github/workflows/mobile-ci.yml` (`kotlin-build` job — assembleDebug + unit tests).
