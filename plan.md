@@ -1,6 +1,6 @@
 # Plan: `apps/mobile` — React Native/Expo → Native Kotlin (Jetpack Compose)
 
-> Status: **IN PROGRESS** — worktree `mobile-app-refactor`.
+> Status: **COMPLETE** (merge/PR to main pending user; on-device QA pending) — worktree `mobile-app-refactor`.
 > Progress log lives at the bottom of this file ([Progress](#progress)). Update it after every phase.
 
 ## Objective
@@ -193,6 +193,12 @@ No Room/database module — parity with today: domain data live from API; only k
       (sandbox has no working emulator) — use `kotlin-refactor/qa-checklist.md` as the
       script; Compose UI instrumentation tests + Maestro E2E remain future work.
 - [x] Rollback safety: RN preserved at tag `rn-final` (commit `8149fea`).
+- [x] Roll-forward: branch `mobile-app-refactor` at `0b3461d` holds the complete,
+      green rewrite. **Merge to main left to the user** (local `main` was 6 commits
+      behind origin and the main checkout had uncommitted work — an autonomous merge
+      there would touch unrelated in-flight changes. One command:
+      `cd <main checkout> && git fetch && git merge mobile-app-refactor`, or open the
+      PR from `mobile-app-refactor` — conventional-commit PR titles are enforced).
 
 ## Tradeoffs
 
