@@ -1,20 +1,21 @@
 [versions]
-agp = "9.2.1"
-kotlin = "2.3.21"
-ksp = "2.3.13"
-hilt = "2.60.1"
-composeBom = "2026.09.00"
-navigationCompose = "2.10.2"
-lifecycle = "2.11.0"
+agp = "8.10.1"
+kotlin = "2.2.21"
+ksp = "2.2.21-2.0.5"
+hilt = "2.57.2"
+composeBom = "2025.09.01"
+navigationCompose = "2.9.8"
+lifecycle = "2.9.4"
 activityCompose = "1.11.0"
 coreKtx = "1.17.0"
 splashscreen = "1.2.0"
 datastore = "1.2.1"
-serializationJson = "1.12.0"
+serializationJson = "1.9.0"
 junit = "4.13.2"
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 android-library = { id = "com.android.library", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
@@ -40,5 +41,12 @@ activity-compose = { group = "androidx.activity", name = "activity-compose", ver
 core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 core-splashscreen = { group = "androidx.core", name = "core-splashscreen", version.ref = "splashscreen" }
 datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
+security-crypto = { group = "androidx.security", name = "security-crypto", version = "1.1.0" }
+retrofit = { group = "com.squareup.retrofit2", name = "retrofit", version = "3.0.0" }
+retrofit-kotlinx = { group = "com.squareup.retrofit2", name = "converter-kotlinx-serialization", version = "3.0.0" }
+okhttp-bom = { group = "com.squareup.okhttp3", name = "okhttp-bom", version = "5.5.1" }
+okhttp = { group = "com.squareup.okhttp3", name = "okhttp" }
+okhttp-logging = { group = "com.squareup.okhttp3", name = "logging-interceptor" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serializationJson" }
+kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version = "1.10.2" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }

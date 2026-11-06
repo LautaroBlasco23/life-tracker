@@ -1,6 +1,9 @@
 plugins {
     alias(libs.plugins.android.library)
+    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.hilt)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -13,6 +16,17 @@ android {
     }
 }
 
+dependencies {
+    implementation(project(":core:network"))
+    implementation(project(":core:storage"))
+    api(libs.kotlinx.coroutines.core)
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.compiler)
+}
 
-// Filled in Phase 2/3: models + repositories (port of shared services).
-dependencies { }
+
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
+}

@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
@@ -31,12 +32,26 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     buildFeatures { compose = true }
+
+    packaging {
+        resources {
+            excludes += "META-INF/versions/9/OSGI-INF/MANIFEST.MF"
+        }
+    }
 }
 
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+    }
+}
 
 dependencies {
+    implementation(project(":core:network"))
+    implementation(project(":core:storage"))
     implementation(project(":core:designsystem"))
     implementation(project(":core:i18n"))
+    implementation(project(":domain"))
 
     implementation(project(":feature:auth"))
     implementation(project(":feature:activities"))
@@ -56,6 +71,7 @@ dependencies {
     implementation(libs.core.splashscreen)
 
     implementation(libs.hilt.android)
+    implementation(libs.hilt.navigation.compose)
     ksp(libs.hilt.compiler)
 
     debugImplementation(libs.compose.ui.tooling)
