@@ -89,10 +89,18 @@ No Room/database module — parity with today: domain data live from API; only k
 ## Phases
 
 ### Phase 0 — Baseline & safety net
-- [ ] Tag/archive last working RN APK artifact.
-- [ ] QA checklist per screen (10 screens + modals) → parity definition of done (add to this file).
-- [ ] API contract doc (endpoint → DTO list) used for Retrofit interfaces.
-- [ ] Long-lived branch/worktree (this worktree); merge only at cutover.
+- [x] Tag/archival: git tag `rn-final` at RN commit `8149fea` (rollback point). No prebuilt APK
+      existed locally (`android/` is git-ignored); rebuild from the tag if ever needed.
+- [x] QA checklist per screen — `kotlin-refactor/qa-checklist.md` (201 checkboxes, 8 sections
+      + cross-cutting). Corrections captured: registration is a single form with debounced
+      availability checks (not multi-step); mobile finance = two real routes with own nav bars
+      (not tabs/shims).
+- [x] API contract doc — `kotlin-refactor/api-contract.md` (1,091 lines): global conventions
+      (camelCase wire, `X-Timezone` header, ObjectId-string IDs, 5 envelope shapes incl. the
+      note-group error-shape exception), precise 401-refresh semantics for the OkHttp
+      `Authenticator` re-implementation, multipart field names (`image`, `file` XLSX ≤32MB),
+      full enum registry, and a per-Retrofit-interface DTO checklist for codegen.
+- [x] Long-lived branch/worktree (`mobile-app-refactor`); merge only at cutover.
 
 ### Phase 1 — Gradle skeleton
 - [ ] Multi-module project, Compose + Hilt + Navigation wired.
@@ -166,7 +174,23 @@ No Room/database module — parity with today: domain data live from API; only k
 
 ## Progress
 
-### Phase 0 — Baseline & safety net
-- **Status:** in progress
-- Worktree `mobile-app-refactor` created and session moved into it.
-- `plan.md` written (this file).
+### Phase 0 — Baseline & safety net — ✅ COMPLETE
+- Worktree `mobile-app-refactor` created; session moved into it; `plan.md` written and committed.
+- Tag `rn-final` created at RN commit `8149fea` (rollback point; no APK existed locally —
+  rebuildable from tag).
+- `kotlin-refactor/qa-checklist.md` written by sub-agent from the actual RN screen code:
+  201 checkboxes across auth, activities, time, notes, finance (2 routes), social, public
+  profile, profile, and cross-cutting checks. Key corrections vs initially assumed list:
+  registration is single-form (debounced username/email checks, validation-order dependency),
+  finance routes are independent (no tabs), plus documented edge behaviors (optimistic-revert,
+  drag-reorder group inference, draft persistence, timer restart-persistence, delete scopes,
+  reminder 30s re-derivation, https-only API URL rule, destructive import confirm, auth
+  redirect rules).
+- `kotlin-refactor/api-contract.md` written by sub-agent from Go DTOs + shared services:
+  13 per-domain endpoint/DTO tables, 5 response-envelope shapes (incl. note-group error
+  exception), `X-Timezone` global header, ObjectId-string IDs (activity records, transactions,
+  payments), multipart `image`/`file` parts, `dayFrequency` JSON-encoded string gotcha,
+  full enum registry, precise 401-refresh/logout semantics, and a per-interface Retrofit
+  codegen checklist.
+- Commits: `bab5781` (plan), Phase 0 docs commit(s) to follow.
+- **Next: Phase 1 — Gradle skeleton.**
