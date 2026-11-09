@@ -30,6 +30,8 @@ beforeEach(() => {
     forward: vi.fn(),
     refresh: vi.fn(),
     prefetch: vi.fn(),
+    // Required by the AppRouterInstance type introduced in Next 16.
+    bfcacheId: 'mock-bfcache-id',
   } as ReturnType<typeof useRouter>);
 });
 
