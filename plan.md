@@ -1,6 +1,12 @@
 # Plan: `apps/mobile` — React Native/Expo → Native Kotlin (Jetpack Compose)
 
-> Status: **COMPLETE** (merge/PR to main pending user; on-device QA pending) — worktree `mobile-app-refactor`.
+> Status: **COMPLETE** (PR #113 open; Fedora-first dev loop landed; on-device QA pending)
+>
+> Fedora note (Nov 9): `make mobile` defaults to the native Linux branch (WSL=1 forces the
+> old Windows flow; `ACCEL=off` + automatic `BOOT_WAIT` extension for KVM-segfault hosts —
+> pattern ported from the `build/mobile-dev-loop` worktree). Validated on this box: emulator
+> boots (TCG), APK installs, app reaches foreground; `EncryptedSharedPreferences`/keystore
+> is now prewarmed off the main thread after an observed 21.7s main-thread onCreate on TCG. — worktree `mobile-app-refactor`.
 > Progress log lives at the bottom of this file ([Progress](#progress)). Update it after every phase.
 
 ## Objective

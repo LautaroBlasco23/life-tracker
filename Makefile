@@ -130,7 +130,7 @@ components:
 	@printf "    make %-18s %s\n" "monitoring-up"    "Prometheus, Grafana, Loki, Promtail, node-exporter"
 	@printf "    make %-18s %s\n" "monitoring-down"  "stop the monitoring stack"
 	@printf "\n"
-	@printf "$(GREEN)  📱 Mobile (emulator on Windows, build in WSL)$(RST)\n"
+	@printf "$(GREEN)  📱 Mobile (Kotlin)$(RST)\n"
 	@printf "    make %-18s %s\n" "mobile" "one command dev loop: emulator + build + API + launch"
 	@printf "    %-24s %s\n" "" "then stays open: [R] rebuild+reinstall · Enter relaunch · q quit"
 	@printf "    make %-18s %s\n" "mobile-rebuild" "rebuild the Kotlin app + reinstall (same as the [R] key)"
@@ -521,30 +521,57 @@ frontend-down:
 deploy-frontend: frontend-up
 	bash scripts/deploy-frontend.sh
 
-# --- Android (emulator on Windows, build in WSL) ---
+# --- Android (Kotlin app: WSL2 -> emulator on Windows · native Linux/Fedora -> all local) ---
 #
-# Dev loop for apps/mobile against the Android Studio AVD on the Windows
-# host: WSL2 has no USB passthrough or accelerated emulation, so the
-# emulator runs on Windows while Gradle and the API (:8080) stay in WSL.
-# The bridge is the Windows adb.exe driven from WSL via interop.
-#   - the API ships at the production URL; for the emulator, set the
-#     in-app override (Profile > API URL) to http://10.0.2.2:8080/api
-#     (debug builds accept cleartext to 10.0.2.2 via network_security_config;
-#     release is https-only).
-#   - 10.0.2.2 resolves to the Windows host loopback, which forwards
-#     into WSL ONLY with mirrored networking (networkingMode=mirrored
-#     in %USERPROFILE%\\.wslconfig): NAT-mode forwarding is IPv6-only and
-#     the emulator speaks IPv4. Also needed once after an emulator start:
-#     `adb kill-server` if the emulator booted before the adb server.
+# Host auto-detected via wslpath (only exists inside WSL); force either mode
+# with WSL=1 or WSL=0. Pattern inherited from build/mobile-dev-loop.
+#
+#   WSL2: the emulator runs on the Windows host (no USB/KVM passthrough in
+#   WSL); the bridge is adb.exe via interop. 10.0.2.2 (the emulator's host
+#   alias) reaches the Windows loopback ONLY with mirrored networking
+#   (%USERPROFILE%\.wslconfig). Debug builds accept cleartext to 10.0.2.2;
+#   release is https-only.
+#
+#   Native Linux (Fedora default): everything local — SDK adb/emulator, KVM,
+#   ANDROID_HOME=$(HOME)/Android/Sdk. Make sure a JDK 21 is present and an
+#   AVD exists (Android Studio Device Manager or avdmanager). The API ships
+#   at the production URL; for the emulator set the in-app override
+#   (Profile > API URL) to http://10.0.2.2:8080/api.
+#
 # The Gradle project under apps/mobile is fully committed (no prebuild).
 
+# Emulator acceleration: `on` uses /dev/kvm. On hosts where KVM segfaults the
+# emulator (this Fedora box: "process_memory_range" core dump regardless of
+# RAM size), run with ACCEL=off — TCG software emulation (slow boot ~5-10 min,
+# the boot window below extends automatically).
+ACCEL ?= on
+BOOT_WAIT ?= $(if $(filter off,$(ACCEL)),240,120)
+
+
+ifeq ($(WSL),1)
 WIN_ADB ?= /mnt/c/Users/lauti/AppData/Local/Android/Sdk/platform-tools/adb.exe
 WIN_EMU ?= /mnt/c/Users/lauti/AppData/Local/Android/Sdk/emulator/emulator.exe
+ADB ?= $(WIN_ADB)
+EMU ?= $(WIN_EMU)
+# Convert repo paths for the Windows-hosted adb.exe.
+APK_CONV = wslpath -w
+else
+ANDROID_HOME ?= $(HOME)/Android/Sdk
+ADB ?= $(ANDROID_HOME)/platform-tools/adb
+EMU ?= $(ANDROID_HOME)/emulator/emulator
+APK_CONV = echo
+# gradlew resolves the SDK via apps/mobile/local.properties, but the
+# emulator/adb tools come straight from ANDROID_HOME.
+export ANDROID_HOME
+endif
+# On WSL the Windows_HOST AVD name is fixed; on Linux the target falls back
+# to the first available AVD when this one is missing.
 ANDROID_AVD ?= Pixel_9
 ANDROID_PKG ?= com.lifetracker.mobile
 # One-command mobile dev loop. Bootstraps everything in order and skips any
 # piece already up:
-#   1. boots the Windows AVD if no device is attached (waiting for boot),
+#   1. boots an AVD if no device is attached (waiting for boot); on native
+#      Linux, falls back to the first available AVD if $(ANDROID_AVD) is absent,
 #   2. builds + installs the debug APK (gradle incremental),
 #   3. wires device tcp:8080 (reverse mappings die with the emulator),
 #   4. starts the API (:8080) DETACHED (nohup + pidfile) if not already
@@ -559,14 +586,28 @@ ANDROID_PKG ?= com.lifetracker.mobile
 # - `make mobile-stop`  stop exactly what `make mobile` started (pidfiles;
 #   an API running from `make dev` is NOT touched)
 mobile:
-	@if [ "$$($(WIN_ADB) get-state 2>/dev/null)" != "device" ]; then \
-		echo "==> no device attached — starting AVD $(ANDROID_AVD) on Windows"; \
-		nohup "$(WIN_EMU)" -avd $(ANDROID_AVD) >/dev/null 2>&1 & \
+	@avd=$(ANDROID_AVD); \
+	if [ "$$($(ADB) get-state 2>/dev/null)" != "device" ]; then \
+		if ! "$(EMU)" -list-avds 2>/dev/null | tr -d '\r' | grep -qx "$$avd"; then \
+			avd=$$("$(EMU)" -list-avds 2>/dev/null | tr -d '\r' | grep -v '^$$' | head -n 1); \
+			echo "==> AVD $(ANDROID_AVD) not found — using first available: $$avd"; \
+		fi; \
+		[ -n "$$avd" ] || { echo "✗ no AVDs found — create one (Android Studio Device Manager or avdmanager)"; exit 1; }; \
+		echo "==> no device attached — starting AVD $$avd"; \
+		nohup "$(EMU)" $(if $(filter off,$(ACCEL)),-accel off) -avd "$$avd" >/dev/null 2>&1 & \
 	fi; \
 	echo "==> waiting for emulator boot"; \
+	[ "$(ACCEL)" = off ] && echo "ACCEL=off — TCG boot can take ~5-10 min, be patient"; \
+	ok=0; for i in $$(seq 1 $(BOOT_WAIT)); do \
+		[ "$$(timeout 10 $(ADB) shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ] && ok=1 && break; \
+		if [ $$i -ge 6 ] && [ $$i -le 10 ]; then $(ADB) kill-server >/dev/null 2>&1; fi; \
+		sleep 2; \
+	done; \
+	[ "$$ok" = 1 ] || { echo "✗ $$avd did not boot in ~$$(($(BOOT_WAIT)*2/60)) min (KVM segfault guard: retry with ACCEL=off) — check the AVD in Device Manager"; exit 1; }; \
+	echo "==> waiting for emulator boot"; \
 	ok=0; kicked=0; for i in $$(seq 1 120); do \
-		[ "$$(timeout 10 $(WIN_ADB) shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ] && ok=1 && break; \
-		if [ $$kicked = 0 ] && [ $$i -ge 6 ]; then $(WIN_ADB) kill-server >/dev/null 2>&1; kicked=1; fi; \
+		[ "$$(timeout 10 $(ADB) shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ] && ok=1 && break; \
+		if [ $$kicked = 0 ] && [ $$i -ge 6 ]; then $(ADB) kill-server >/dev/null 2>&1; kicked=1; fi; \
 		sleep 2; \
 	done; \
 	[ "$$ok" = 1 ] || { echo "✗ $(ANDROID_AVD) did not boot within ~4 min — check the AVD name in Android Studio Device Manager"; exit 1; }; \
@@ -575,11 +616,11 @@ mobile:
 	@echo "==> assembleDebug (incremental)"
 	cd apps/mobile && ./gradlew :app:assembleDebug
 	@echo "==> installing app-debug.apk"
-	$(WIN_ADB) install -r "$$(wslpath -w $$(realpath apps/mobile/android-app/build/outputs/apk/debug/app-debug.apk))"
-	@$(WIN_ADB) reverse tcp:8080 tcp:8080 >/dev/null 2>&1
+	$(ADB) install -r "$$($(APK_CONV) $$(realpath apps/mobile/android-app/build/outputs/apk/debug/app-debug.apk))"
+	@$(ADB) reverse tcp:8080 tcp:8080 >/dev/null 2>&1
 	@echo "==> mobile dev mode (detached): API :8080 + $(ANDROID_PKG)"
 	@$(MAKE) --no-print-directory api-up
-	$(WIN_ADB) shell monkey -p $(ANDROID_PKG) 1 >/dev/null 2>&1; \
+	$(ADB) shell monkey -p $(ANDROID_PKG) 1 >/dev/null 2>&1; \
 	echo "✓ $(ANDROID_PKG) launched — Kotlin edits: make mobile-rebuild or [R]"; \
 	echo "  dev API note: Profile ⚙ API URL → http://10.0.2.2:8080/api"; \
 	echo "  follow logs: make mobile-logs · stop: make mobile-stop"
@@ -595,7 +636,7 @@ mobile:
 				"") echo ;; \
 				r|R) echo " $$key"; $(MAKE) --no-print-directory mobile-rebuild || echo "✗ rebuild failed — see output above" ;; \
 				q|Q) echo " $$key"; echo "✓ bye — the API keeps running (make mobile-stop to stop it)"; break ;; \
-				*) echo " $$key"; $(WIN_ADB) shell monkey -p $(ANDROID_PKG) 1 >/dev/null 2>&1 && echo "✓ app relaunched" ;; \
+				*) echo " $$key"; $(ADB) shell monkey -p $(ANDROID_PKG) 1 >/dev/null 2>&1 && echo "✓ app relaunched" ;; \
 			esac; \
 		done; \
 	fi
@@ -610,9 +651,9 @@ mobile-rebuild:
 	@echo "==> assembleDebug (incremental)"
 	cd apps/mobile && ./gradlew :app:assembleDebug
 	@echo "==> reinstalling app-debug.apk"
-	$(WIN_ADB) install -r "$$(wslpath -w $$(realpath apps/mobile/android-app/build/outputs/apk/debug/app-debug.apk))"
-	$(WIN_ADB) reverse tcp:8080 tcp:8080 2>/dev/null || true
-	$(WIN_ADB) shell monkey -p $(ANDROID_PKG) 1 >/dev/null 2>&1
+	$(ADB) install -r "$$($(APK_CONV) $$(realpath apps/mobile/android-app/build/outputs/apk/debug/app-debug.apk))"
+	$(ADB) reverse tcp:8080 tcp:8080 2>/dev/null || true
+	$(ADB) shell monkey -p $(ANDROID_PKG) 1 >/dev/null 2>&1
 	@echo "✓ reinstalled + relaunched"
 
 # Tail the detached mobile processes' logs (Ctrl-C here is safe — it only
@@ -682,13 +723,13 @@ e2e-mobile:
 	fi
 	@if [ "$$($(E2E_ADB) get-state 2>/dev/null)" != "device" ]; then \
 		echo "==> no device attached — starting AVD $(E2E_AVD)"; \
-		nohup "$(E2E_EMU)" -avd $(E2E_AVD) >/dev/null 2>&1 & \
+		nohup "$(E2E_EMU)" $(if $(filter off,$(ACCEL)),-accel off) -avd $(E2E_AVD) >/dev/null 2>&1 & \
 	fi; \
-	ok=0; for i in $$(seq 1 120); do \
+	ok=0; for i in $$(seq 1 $(BOOT_WAIT)); do \
 		[ "$$($(E2E_ADB) shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ] && ok=1 && break; \
 		sleep 2; \
 	done; \
-	[ "$$ok" = 1 ] || { echo "✗ $(E2E_AVD) did not boot within ~4 min — check Device Manager"; exit 1; }; \
+	[ "$$ok" = 1 ] || { echo "✗ $(E2E_AVD) did not boot in ~$$(($(BOOT_WAIT)*2/60)) min — check Device Manager (KVM segfault guard: ACCEL=off)"; exit 1; }; \
 	echo "✓ emulator booted"
 	@echo "==> assembleDebug (apiBaseUrl=$(E2E_API_URL))"
 	cd apps/mobile && ./gradlew :app:assembleDebug -PapiBaseUrl=$(E2E_API_URL)

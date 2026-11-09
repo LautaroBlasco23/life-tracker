@@ -34,13 +34,32 @@ the migration's `kotlin-refactor/api-contract.md` — the Go DTOs are the real c
 
 
 ```bash
-make mobile          # boots the Windows AVD, gradlew :app:assembleDebug, adb install,
-                     # starts the API (:8080), launches the app; [R] rebuild + reinstall,
-                     # Enter relaunches, q quits
+make mobile          # boots an AVD, gradlew :app:assembleDebug, adb install, starts the
+                     # API (:8080), launches the app; [R] rebuild + reinstall, Enter
+                     # relaunches, q quits
 make mobile-rebuild  # incremental gradle build + reinstall
 make mobile-logs     # tail the API log
 make mobile-stop     # stop the detached API
+make build-apk       # release APK for a physical phone (from build/mobile-dev-loop)
 ```
+
+Host auto-detection (pattern from `build/mobile-dev-loop`): **Fedora/Linux is the default
+branch** — SDK at `$(HOME)/Android/Sdk` (KVM), `ADB`/ emulator from `ANDROID_HOME`, and
+`ANDROID_AVD` falls back to the first available AVD if `Pixel_9` is missing.
+`WSL=1` resumes the old Windows-hosted emulator flow (`adb.exe` via interop, mirrored
+networking caveats — see the Makefile comment block).
+
+Fedora one-time prerequisites:
+
+```bash
+sudo dnf install -y java-21-openjdk-devel android-tools   # JDK 21 + adb
+export JAVA_HOME=/usr/lib/jvm/java-21
+export ANDROID_HOME=$HOME/Android/Sdk
+kvm-ok 2>/dev/null || sudo dnf groupinstall virtualization   # /dev/kvm must be accessible
+```
+
+(`local.properties` in apps/mobile holds `sdk.dir` — machine-local, git-ignored — the
+Gradle build resolves the SDK without ANDROID_HOME.)
 
 Dev API URL: Profile → API URL override → `http://10.0.2.2:8080/api` (debug builds accept
 cleartext to `10.0.2.2` via `network_security_config.xml`; release builds are https-only).
