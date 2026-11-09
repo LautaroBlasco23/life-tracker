@@ -4,6 +4,7 @@ import {
   addDaysToDateValue,
   combineDateAndTime,
   dateAtMinutes,
+  dropEventTimes,
   formatWeekLabel,
   getWeekDays,
   getWeekRange,
@@ -16,6 +17,7 @@ import {
   toDateInputValue,
   toEndOfDayInstant,
   toTimeInputValue,
+  weekdayName,
 } from './week';
 
 // All dates are built in local time: the grid is a wall-clock view.
@@ -166,5 +168,63 @@ describe('isSameDay', () => {
       isSameDay(new Date(2026, 9, 19, 0, 0), new Date(2026, 9, 19, 23, 59))
     ).toBe(true);
     expect(isSameDay(new Date(2026, 9, 19), new Date(2026, 9, 20))).toBe(false);
+  });
+});
+
+describe('drag-and-drop times', () => {
+  const hour = 60 * 60 * 1000;
+
+  it('keeps the duration and snaps to the drop slot', () => {
+    // A 10:00–12:00 event dropped halfway down the Friday column.
+    const times = dropEventTimes({
+      dayValue: '2026-10-23',
+      offsetY: 720, // halfway of a 24h column, in pixels
+      columnHeight: 1440, // 24h = 1440 "pixels" in the column scale
+      durationMs: 2 * hour,
+    });
+    expect(times).toEqual({
+      startAt: new Date(2026, 9, 23, 12, 0).toISOString(),
+      endAt: new Date(2026, 9, 23, 14, 0).toISOString(),
+    });
+  });
+
+  it('snaps down like slot clicks do', () => {
+    const times = dropEventTimes({
+      dayValue: '2026-10-23',
+      offsetY: 700,
+      columnHeight: 1440,
+      durationMs: hour,
+    });
+    expect(times?.startAt).toBe(new Date(2026, 9, 23, 11, 30).toISOString());
+  });
+
+  it('clamps the bottom edge to 23:59 and lets long events spill over', () => {
+    // offset past the bottom: minute 24:00 → 23:59; +2h ends the next day.
+    const times = dropEventTimes({
+      dayValue: '2026-10-23',
+      offsetY: 1440,
+      columnHeight: 1440,
+      durationMs: 2 * hour,
+    });
+    expect(times?.startAt).toBe(new Date(2026, 9, 23, 23, 59).toISOString());
+    expect(times?.endAt).toBe(new Date(2026, 9, 24, 1, 59).toISOString());
+  });
+
+  it('rejects a malformed target day', () => {
+    expect(
+      dropEventTimes({
+        dayValue: '',
+        offsetY: 0,
+        columnHeight: 500,
+        durationMs: hour,
+      })
+    ).toBeNull();
+  });
+});
+
+describe('weekdayName', () => {
+  it('maps dates to DayOfWeek names', () => {
+    expect(weekdayName(new Date(2026, 9, 19))).toBe('monday');
+    expect(weekdayName(new Date(2026, 9, 25))).toBe('sunday');
   });
 });

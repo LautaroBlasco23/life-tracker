@@ -877,6 +877,8 @@
     "repeatNone": "None",
     "repeatWeekly": "Weekly",
     "repeatUntil": "Repeat until",
+    "repeatWeekdays": "Repeats on",
+    "repeatDaysRequired": "Pick at least one day for a weekly series",
     "repeatUntilRequired": "Pick the last date of the series",
     "repeatUntilBeforeStart": "The last date cannot be before the event date",
     "repeatLocked": "The repeat rule is set when the event is created",

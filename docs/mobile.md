@@ -32,7 +32,6 @@ Shared business logic STAYS TypeScript in [`packages/shared/`](../packages/share
 web app only; the mobile Kotlin copies exist inside this project (DTo shapes documented in
 the migration's `kotlin-refactor/api-contract.md` — the Go DTOs are the real contract).
 
-## Building & running
 
 ```bash
 make mobile          # boots the Windows AVD, gradlew :app:assembleDebug, adb install,

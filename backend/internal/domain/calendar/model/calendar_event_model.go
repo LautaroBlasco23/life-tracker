@@ -31,6 +31,9 @@ type CalendarEvent struct {
 	RecurrenceRule     *string        `json:"recurrenceRule,omitempty" gorm:"size:20"`
 	RecurrenceUntil    *time.Time     `json:"recurrenceUntil,omitempty"`
 	RecurrenceInterval *int           `json:"recurrenceInterval,omitempty"`
+	// Comma-separated day names the series repeats on (e.g.
+	// "monday,wednesday"); NULL for one-off events.
+	RecurrenceWeekdays *string `json:"recurrenceWeekdays,omitempty" gorm:"size:60"`
 }
 
 func (e *CalendarEvent) ToResponse() *dto.CalendarEventResponse {
@@ -48,5 +51,6 @@ func (e *CalendarEvent) ToResponse() *dto.CalendarEventResponse {
 		RecurrenceRule:     e.RecurrenceRule,
 		RecurrenceUntil:    e.RecurrenceUntil,
 		RecurrenceInterval: e.RecurrenceInterval,
+		RecurrenceWeekdays: e.RecurrenceWeekdays,
 	}
 }

@@ -33,16 +33,33 @@ vi.mock('@shared/contexts/language-context', () => ({
       repeatUntil: 'Repeat until',
       repeatUntilRequired: 'Pick the last date of the series',
       repeatUntilBeforeStart: 'The last date cannot be before the event date',
+      repeatWeekdays: 'Repeats on',
+      repeatDaysRequired: 'Pick at least one day for a weekly series',
       applyTo: 'Apply to',
       applyToOccurrence: 'This event',
       applyToSeries: 'The whole series',
+    };
+    const createActivity: Record<string, string> = {
+      monday: 'Monday',
+      tuesday: 'Tuesday',
+      wednesday: 'Wednesday',
+      thursday: 'Thursday',
+      friday: 'Friday',
+      saturday: 'Saturday',
+      sunday: 'Sunday',
     };
     const common: Record<string, string> = {
       save: 'Save',
       cancel: 'Cancel',
       delete: 'Delete',
     };
-    return (namespace === 'common' ? common : calendar)[key] ?? key;
+    return (
+      (namespace === 'common'
+        ? common
+        : namespace === 'createActivity'
+          ? createActivity
+          : calendar)[key] ?? key
+    );
   },
 }));
 
@@ -133,6 +150,10 @@ describe('CalendarEventModal', () => {
     await user.click(screen.getByLabelText('Repeat'));
     await user.click(screen.getByRole('option', { name: 'Weekly' }));
 
+    // The start date (Monday) is pre-checked, so an untouched weekly repeat
+    // behaves like a series without weekdays.
+    expect(screen.getByRole('checkbox', { name: 'Monday' })).toBeChecked();
+
     const until = screen.getByLabelText('Repeat until');
     await user.clear(until);
     await user.type(until, '2026-11-16');
@@ -149,8 +170,65 @@ describe('CalendarEventModal', () => {
         rule: 'weekly',
         interval: 1,
         until: new Date(2026, 10, 16, 23, 59, 59, 999).toISOString(),
+        weekdays: ['monday'],
       },
     });
+  });
+
+  it('creates a weekly series on the checked week days', async () => {
+    const user = userEvent.setup();
+    renderModal(10 * 60, 12 * 60);
+
+    await user.type(screen.getByLabelText('Title'), 'English class');
+    await user.click(screen.getByLabelText('Repeat'));
+    await user.click(screen.getByRole('option', { name: 'Weekly' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Wednesday' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Friday' }));
+
+    const until = screen.getByLabelText('Repeat until');
+    await user.clear(until);
+    await user.type(until, '2026-11-16');
+
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(calendarService.createEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recurrence: expect.objectContaining({
+          weekdays: ['monday', 'wednesday', 'friday'],
+        }),
+      })
+    );
+  });
+
+  it('requires at least one checked week day', async () => {
+    const user = userEvent.setup();
+    renderModal(10 * 60, 12 * 60);
+
+    await user.type(screen.getByLabelText('Title'), 'English class');
+    await user.click(screen.getByLabelText('Repeat'));
+    await user.click(screen.getByRole('option', { name: 'Weekly' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Monday' }));
+
+    const until = screen.getByLabelText('Repeat until');
+    await user.clear(until);
+    await user.type(until, '2026-11-16');
+
+    await user.click(screen.getByRole('button', { name: 'Save' }));
+
+    expect(calendarService.createEvent).not.toHaveBeenCalled();
+    expect(showToast).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: 'Pick at least one day for a weekly series',
+      })
+    );
+  });
+
+  it('hides the week day grid while editing a series', () => {
+    renderEditModal(seriesEvent);
+
+    expect(
+      screen.queryByRole('checkbox', { name: 'Monday' })
+    ).not.toBeInTheDocument();
   });
 
   it('requires the last date of a weekly series', async () => {

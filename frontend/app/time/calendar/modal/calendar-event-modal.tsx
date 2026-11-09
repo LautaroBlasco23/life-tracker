@@ -28,6 +28,7 @@ import type {
   CalendarEventScope,
   CreateCalendarEventInput,
 } from '@shared/types/calendar';
+import type { DayOfWeek } from '@shared/types/activity';
 import { TIME_CATEGORIES } from '@shared/types/time';
 import { useTranslations } from '@shared/contexts/language-context';
 import { showToast } from '@/lib/toast';
@@ -39,6 +40,7 @@ import {
   toDateInputValue,
   toEndOfDayInstant,
   toTimeInputValue,
+  weekdayName,
 } from '../lib/week';
 
 const MAX_DURATION_MS = 24 * 60 * 60 * 1000;
@@ -46,6 +48,31 @@ const MAX_DURATION_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_SERIES_WEEKS = 4;
 
 type RecurrenceChoice = 'none' | 'weekly';
+
+/**
+ * Parses the API's comma-separated weekday echo ("monday,wednesday") for the
+ * edit view. Unknown/unparsable values fall back to the start date's weekday:
+ * series created before weekdays existed repeated on that day only.
+ */
+function handleEditWeekdays(
+  echo: string | undefined,
+  fallback: DayOfWeek
+): DayOfWeek[] {
+  const dayValues = new Set<string>([
+    'monday',
+    'tuesday',
+    'wednesday',
+    'thursday',
+    'friday',
+    'saturday',
+    'sunday',
+  ]);
+  const parsed = (echo ?? '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter((value) => dayValues.has(value));
+  return parsed.length ? (parsed as DayOfWeek[]) : [fallback];
+}
 
 export interface EventDefaults {
   date: Date;
@@ -74,6 +101,9 @@ export function CalendarEventModal({
 }: CalendarEventModalProps) {
   const t = useTranslations('calendar');
   const tCommon = useTranslations('common');
+  // Day names live in the activities namespace; reusing them here keeps a
+  // single source for the translated weekday labels.
+  const tDays = useTranslations('createActivity');
 
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<string>('Other');
@@ -83,6 +113,8 @@ export function CalendarEventModal({
   const [endTime, setEndTime] = useState('10:00');
   const [recurrence, setRecurrence] = useState<RecurrenceChoice>('none');
   const [untilDate, setUntilDate] = useState('');
+  /** Week days a "weekly" series repeats on; defaults to the start weekday. */
+  const [selectedDays, setSelectedDays] = useState<DayOfWeek[]>([]);
   const [scope, setScope] = useState<CalendarEventScope>('occurrence');
   /** Overnight events end on the calendar day after the start date. */
   const [endsNextDay, setEndsNextDay] = useState(false);
@@ -92,6 +124,32 @@ export function CalendarEventModal({
   // at creation time, so it cannot be turned into one (or back) later.
   const isEditing = event !== null;
   const isSeriesEvent = Boolean(event?.seriesId);
+
+  // Day names are shared with the activities form (same labels, same i18n
+  // namespace); the weekday checkbox grid follows its weekly-day pattern.
+  const DAYS_OF_WEEK: { value: DayOfWeek; label: string }[] = [
+    { value: 'monday', label: tDays('monday') },
+    { value: 'tuesday', label: tDays('tuesday') },
+    { value: 'wednesday', label: tDays('wednesday') },
+    { value: 'thursday', label: tDays('thursday') },
+    { value: 'friday', label: tDays('friday') },
+    { value: 'saturday', label: tDays('saturday') },
+    { value: 'sunday', label: tDays('sunday') },
+  ];
+
+  const handleDayToggle = (day: DayOfWeek, checked: boolean) => {
+    if (checked) {
+      setSelectedDays(
+        [...selectedDays, day].sort(
+          (a, b) =>
+            DAYS_OF_WEEK.findIndex((d) => d.value === a) -
+            DAYS_OF_WEEK.findIndex((d) => d.value === b)
+        )
+      );
+    } else {
+      setSelectedDays(selectedDays.filter((d) => d !== day));
+    }
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -111,6 +169,12 @@ export function CalendarEventModal({
           ? toDateInputValue(new Date(event.recurrenceUntil))
           : ''
       );
+      setSelectedDays(
+        handleEditWeekdays(
+          event.recurrenceWeekdays,
+          weekdayName(new Date(event.startAt))
+        )
+      );
       setScope('occurrence');
       setEndsNextDay(isNextDayEnd(event.startAt, event.endAt));
       return;
@@ -125,6 +189,9 @@ export function CalendarEventModal({
       setEndTime(timeInputValueAt(defaults.date, defaults.endMinutes));
       setRecurrence('none');
       setUntilDate('');
+      // Pre-select the start date's weekday so an untouched weekly repeat
+      // behaves like the series-before-weekdays (same day of the week).
+      setSelectedDays([weekdayName(defaults.date)]);
       setScope('occurrence');
       setEndsNextDay(false);
     }
@@ -223,10 +290,15 @@ export function CalendarEventModal({
         });
         return;
       }
+      if (selectedDays.length === 0) {
+        showToast({ title: t('repeatDaysRequired'), variant: 'destructive' });
+        return;
+      }
       input.recurrence = {
         rule: 'weekly',
         interval: 1,
         until: toEndOfDayInstant(untilDate),
+        weekdays: selectedDays,
       };
     }
 
@@ -330,6 +402,31 @@ export function CalendarEventModal({
               </p>
             ) : null}
           </div>
+
+          {recurrence === 'weekly' && !isEditing ? (
+            <div className="space-y-2">
+              <Label>{t('repeatWeekdays')}</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {DAYS_OF_WEEK.map((day) => (
+                  <div key={day.value} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`event-repeat-day-${day.value}`}
+                      checked={selectedDays.includes(day.value)}
+                      onCheckedChange={(checked) =>
+                        handleDayToggle(day.value, checked === true)
+                      }
+                    />
+                    <Label
+                      htmlFor={`event-repeat-day-${day.value}`}
+                      className="text-sm font-normal cursor-pointer"
+                    >
+                      {day.label}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : null}
 
           {recurrence === 'weekly' ? (
             <div className="space-y-2">

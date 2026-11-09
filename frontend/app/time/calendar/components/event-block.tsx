@@ -1,6 +1,7 @@
 'use client';
 
 import type { CalendarEvent } from '@shared/types/calendar';
+import { useDraggable } from '@dnd-kit/core';
 import { cn } from '@/lib/utils';
 import { Repeat } from 'lucide-react';
 import { formatTimeRange } from '../lib/week';
@@ -18,12 +19,32 @@ const ACCENT_BARS: Record<string, string> = {
   default: 'bg-primary',
 };
 
+/**
+ * Marks an event as "just dragged" so the click browsers dispatch right
+ * after pointerup does not open the edit modal. The mark is consumed by the
+ * next click on that event and falls back to clearing itself shortly after
+ * (the click fires synchronously after the drag-end callback).
+ */
+let draggedEventId: number | null = null;
+
+export function markEventDragged(eventId: number): void {
+  draggedEventId = eventId;
+}
+
+export function clearEventDragged(): void {
+  globalThis.setTimeout(() => {
+    draggedEventId = null;
+  }, 0);
+}
+
 interface EventBlockProps {
   event: CalendarEvent;
   lane: number;
   laneCount: number;
   topPercent: number;
   heightPercent: number;
+  /** dnd-kit id for the draggable; omits drag behavior when absent. */
+  dndId?: string;
   onClick: () => void;
 }
 
@@ -33,23 +54,37 @@ export function EventBlock({
   laneCount,
   topPercent,
   heightPercent,
+  dndId,
   onClick,
 }: EventBlockProps) {
   const accent = ACCENT_BARS[event.category] ?? ACCENT_BARS.default;
   const timeRange = formatTimeRange(event.startAt, event.endAt);
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: dndId ?? event.id,
+    disabled: !dndId,
+  });
 
   return (
     <button
+      ref={setNodeRef}
       type="button"
+      {...listeners}
+      {...attributes}
       onClick={(e) => {
         e.stopPropagation();
+        // A click right after a real drag must not open the edit modal.
+        if (draggedEventId === event.id) {
+          draggedEventId = null;
+          return;
+        }
         onClick();
       }}
       aria-label={`${event.title}, ${timeRange}`}
       className={cn(
-        'absolute z-10 overflow-hidden rounded-md border border-border bg-surface pl-2.5 pr-1.5 py-1 text-left',
+        'absolute z-10 overflow-hidden rounded-md border border-border bg-surface pl-2.5 pr-1.5 py-1 text-left touch-none',
         'transition-colors hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/50',
-        'flex flex-col justify-start gap-0.5'
+        'flex flex-col justify-start gap-0.5 cursor-grab active:cursor-grabbing',
+        isDragging && 'opacity-40'
       )}
       style={{
         top: `${topPercent}%`,

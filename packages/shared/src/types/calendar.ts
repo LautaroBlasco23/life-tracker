@@ -1,3 +1,5 @@
+import type { DayOfWeek } from './activity';
+
 /** Recurrence rules supported by the API. Only weekly so far. */
 export type CalendarRecurrenceRule = 'weekly';
 
@@ -13,6 +15,11 @@ export interface CalendarRecurrenceInput {
   interval?: number;
   /** ISO-8601 instant. Required for weekly rules. */
   until: string;
+  /**
+   * Week days the series repeats on. Defaults to the start date's weekday,
+   * which preserves the behavior of series created without it.
+   */
+  weekdays?: DayOfWeek[];
 }
 
 export interface CalendarEvent {
@@ -31,6 +38,12 @@ export interface CalendarEvent {
   recurrenceRule?: CalendarRecurrenceRule;
   /** ISO-8601 instant. Last day the series repeats on. */
   recurrenceUntil?: string;
+  /**
+   * Comma-separated week day names the series repeats on, as stored by the
+   * API (e.g. "monday,wednesday"). Informational echo; the series is
+   * already materialized as one row per occurrence.
+   */
+  recurrenceWeekdays?: string;
   /** Position of the occurrence inside its series, starting at 0. */
   occurrenceIndex?: number;
 }
