@@ -106,32 +106,34 @@ notes CRUD through the UI, deploy-lane canary (`/env-config.js` + app title).
 - Auth seeding: `e2e/helpers.ts` registers a fresh user through the API (unique username per run) and seeds the exact localStorage keys the shared auth-service hydrates (`accessToken`, `refreshToken`, `currentUser`) via `page.addInitScript` — survives reloads.
 - CI: `frontend-ci.yml` `e2e` job brings up the lane (`make dev-container`), waits for API/frontend health, runs the suite headless, uploads the HTML report on failure.
 
-## Mobile tests (jest-expo + React Native Testing Library)
+## Mobile tests (Kotlin)
 
-`make test-mobile` — unit tests for pure logic (dates, input formatting) and
-component tests with `@testing-library/react-native`: a component renders in
-a lightweight in-process tree and assertions check its behavior (labels,
-tiers, visibility). `className` is inert under jest, so styling is never
-asserted — visual/runtime-vs-native behavior is what device testing would
-cover, and is deferred.
+`make test-mobile` — Kotlin unit tests via Gradle across all mobile modules:
+
+| Module | What it covers |
+|---|---|
+| `:domain` | Auth core against MockWebServer (login/session persistence, refresh token swap, error-envelope parsing, logout incl. unreachable backend) and the calendar-week logic port |
+| `:core:i18n` | en/es message-asset key-set parity + anchor strings |
 
 | Command | What it does |
 |---|---|
-| `make test-mobile` | `npm run test -w apps/mobile` |
+| `make test-mobile` | `cd apps/mobile && ./gradlew test` (all modules) |
+| `./gradlew :app:assembleDebug` | compile gate for the whole app |
 
-- Config: `apps/mobile/jest.config.js` (preset `jest-expo`, `@shared/*` mapped to source); `apps/mobile/jest.setup.js` stubs `react-native-svg` and `lucide-react-native` (native/ESM modules with no jest bridge; icons are not under test).
-- `babel.config.js` compiles jest runs with the plain react JSX runtime (`api.caller` detection) instead of NativeWind's interop runtime — the interop transform rewrites every `createElement` and breaks jest mock factories. Consequence: `className` is inert under jest, so unit tests assert behaviour, not styling.
-- Current coverage: `StreakBadge` (tiers, zero/hide), input formatting + date round-trips (local thousands/date-input utilities, incl. `@shared/utils/format`), calendar week logic.
-- Conventions: import test globals from `@jest/globals` (explicit imports); `render` is **async** in RNTL v14 — always `await render(...)` before querying via `screen`.
+Conventions: JUnit4, MockWebServer for transport-level tests, kotlinx-coroutines-test
+`runTest` for suspend flows. The AuthRepository refresh path mirrors the OkHttp
+`SessionAuthenticator` (single-flight refresh, retry-once, force-logout events).
 
-Device E2E (Maestro) is deferred; when it exists it will be `make test-mobile-e2e`.
+Compose UI instrumentation tests and on-device Maestro E2E are deferred
+(see `plan.md` Phase 6 gate); behavior parity is verified against the
+per-screen QA checklist ported from the RN app.
 
 ## CI
 
 PR CI is dependency-aware: each workflow's `paths:` filter triggers only the suites that could be affected.
 
 - `frontend-ci.yml` → prettier, `npm test` (vitest), **coverage report (artifact + job summary)**, `tsc --noEmit`, and the **`e2e` job** (Playwright essential suite on the full-stack container lane). Triggers on `frontend/**` + `packages/shared/**`.
-- `mobile-ci.yml` → type-check, `npm test` (jest-expo), shared package tests (vitest), expo export. Triggers on `apps/mobile/**` + `packages/shared/**` — so a shared-package change exercises both JS consumers.
+- `mobile-ci.yml` → Kotlin `assembleDebug` + unit tests across all mobile Gradle modules. Triggers on `apps/mobile/**` only (the mobile app does not consume `packages/shared`).
 - `backend-ci.yml` → golangci-lint, integration suite **with coverage** against the compose test DBs (summary + artifact), **essential E2E suite** (build tag `e2e`), and the **`api-perf-smoke` job** (k6 `smoke.js` against the load-test stack's API; thresholds fail the PR). Triggers on `backend/**`, the compose/nginx/scripts files, `Makefile` — including the Makefile's test-target names.
 - `nightly-loadtest.yml` → full k6 suite on a daily cron (`0 3 * * *`) + manual dispatch (`REMOTE_WRITE=0`, reports artifact). Heavy lanes are nightly-only; PRs get the smoke lane only.
 - `release.yml` / `pr-title.yml` unchanged (release-please + Conventional Commits enforcement).

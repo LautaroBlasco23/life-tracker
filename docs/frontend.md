@@ -47,7 +47,7 @@ Developed initially with Vercel V0. Built with Next.js and TypeScript.
   - Overnight events: an explicit "ends the next day" toggle lets an event
     end past midnight (the end time is never reinterpreted); the 24-hour
     limit still applies.
-  - Mobile parity: the Expo app has the same two tabs (records / calendar);
+  - Mobile parity: the Kotlin app has the same records/calendar split;
     the calendar shows a day picker + single-day agenda with the same form
     (category, repeat, scope) reusing the shared calendar service.
 

@@ -1,14 +1,16 @@
 # AGENTS.md — Life Tracker
 
-Monorepo for a personal life-tracking app: web frontend, Android (Expo) mobile
-app, Go backend API, shared packages, and deployment.
+Monorepo for a personal life-tracking app: web frontend, native Android
+(Kotlin/Compose) mobile app, Go backend API, shared packages, and deployment.
 
 ## Repository layout
 
 - `frontend/` — Next.js (App Router) web app: Tailwind v4 + shadcn/ui, Prettier.
   Feature folders under `app/<feature>/` (`components/`, `modal(s)/`, `hooks/`, `views/`).
-- `apps/mobile/` — Expo / React Native Android app (expo-router, NativeWind v4).
-  `app/` routes, `components/ui/` primitives, `components/<feature>/` folders.
+- `apps/mobile/` — native Android app (Kotlin, Jetpack Compose, Gradle multi-module:
+  `android-app/:app` + `core/*` + `domain` + `feature/*`). Retrofit/OkHttp API layer,
+  refresh-on-401 authenticator, EncryptedSharedPreferences tokens, DataStore settings,
+  Warm-Minimalism tokens in `core/designsystem` (mirror of shared theme-colors).
 - `backend/` — Go API (Gin + GORM + MongoDB, JWT). Domain-driven:
   `internal/domain/<name>/{controller,service,repository,model,dto,routes}`.
   Has its own `CLAUDE.md` — read it for backend work.
@@ -28,13 +30,14 @@ app, Go backend API, shared packages, and deployment.
 
 ## Workspaces & package manager
 
-- npm workspaces include **only** `apps/mobile` + `packages/shared`.
+- npm workspaces include **only** `packages/shared` (the web app's consumer);
+  `apps/mobile` is a Gradle project with no npm presence.
 - `frontend/` is deliberately outside the workspaces (self-contained for
   CI/Docker): run `npm install` separately inside `frontend/`. Ignore the stray
   `pnpm-lock.yaml` there.
-- Both platforms consume shared code via the `@shared/*` alias: web through
-  tsconfig paths; mobile through the workspace-aware `metro.config.js` (don't
-  simplify it — Metro breaks without `watchFolders` on the repo root).
+- Web consumes shared code via the tsconfig `@shared/*` alias over the
+  whole repo; the Kotlin mobile app does NOT consume packages/shared —
+  its logic lives in `apps/mobile/domain` (backend DTOs are the contract).
 
 ## Before starting
 

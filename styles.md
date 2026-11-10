@@ -11,12 +11,12 @@ rules apply.
 
 | | Web (`frontend/`) | Mobile (`apps/mobile/`) |
 |---|---|---|
-| Styling | Tailwind CSS **v4** | NativeWind 4 (Tailwind **v3** preset) |
+| Styling | Tailwind CSS **v4** | Compose (tokens mirrored from shared theme-colors) |
 | UI primitives | shadcn/ui → `frontend/components/ui/` | Hand-rolled → `apps/mobile/components/ui/` |
 | Colors defined in | `frontend/app/globals.css` (hex CSS vars, exact parity with `theme-colors.ts`) | `apps/mobile/tailwind.config.js` (hex, paired light + `dark-*` tokens) |
 | Dark mode | `.dark` class + `@custom-variant dark` | `dark:` variants of paired `dark-*` tokens |
 | Theme switching | `ThemeContext` (`frontend/contexts/theme-context.tsx`): class toggle, `system`/`light`/`dark` preference in `localStorage('theme')` | `ThemeProvider` drives `Appearance.setColorScheme` (`'unspecified'` = follow OS) |
-| Icon library | Lucide React | Lucide React Native |
+| Icon library | Lucide React | Material icons (lucide equivalents) |
 | `cn()` helper | `@/lib/utils` | `apps/mobile/lib/cn` |
 
 **Single source of truth for the palette:** [`packages/shared/src/lib/theme-colors.ts`](packages/shared/src/lib/theme-colors.ts). Both platforms derive their tokens from it. Never invent a color not present there.
