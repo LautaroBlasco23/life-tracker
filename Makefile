@@ -540,10 +540,11 @@ deploy-frontend: frontend-up
 #
 # The Gradle project under apps/mobile is fully committed (no prebuild).
 
-# Emulator acceleration: `on` uses /dev/kvm. On hosts where KVM segfaults the
-# emulator (this Fedora box: "process_memory_range" core dump regardless of
-# RAM size), run with ACCEL=off — TCG software emulation (slow boot ~5-10 min,
-# the boot window below extends automatically).
+# Both recipes pass `-gpu host`: the emulator's BUNDLED SwiftShader GLES
+# library segfaults on modern Fedora libs (glibc 2.43/mesa 26 — core dump in
+# `process_memory_range`) — the host GL stack via `-gpu host` is stable, with
+# or without KVM. ACCEL=off therefore is no longer needed; kept as an escape
+# hatch (TCG software CPU, slower boot → auto-extended BOOT_WAIT).
 ACCEL ?= on
 BOOT_WAIT ?= $(if $(filter off,$(ACCEL)),240,120)
 
@@ -594,7 +595,7 @@ mobile:
 		fi; \
 		[ -n "$$avd" ] || { echo "✗ no AVDs found — create one (Android Studio Device Manager or avdmanager)"; exit 1; }; \
 		echo "==> no device attached — starting AVD $$avd"; \
-		nohup "$(EMU)" $(if $(filter off,$(ACCEL)),-accel off) -avd "$$avd" >/dev/null 2>&1 & \
+		nohup "$(EMU)" -gpu host $(if $(filter off,$(ACCEL)),-accel off) -avd "$$avd" >/dev/null 2>&1 & \
 	fi; \
 	echo "==> waiting for emulator boot"; \
 	[ "$(ACCEL)" = off ] && echo "ACCEL=off — TCG boot can take ~5-10 min, be patient"; \
@@ -723,7 +724,7 @@ e2e-mobile:
 	fi
 	@if [ "$$($(E2E_ADB) get-state 2>/dev/null)" != "device" ]; then \
 		echo "==> no device attached — starting AVD $(E2E_AVD)"; \
-		nohup "$(E2E_EMU)" $(if $(filter off,$(ACCEL)),-accel off) -avd $(E2E_AVD) >/dev/null 2>&1 & \
+		nohup "$(E2E_EMU)" -gpu host $(if $(filter off,$(ACCEL)),-accel off) -avd $(E2E_AVD) >/dev/null 2>&1 & \
 	fi; \
 	ok=0; for i in $$(seq 1 $(BOOT_WAIT)); do \
 		[ "$$($(E2E_ADB) shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ] && ok=1 && break; \

@@ -17,7 +17,10 @@ import okhttp3.Route
  */
 class SessionAuthenticator(
     private val tokens: TokenProvider,
-    private val refresher: TokenRefresher,
+    /** Resolved LAZILY at 401-time: `TokenRefresher` -> AuthRepository -> AuthApi
+     *  -> Retrofit, so eager resolution here would be a DI cycle (observed live
+     *  as a StackOverflowError at app start). */
+    private val refresher: javax.inject.Provider<TokenRefresher>,
     private val onSessionInvalid: () -> Unit,
 ) : Authenticator {
 
@@ -58,7 +61,7 @@ class SessionAuthenticator(
         val current = tokens.accessToken()
         if (current != null && current != failedToken) return current
         val startRefresh = tokens.refreshToken()
-        if (startRefresh == null || !refresher.refreshBlocking(startRefresh)) {
+        if (startRefresh == null || !refresher.get().refreshBlocking(startRefresh)) {
             invalidateSession()
             return null
         }

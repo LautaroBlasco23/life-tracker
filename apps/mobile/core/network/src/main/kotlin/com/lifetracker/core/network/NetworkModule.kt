@@ -49,7 +49,7 @@ object NetworkModule {
     @Provides
     @Singleton
     fun authenticator(tokens: TokenProvider, refresher: Provider<TokenRefresher>, events: SessionEvents): SessionAuthenticator =
-        SessionAuthenticator(tokens, refresher.get()) { events.fire() }
+        SessionAuthenticator(tokens, refresher) { events.fire() }
 
     @Provides
     @Named("bootstrap")
@@ -68,7 +68,7 @@ object NetworkModule {
     ): OkHttpClient = OkHttpClient.Builder()
         .addInterceptor(DynamicUrlInterceptor(settings))
         .addInterceptor(AuthInterceptor(tokens))
-        .authenticator(SessionAuthenticator(tokens, refresher.get()) { events.fire() })
+        .authenticator(SessionAuthenticator(tokens, refresher) { events.fire() })
         .build()
 
     @Provides
