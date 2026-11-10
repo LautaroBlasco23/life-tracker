@@ -16,9 +16,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.WarningAmber
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,10 +37,12 @@ import androidx.compose.ui.window.DialogProperties
 import com.lifetracker.core.i18n.I18n
 
 /**
- * Port of the RN modal surfaces (`filter-modal.tsx` / `delete-modal.tsx`
- * container): centered dim dialog, rounded-2xl (16px) background sheet,
- * header title + close button, live `ColumnScope` content.
+ * Modal form surface: M3 bottom sheet (rounded-16dp top corners, background
+ * color) with a header row — title + close button — and live `ColumnScope`
+ * content. Sheets are swipe-to-dismiss and keep form flows at the thumb.
+ * Confirmation-style dialogs stay centered (`LbDeleteConfirm`).
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LbModalSheet(
     visible: Boolean,
@@ -47,17 +52,19 @@ fun LbModalSheet(
 ) {
     if (!visible) return
     val colors = LocalAppColors.current
-    Dialog(
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
+        sheetState = sheetState,
+        containerColor = colors.background,
+        // Header row already carries the close affordance; no drag handle.
+        dragHandle = null,
+        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
     ) {
         Column(
             modifier = Modifier
-                .padding(horizontal = 24.dp)
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(colors.background)
-                .padding(20.dp),
+                .padding(start = 20.dp, end = 20.dp, bottom = 24.dp),
         ) {
             Row(
                 modifier = Modifier.padding(bottom = 16.dp),

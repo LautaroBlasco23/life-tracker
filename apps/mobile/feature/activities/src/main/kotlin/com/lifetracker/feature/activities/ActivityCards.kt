@@ -103,7 +103,7 @@ internal fun ActivityCard(
             .fillMaxWidth()
             .alpha(if (isProcessing) 0.6f else 1f)
             .clip(shape)
-            .background(colors.surface)
+            .background(if (done) colors.success.copy(alpha = 0.08f) else colors.surface)
             .border(
                 1.dp,
                 if (done) colors.success.copy(alpha = 0.6f) else colors.border,

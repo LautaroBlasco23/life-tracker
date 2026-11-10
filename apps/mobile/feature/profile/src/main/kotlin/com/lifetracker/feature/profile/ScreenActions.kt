@@ -14,6 +14,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -127,7 +130,7 @@ private fun displayNameOf(context: Context, uri: Uri): String =
             ?.use { cursor -> if (cursor.moveToFirst()) cursor.getString(0) else null }
     }.getOrNull() ?: DEFAULT_BACKUP_FILENAME
 
-/** 64dp circle avatar: server image when available, initial-letter fallback (RN parity). */
+/** 64dp circle avatar: server image when available, initial/person-icon fallback (RN parity). */
 @Composable
 internal fun AvatarImage(
     url: String?,
@@ -151,7 +154,8 @@ internal fun AvatarImage(
         modifier = modifier
             .size(64.dp)
             .clip(shape)
-            .background(colors.surface),
+            // Accent fill so the placeholder is visible on white cards.
+            .background(colors.accent),
         contentAlignment = Alignment.Center,
     ) {
         val loaded = bitmap
@@ -164,12 +168,22 @@ internal fun AvatarImage(
                     .clip(shape),
             )
         } else {
-            Text(
-                firstName.firstOrNull()?.toString() ?: "?",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = initialsColor ?: colors.textMuted,
-            )
+            val initial = firstName.trim().firstOrNull()?.toString()
+            if (initial != null) {
+                Text(
+                    initial,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = initialsColor ?: colors.textMuted,
+                )
+            } else {
+                Icon(
+                    imageVector = Icons.Outlined.Person,
+                    contentDescription = "Profile picture",
+                    tint = colors.textMuted,
+                    modifier = Modifier.size(28.dp),
+                )
+            }
         }
     }
 }

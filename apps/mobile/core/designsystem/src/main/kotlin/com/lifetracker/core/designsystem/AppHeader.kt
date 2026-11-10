@@ -13,8 +13,12 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
@@ -72,21 +76,22 @@ fun AppHeader(
     var menuOpen by rememberSaveable { mutableStateOf(false) }
     val density = LocalDensity.current
     val colors = LocalAppColors.current
+    // Edge-to-edge: the header must clear the status bar (title was clipped).
+    val statusBarTopPx = WindowInsets.statusBars.getTop(density)
 
-    // Header row (56px incl. 1px bottom border).
-    Column(modifier = Modifier.height(HeaderHeight)) {
+    // Header row (56px incl. 1px bottom border) below the status bar inset.
+    Column(modifier = Modifier.background(colors.background).statusBarsPadding()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f)
-                .background(colors.background)
+                .height(HeaderHeight - 1.dp)
                 .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(44.dp)
                     .clip(RoundedCornerShape(8.dp))
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
@@ -123,12 +128,13 @@ fun AppHeader(
     if (menuOpen) {
         Popup(
             alignment = Alignment.TopStart,
-            offset = with(density) { IntOffset(0, HeaderHeight.roundToPx()) },
+            offset = IntOffset(0, statusBarTopPx + with(density) { HeaderHeight.roundToPx() }),
             onDismissRequest = { menuOpen = false },
             properties = PopupProperties(focusable = true),
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 // Dimmed scrim below the header; tap anywhere to close.
+                // Dark scrim in both modes (M3 drawer convention).
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -158,6 +164,7 @@ fun AppHeader(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .heightIn(min = 44.dp)
                                     .background(
                                         if (active) {
                                             colors.primary.copy(alpha = 0.1f)

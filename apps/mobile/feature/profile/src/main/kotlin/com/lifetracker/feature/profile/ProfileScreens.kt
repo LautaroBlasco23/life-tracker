@@ -11,7 +11,9 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -33,6 +35,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -137,10 +141,19 @@ fun ProfileScreen(onLogout: () -> Unit, onNavigate: (String) -> Unit) {
                 val themePref = ThemeController.preference
                 SettingsRow(
                     label = t("theme"),
-                    value = if (themePref == ThemePreference.DARK) t("dark") else t("light"),
+                    value = when (themePref) {
+                        ThemePreference.SYSTEM -> t("system")
+                        ThemePreference.LIGHT -> t("light")
+                        ThemePreference.DARK -> t("dark")
+                    },
+                    // Cycle SYSTEM → LIGHT → DARK (controller persists all three).
                     onClick = {
                         viewModel.setTheme(
-                            if (themePref == ThemePreference.DARK) ThemePreference.LIGHT else ThemePreference.DARK,
+                            when (themePref) {
+                                ThemePreference.SYSTEM -> ThemePreference.LIGHT
+                                ThemePreference.LIGHT -> ThemePreference.DARK
+                                ThemePreference.DARK -> ThemePreference.SYSTEM
+                            },
                         )
                     },
                 )
@@ -332,23 +345,36 @@ private fun SettingsRow(
     icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
 ) {
     val colors = LocalAppColors.current
-    Column(
+    Row(
         Modifier
             .fillMaxWidth()
+            .heightIn(min = 48.dp)
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp)
-            .background(MaterialTheme.colorScheme.background),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            icon?.let {
-                Icon(it, null, tint = colors.textMuted, modifier = Modifier.height(18.dp))
-                Spacer(Modifier.width(8.dp))
-            }
-            Text(label, Modifier.weight(1f), fontSize = 14.sp, color = colors.foreground)
-            Spacer(Modifier.width(8.dp))
-            Text(value, fontSize = 14.sp, color = colors.textMuted)
+        icon?.let {
+            Icon(it, null, tint = colors.textMuted, modifier = Modifier.size(20.dp))
+        }
+        Text(label, fontSize = 14.sp, color = colors.foreground)
+        // Trailing group takes all remaining space; long values (API URLs)
+        // ellipsize instead of pushing the row wide.
+        Row(
+            Modifier.weight(1f),
+            horizontalArrangement = Arrangement.End,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                value,
+                fontSize = 14.sp,
+                color = colors.textMuted,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.End,
+            )
             Spacer(Modifier.width(4.dp))
-            Icon(Icons.Outlined.ChevronRight, null, tint = colors.textMuted, modifier = Modifier.height(18.dp))
+            Icon(Icons.Outlined.ChevronRight, null, tint = colors.textMuted, modifier = Modifier.size(20.dp))
         }
     }
 }
