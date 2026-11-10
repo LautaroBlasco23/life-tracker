@@ -40,7 +40,6 @@ import com.lifetracker.core.designsystem.ToastState
 import com.lifetracker.core.i18n.I18n
 import com.lifetracker.core.network.model.CreateActivityRequest
 import com.lifetracker.core.network.model.PrivacyStatus
-import com.lifetracker.core.network.model.RoutineStatus
 import com.lifetracker.domain.lib.activities.ACTIVITY_TEMPLATES
 import com.lifetracker.domain.lib.activities.ROUTINE_TEMPLATES
 import com.lifetracker.domain.lib.activities.TEMPLATE_CATEGORIES_BY_KIND
@@ -272,7 +271,6 @@ internal fun TemplatesModal(
                                     title = I18n.t("activityTemplates.template_${template.key}"),
                                     description = "",
                                     privacy = PrivacyStatus.PRIVATE,
-                                    status = RoutineStatus.ACTIVE,
                                     selected = picks,
                                 )
                                 if (routineResult.isSuccess) created += 1 else failed += 1

@@ -19,14 +19,6 @@ const (
 	PrivacyPrivate PrivacyStatus = "private"
 )
 
-type RoutineStatus string
-
-const (
-	StatusDraft   RoutineStatus = "draft"
-	StatusActive  RoutineStatus = "active"
-	StatusStopped RoutineStatus = "stopped"
-)
-
 func (p *PrivacyStatus) Scan(value interface{}) error {
 	str, ok := value.(string)
 	if !ok {
@@ -47,7 +39,6 @@ type Routine struct {
 	Title         string                `json:"title" gorm:"not null;size:255"`
 	Description   string                `json:"description" gorm:"type:text"`
 	PrivacyStatus PrivacyStatus         `json:"privacyStatus" gorm:"not null;default:'private';size:20"`
-	Status        RoutineStatus         `json:"status" gorm:"not null;default:'active';size:20"`
 	DayTime       activityModel.DayTime `json:"dayTime" gorm:"not null;default:'notSpecified';size:20"`
 	DayFrequency  string                `json:"dayFrequency,omitempty" gorm:"type:text"`
 	ID            uint                  `json:"id" gorm:"primaryKey"`
@@ -69,7 +60,6 @@ func (r *Routine) ToResponse(activities []dto.RoutineActivityItem) *dto.RoutineR
 		Title:         r.Title,
 		Description:   r.Description,
 		PrivacyStatus: string(r.PrivacyStatus),
-		Status:        string(r.Status),
 		DayTime:       string(r.DayTime),
 		DayFrequency:  r.DayFrequency,
 		Activities:    activities,

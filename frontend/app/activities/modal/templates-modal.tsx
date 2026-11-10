@@ -147,7 +147,6 @@ export function TemplatesModal({
       title: t(`template_${template.key}`),
       description: '',
       privacyStatus: 'private',
-      status: 'active',
       activityIds: activityIds.map((activityId, position) => ({
         activityId,
         position,

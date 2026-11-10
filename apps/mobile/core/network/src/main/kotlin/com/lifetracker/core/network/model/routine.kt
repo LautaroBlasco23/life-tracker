@@ -11,14 +11,12 @@ data class ActivityIDPosition(
 
 /**
  * Request body of `POST /routines` — `activityIds` is required with ≥ 1 item.
- * `status` defaults server-side when omitted.
  */
 @Serializable
 data class CreateRoutineRequest(
     val title: String,
     val description: String,
     val privacyStatus: PrivacyStatus,
-    val status: RoutineStatus? = null,
     val dayTime: DayTime? = null,
     /**
      * JSON-encoded day-name array as a **string** — same encoding as
@@ -37,7 +35,6 @@ data class UpdateRoutineRequest(
     val title: String? = null,
     val description: String? = null,
     val privacyStatus: PrivacyStatus? = null,
-    val status: RoutineStatus? = null,
     val dayTime: DayTime? = null,
     /** JSON-encoded day-name array as a string (see above). */
     val dayFrequency: String? = null,
@@ -79,7 +76,6 @@ data class RoutineResponse(
     val title: String,
     val description: String,
     val privacyStatus: String,
-    val status: String,
     val dayTime: String,
     /** JSON-encoded day-name array as a string; `omitempty` — absent when empty. */
     val dayFrequency: String? = null,

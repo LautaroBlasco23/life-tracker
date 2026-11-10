@@ -57,16 +57,13 @@ import com.lifetracker.core.designsystem.ToastState
 import com.lifetracker.core.i18n.I18n
 import com.lifetracker.core.network.model.PrivacyStatus
 import com.lifetracker.core.network.model.RoutineResponse
-import com.lifetracker.core.network.model.RoutineStatus
 import kotlinx.coroutines.launch
 
 /**
  * Port of `components/activity/routines-modal.tsx`: list view (search +
- * status chips + cards), detail view (back, badges, start/stop, edit/delete,
- * activities by position with today's `n/m`) and the routine form modal.
+ * cards), detail view (back, badges, edit/delete, activities by position
+ * with today's `n/m`) and the routine form modal.
  */
-
-private val ROUTINE_STATUS_OPTIONS = listOf("draft", "active", "stopped")
 
 @Composable
 internal fun RoutinesModal(
@@ -81,7 +78,6 @@ internal fun RoutinesModal(
 
     var selectedRoutineId by rememberSaveable { mutableStateOf<Long?>(null) }
     var search by rememberSaveable { mutableStateOf("") }
-    var statusFilter by rememberSaveable { mutableStateOf("all") }
     var showForm by rememberSaveable { mutableStateOf(false) }
     var editing by rememberSaveable { mutableStateOf<RoutineResponse?>(null) }
     var deleting by rememberSaveable { mutableStateOf<RoutineResponse?>(null) }
@@ -90,7 +86,6 @@ internal fun RoutinesModal(
         if (visible) {
             selectedRoutineId = null
             search = ""
-            statusFilter = "all"
             viewModel.loadRoutines().fold(
                 onSuccess = { },
                 onFailure = { toast.show(I18n.t("routines.failedToLoad"), isError = true) },
@@ -102,7 +97,6 @@ internal fun RoutinesModal(
     val selectedRoutine = routineList.firstOrNull { it.id == selectedRoutineId }
 
     val filtered = routineList.filter { routine ->
-        if (statusFilter != "all" && routine.status != statusFilter) return@filter false
         val query = search.trim().lowercase()
         if (query.isNotEmpty()) {
             val haystack = "${routine.title} ${routine.description}".lowercase()
@@ -115,16 +109,7 @@ internal fun RoutinesModal(
         if (selectedRoutine != null) {
             RoutineDetailView(
                 routine = selectedRoutine,
-                updatingStatus = state.updatingStatus,
                 onBack = { selectedRoutineId = null },
-                onToggleStatus = { to ->
-                    scope.launch {
-                        viewModel.setStatus(selectedRoutine, to).fold(
-                            onSuccess = { },
-                            onFailure = { toast.show(I18n.t("routines.updateFailed"), isError = true) },
-                        )
-                    }
-                },
                 onEdit = { editing = selectedRoutine; showForm = true },
                 onDelete = { deleting = selectedRoutine },
             )
@@ -166,21 +151,6 @@ internal fun RoutinesModal(
                                 .height(40.dp)
                                 .padding(start = 8.dp),
                         )
-                    }
-
-                    // Status chips
-                    ChipRow(modifier = Modifier.padding(top = 10.dp, bottom = 10.dp)) {
-                        (listOf("all") + ROUTINE_STATUS_OPTIONS).forEach { value ->
-                            LbSmallChip(
-                                text = if (value == "all") {
-                                    I18n.t("routines.allStatuses")
-                                } else {
-                                    I18n.t("routines.status_$value")
-                                },
-                                selected = statusFilter == value,
-                                onClick = { statusFilter = value },
-                            )
-                        }
                     }
 
                     if (state.isLoading) {
@@ -314,7 +284,6 @@ private fun RoutineListCard(routine: RoutineResponse, onClick: () -> Unit) {
                         .size(16.dp),
                 )
             }
-            RoutineStatusBadge(status = routine.status, modifier = Modifier.padding(start = 6.dp))
         }
         Text(
             text = I18n.t("routines.activityCount", "count" to (routine.activities?.size ?: 0)),
@@ -326,32 +295,13 @@ private fun RoutineListCard(routine: RoutineResponse, onClick: () -> Unit) {
 }
 
 @Composable
-internal fun RoutineStatusBadge(status: String, modifier: Modifier = Modifier) {
-    val colors = LocalAppColors.current
-    val shape = RoundedCornerShape(6.dp)
-    Text(
-        text = I18n.t("routines.status_$status"),
-        fontSize = 12.sp,
-        color = colors.textMuted,
-        modifier = modifier
-            .alpha(if (status == "stopped") 0.8f else 1f)
-            .clip(shape)
-            .border(1.dp, colors.border, shape)
-            .padding(horizontal = 6.dp, vertical = 2.dp),
-    )
-}
-
-@Composable
 private fun RoutineDetailView(
     routine: RoutineResponse,
-    updatingStatus: Boolean,
     onBack: () -> Unit,
-    onToggleStatus: (RoutineStatus) -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
     val colors = LocalAppColors.current
-    val status = routine.status.ifEmpty { "active" }
 
     Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(
@@ -397,7 +347,6 @@ private fun RoutineDetailView(
                     modifier = Modifier.size(16.dp),
                 )
             }
-            RoutineStatusBadge(status = status)
             Text(
                 text = I18n.t("privacy.${routine.privacyStatus}"),
                 fontSize = 12.sp,
@@ -416,20 +365,6 @@ private fun RoutineDetailView(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.padding(top = 6.dp),
         ) {
-            if (status == "active") {
-                LbButton(
-                    text = I18n.t("routines.stop"),
-                    onClick = { onToggleStatus(RoutineStatus.STOPPED) },
-                    variant = LbButtonVariant.SECONDARY,
-                    enabled = !updatingStatus,
-                )
-            } else {
-                LbButton(
-                    text = I18n.t("routines.start"),
-                    onClick = { onToggleStatus(RoutineStatus.ACTIVE) },
-                    enabled = !updatingStatus,
-                )
-            }
             Icon(
                 imageVector = Icons.Outlined.Edit,
                 contentDescription = I18n.t("common.edit"),
@@ -570,7 +505,6 @@ private fun RoutineFormModal(
     var title by rememberSaveable { mutableStateOf("") }
     var description by rememberSaveable { mutableStateOf("") }
     var privacy by rememberSaveable { mutableStateOf("private") }
-    var status by rememberSaveable { mutableStateOf("active") }
     var selected by rememberSaveable { mutableStateOf(emptyList<RoutineActivityPick>()) }
     var isSaving by rememberSaveable { mutableStateOf(false) }
 
@@ -579,7 +513,6 @@ private fun RoutineFormModal(
         title = routine?.title ?: ""
         description = routine?.description ?: ""
         privacy = routine?.privacyStatus?.ifEmpty { "private" } ?: "private"
-        status = routine?.status?.ifEmpty { "active" } ?: "active"
         selected = (routine?.activities ?: emptyList())
             .sortedBy { it.position }
             .map { RoutineActivityPick(it.activityId, it.activityTitle) }
@@ -625,14 +558,12 @@ private fun RoutineFormModal(
                     title = title.trim(),
                     description = description.trim(),
                     privacy = PrivacyStatus.valueOf(privacy.uppercase()),
-                    status = RoutineStatus.valueOf(status.uppercase()),
                     selected = selected,
                 )
             } ?: viewModel.createRoutine(
                 title = title.trim(),
                 description = description.trim(),
                 privacy = PrivacyStatus.valueOf(privacy.uppercase()),
-                status = RoutineStatus.valueOf(status.uppercase()),
                 selected = selected,
             )
             isSaving = false
@@ -681,14 +612,6 @@ private fun RoutineFormModal(
                 onValueChange = { description = it },
                 label = I18n.t("routines.descriptionLabel"),
                 placeholder = I18n.t("routines.descriptionPlaceholder"),
-            )
-            LbOptionSelect(
-                label = I18n.t("routines.statusLabel"),
-                options = ROUTINE_STATUS_OPTIONS.map { s ->
-                    LbSelectOption(value = s, label = I18n.t("routines.status_$s"))
-                },
-                selected = status,
-                onSelect = { status = it },
             )
             LbOptionSelect(
                 label = I18n.t("privacy.privacyStatus"),
