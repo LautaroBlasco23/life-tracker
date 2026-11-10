@@ -63,6 +63,7 @@ import com.lifetracker.core.network.model.ActivityResponse
 import com.lifetracker.core.network.model.ReminderResponse
 import com.lifetracker.core.network.model.StreakInfo
 import com.lifetracker.core.i18n.I18n
+import com.lifetracker.domain.lib.time.formatShortDate
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import kotlinx.coroutines.launch
@@ -131,17 +132,6 @@ fun ActivitiesScreen(onNavigate: (String) -> Unit = {}) {
                 items = activitiesNavItems,
                 currentKey = "activities",
                 onNavigate = onNavigate,
-                actions = {
-                    // RN header right side: avatar → /profile (theme toggle is app-level).
-                    Icon(
-                        imageVector = Icons.Outlined.AccountCircle,
-                        contentDescription = I18n.t("nav.profile"),
-                        tint = colors.primary,
-                        modifier = Modifier
-                            .size(24.dp)
-                            .clickable { onNavigate("profile") },
-                    )
-                },
             )
 
             if (state.isLoading) {
@@ -335,7 +325,10 @@ fun ActivitiesScreen(onNavigate: (String) -> Unit = {}) {
                                             if (activity.isCompletedToday) {
                                                 toast.show(
                                                     I18n.t("activities.activityComplete") + "\n" +
-                                                        I18n.t("activities.activityAlreadyCompleted"),
+                                                        tf(
+                                                            "activities.activityAlreadyCompleted",
+                                                            "date" to formatShortDate(now),
+                                                        ),
                                                 )
                                                 return@launch
                                             }
@@ -344,7 +337,10 @@ fun ActivitiesScreen(onNavigate: (String) -> Unit = {}) {
                                                 onFailure = {
                                                     toast.show(
                                                         I18n.t("common.error") + "\n" +
-                                                            I18n.t("activities.activityAlreadyCompleted"),
+                                                            tf(
+                                                                "activities.activityAlreadyCompleted",
+                                                                "date" to formatShortDate(now),
+                                                            ),
                                                         isError = true,
                                                     )
                                                 },

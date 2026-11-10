@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -21,6 +20,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material3.HorizontalDivider
@@ -60,10 +60,12 @@ data class NavEntry(val key: String, val label: String, val icon: ImageVector)
 private val HeaderHeight = 56.dp
 
 /**
- * Header layout: hamburger left, title centered, `actions` right. The
+ * Header layout: hamburger left, title centered, profile avatar right. The
  * hamburger toggles a full-height dimmed scrim + slide-down panel right below
  * the header; the entry matching `currentKey` is highlighted (primary tint).
- * Provide [items] with already-translated labels (RN resolved them via i18n).
+ * The profile action is always present so navigation to the profile works
+ * from every screen. Provide [items] with already-translated labels (RN
+ * resolved them via i18n).
  */
 @Composable
 fun AppHeader(
@@ -71,7 +73,6 @@ fun AppHeader(
     items: List<NavEntry>,
     currentKey: String?,
     onNavigate: (String) -> Unit,
-    actions: @Composable RowScope.() -> Unit = {},
 ) {
     var menuOpen by rememberSaveable { mutableStateOf(false) }
     val density = LocalDensity.current
@@ -116,11 +117,25 @@ fun AppHeader(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                content = actions,
-            )
+            // Profile entry point on every screen (RN header right side).
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = { onNavigate("profile") },
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.AccountCircle,
+                    contentDescription = I18n.t("nav.profile"),
+                    tint = colors.primary,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
         }
         HorizontalDivider(thickness = 1.dp, color = colors.border)
     }

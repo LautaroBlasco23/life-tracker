@@ -43,16 +43,15 @@ fun LbStreakBadge(
     val isOnFire = current >= 30
 
     // Calm, token-driven tiers (styles.md): amber intensity grows; no gradients.
+    // Cold tier (< 3): tinted amber background with warning ink — ink and
+    // background must never share a token (text was invisible at textMuted).
     val background = when {
         isOnFire -> colors.secondary
-        isHot -> colors.secondary.copy(alpha = 0.15f)
-        isWarm -> colors.secondary.copy(alpha = 0.10f)
-        else -> colors.textMuted
+        else -> colors.secondary.copy(alpha = if (isHot) 0.15f else 0.10f)
     }
     val ink = when {
         isOnFire -> colors.secondaryForeground
-        isWarm || isHot -> colors.warning
-        else -> colors.textMuted
+        else -> colors.warning
     }
     Row(
         modifier = modifier
