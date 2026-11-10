@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -704,7 +705,7 @@ private fun RoutineFormModal(
                 I18n.t("routines.orderHint"),
                 fontSize = 12.sp,
                 color = colors.textMuted,
-                modifier = Modifier.padding(top = (-4).dp),
+                modifier = Modifier.offset(y = (-4).dp),
             )
             if (selected.isEmpty()) {
                 Text(
