@@ -42,8 +42,16 @@ object I18n {
         _current = language
     }
 
-    /** Dot-path lookup, e.g. `t("common.cancel")`; returns the raw key when missing. */
-    fun t(key: String): String = strings[key] ?: key
+    /**
+     * Dot-path lookup, e.g. `t("common.cancel")`; returns the raw key when
+     * missing. `{name}` placeholders interpolate from `params`
+     * (`t("x.forDate", "date" to today)`); missing params render as empty.
+     */
+    fun t(key: String, vararg params: Pair<String, Any?>): String {
+        var text = strings[key] ?: key
+        params.forEach { (name, value) -> text = text.replace("{$name}", value?.toString() ?: "") }
+        return text
+    }
 
     private fun load(context: Context, language: Language): Map<String, String> {
         val raw = context.assets.open("messages/${language.code}.json").bufferedReader().use { it.readText() }

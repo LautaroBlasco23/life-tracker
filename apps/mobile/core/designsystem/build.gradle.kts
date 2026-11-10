@@ -28,6 +28,8 @@ dependencies {
     implementation(project(":core:network"))
     // `I18n.t` for intrinsic fallback labels (e.g. option-select "Cancel").
     implementation(project(":core:i18n"))
+
+    testImplementation(libs.junit)
 }
 
 

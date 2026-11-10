@@ -141,7 +141,7 @@ internal fun ReminderCard(
             if (isCompleted) {
                 Icon(
                     imageVector = Icons.Outlined.Undo,
-                    contentDescription = tf("reminders.revertCompletion"),
+                    contentDescription = I18n.t("reminders.revertCompletion"),
                     tint = colors.textMuted,
                     modifier = Modifier
                         .size(18.dp)
@@ -171,17 +171,17 @@ private fun StatusBadges(reminder: ReminderResponse, status: ReminderStatus) {
 
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         if (status == ReminderStatus.MISSED && dueDate != null) {
-            LbChip(text = tf("reminders.statusMissed") + " · " + tf("reminders.expired", "date" to formatDateTime(dueDate)))
+            LbChip(text = I18n.t("reminders.statusMissed") + " · " + I18n.t("reminders.expired", "date" to formatDateTime(dueDate)))
         }
         if (status == ReminderStatus.LOCKED) {
             val opensText = reminder.activeFrom
                 ?.let { parseJsDate(it) }
-                ?.let { " · " + tf("reminders.opensAt", "date" to formatDateTime(it)) }
+                ?.let { " · " + I18n.t("reminders.opensAt", "date" to formatDateTime(it)) }
                 ?: ""
-            LbChip(text = tf("reminders.statusLocked") + opensText)
+            LbChip(text = I18n.t("reminders.statusLocked") + opensText)
         }
         if (status == ReminderStatus.ACTIVE && dueDate != null) {
-            LbChip(text = tf("reminders.dueBy", "date" to formatDateTime(dueDate)))
+            LbChip(text = I18n.t("reminders.dueBy", "date" to formatDateTime(dueDate)))
         }
         if (status == ReminderStatus.COMPLETED) {
             val completed = reminder.completedAt?.let { parseJsDate(it) }
@@ -218,9 +218,9 @@ private fun CountdownLine(reminder: ReminderResponse, status: ReminderStatus, no
         )
         Text(
             text = if (status == ReminderStatus.LOCKED) {
-                tf("reminders.opensAt", "date" to formatDateTime(target))
+                I18n.t("reminders.opensAt", "date" to formatDateTime(target))
             } else {
-                tf("reminders.dueBy", "date" to formatDateTime(target))
+                I18n.t("reminders.dueBy", "date" to formatDateTime(target))
             },
             fontSize = 14.sp,
             color = colors.textMuted,

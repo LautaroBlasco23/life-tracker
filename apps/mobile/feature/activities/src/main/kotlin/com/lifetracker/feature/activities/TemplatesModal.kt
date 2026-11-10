@@ -144,7 +144,7 @@ internal fun TemplatesModal(
             modifier = Modifier.padding(top = 12.dp),
         ) {
             Text(
-                text = tf("activityTemplates.selectedCount", "count" to selectedCount),
+                text = I18n.t("activityTemplates.selectedCount", "count" to selectedCount),
                 fontSize = 14.sp,
                 color = colors.textMuted,
                 modifier = Modifier.weight(1f),
@@ -153,7 +153,7 @@ internal fun TemplatesModal(
                 text = if (isCreating) {
                     I18n.t("activityTemplates.creating")
                 } else {
-                    tf("activityTemplates.createSelected", "count" to selectedCount)
+                    I18n.t("activityTemplates.createSelected", "count" to selectedCount)
                 },
                 onClick = {
                     val selected = ACTIVITY_TEMPLATES.filter { it.key in selectedKeys }
@@ -187,13 +187,13 @@ internal fun TemplatesModal(
                         if (created > 0) {
                             toast.show(
                                 I18n.t("activityTemplates.created") + "\n" +
-                                    tf("activityTemplates.createdDescription", "count" to created),
+                                    I18n.t("activityTemplates.createdDescription", "count" to created),
                             )
                         }
                         if (failed > 0) {
                             toast.show(
                                 I18n.t("activityTemplates.partialFailure") + "\n" +
-                                    tf(
+                                    I18n.t(
                                         "activityTemplates.partialFailureDescription",
                                         "created" to created,
                                         "failed" to failed,

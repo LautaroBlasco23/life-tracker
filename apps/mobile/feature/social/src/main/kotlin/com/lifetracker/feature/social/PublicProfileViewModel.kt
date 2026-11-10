@@ -137,12 +137,12 @@ class PublicProfileViewModel @Inject constructor(
                     ?.firstOrNull { it.sourceType == sourceType && it.sourceId == sourceId }
                 if (clone != null) {
                     subscriptions.unsubscribe(clone.id)
-                        .onSuccess { emitMessage(tf("profilePublic.unsubscribedToast", "name" to username)) }
+                        .onSuccess { emitMessage(I18n.t("profilePublic.unsubscribedToast", "name" to username)) }
                         .onFailure { emitMessage(I18n.t("profilePublic.unsubscribeFailed"), isError = true) }
                 }
             } else {
                 subscriptions.subscribe(sourceType, sourceId)
-                    .onSuccess { emitMessage(tf("profilePublic.subscribedToast", "name" to username)) }
+                    .onSuccess { emitMessage(I18n.t("profilePublic.subscribedToast", "name" to username)) }
                     .onFailure { emitMessage(I18n.t("profilePublic.subscribeFailed"), isError = true) }
             }
             loadProfile(username)
@@ -154,9 +154,4 @@ class PublicProfileViewModel @Inject constructor(
     }
 
     /** `I18n.t(key)` with `{name}` interpolation (RN `t(key, { name })`). */
-    private fun tf(key: String, vararg params: Pair<String, Any>): String {
-        var text = I18n.t(key)
-        params.forEach { (name, value) -> text = text.replace("{$name}", value.toString()) }
-        return text
-    }
 }

@@ -274,7 +274,7 @@ fun ActivitiesScreen(onNavigate: (String) -> Unit = {}) {
                                                 onSuccess = {
                                                     toast.show(
                                                         I18n.t("reminders.reminderComplete") + "\n" +
-                                                            tf(
+                                                            I18n.t(
                                                                 "reminders.reminderCompletedDescription",
                                                                 "title" to reminder.title,
                                                             ),
@@ -292,7 +292,7 @@ fun ActivitiesScreen(onNavigate: (String) -> Unit = {}) {
                                                 onSuccess = {
                                                     toast.show(
                                                         I18n.t("reminders.completionReverted") + "\n" +
-                                                            tf(
+                                                            I18n.t(
                                                                 "reminders.revertDescription",
                                                                 "title" to reminder.title,
                                                             ),
@@ -325,7 +325,7 @@ fun ActivitiesScreen(onNavigate: (String) -> Unit = {}) {
                                             if (activity.isCompletedToday) {
                                                 toast.show(
                                                     I18n.t("activities.activityComplete") + "\n" +
-                                                        tf(
+                                                        I18n.t(
                                                             "activities.activityAlreadyCompleted",
                                                             "date" to formatShortDate(now),
                                                         ),
@@ -337,7 +337,7 @@ fun ActivitiesScreen(onNavigate: (String) -> Unit = {}) {
                                                 onFailure = {
                                                     toast.show(
                                                         I18n.t("common.error") + "\n" +
-                                                            tf(
+                                                            I18n.t(
                                                                 "activities.activityAlreadyCompleted",
                                                                 "date" to formatShortDate(now),
                                                             ),
@@ -428,7 +428,7 @@ fun ActivitiesScreen(onNavigate: (String) -> Unit = {}) {
                     }
                 },
                 title = I18n.t("activities.deleteActivity"),
-                message = tf("deleteModal.areYouSure", "name" to target.title),
+                message = I18n.t("deleteModal.areYouSure", "name" to target.title),
                 deleteLabel = I18n.t("common.delete"),
             )
         }
@@ -455,9 +455,9 @@ fun ActivitiesScreen(onNavigate: (String) -> Unit = {}) {
                     }
                 },
                 title = I18n.t("reminders.deleteReminder"),
-                message = tf("deleteModal.areYouSure", "name" to target.title) + "\n" +
+                message = I18n.t("deleteModal.areYouSure", "name" to target.title) + "\n" +
                     (if (target.description.isNotEmpty()) target.description + "\n" else "") +
-                    tf(
+                    I18n.t(
                         "reminders.dueBy",
                         "date" to (parseJsDate(target.dueAt)?.let { formatDateTime(it) } ?: target.dueAt),
                     ),
@@ -526,7 +526,7 @@ fun ActivitiesScreen(onNavigate: (String) -> Unit = {}) {
                                             onSuccess = {
                                                 toast.show(
                                                     I18n.t("reminders.completionReverted") + "\n" +
-                                                        tf(
+                                                        I18n.t(
                                                             "reminders.revertDescription",
                                                             "title" to reminder.title,
                                                         ),
@@ -550,7 +550,7 @@ fun ActivitiesScreen(onNavigate: (String) -> Unit = {}) {
                                             onSuccess = {
                                                 toast.show(
                                                     I18n.t("reminders.reminderComplete") + "\n" +
-                                                        tf(
+                                                        I18n.t(
                                                             "reminders.reminderCompletedDescription",
                                                             "title" to reminder.title,
                                                         ),
@@ -619,9 +619,9 @@ private fun StreakBanner(current: Int, longest: Int) {
                 color = colors.foreground,
             )
             Text(
-                text = tf("activities.globalStreak", "count" to current) +
+                text = I18n.t("activities.globalStreak", "count" to current) +
                     (if (longest > current) {
-                        " " + tf("activities.globalStreakLongest", "count" to longest)
+                        " " + I18n.t("activities.globalStreakLongest", "count" to longest)
                     } else {
                         ""
                     }),

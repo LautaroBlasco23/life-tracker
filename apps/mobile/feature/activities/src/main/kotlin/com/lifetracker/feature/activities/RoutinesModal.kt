@@ -269,8 +269,8 @@ internal fun RoutinesModal(
                 }
             },
             title = I18n.t("routines.deleteRoutine"),
-            message = tf("deleteModal.areYouSure", "name" to target.title) + "\n" +
-                tf("routines.activityCount", "count" to (target.activities?.size ?: 0)) + "\n" +
+            message = I18n.t("deleteModal.areYouSure", "name" to target.title) + "\n" +
+                I18n.t("routines.activityCount", "count" to (target.activities?.size ?: 0)) + "\n" +
                 I18n.t("routines.deleteRoutineKeepsActivities"),
             deleteLabel = I18n.t("routines.deleteRoutine"),
         )
@@ -316,7 +316,7 @@ private fun RoutineListCard(routine: RoutineResponse, onClick: () -> Unit) {
             RoutineStatusBadge(status = routine.status, modifier = Modifier.padding(start = 6.dp))
         }
         Text(
-            text = tf("routines.activityCount", "count" to (routine.activities?.size ?: 0)),
+            text = I18n.t("routines.activityCount", "count" to (routine.activities?.size ?: 0)),
             fontSize = 12.sp,
             color = colors.textMuted,
             modifier = Modifier.padding(top = 2.dp),
@@ -449,7 +449,7 @@ private fun RoutineDetailView(
     }
 
     Text(
-        text = tf("routines.activityCount", "count" to (routine.activities?.size ?: 0)),
+        text = I18n.t("routines.activityCount", "count" to (routine.activities?.size ?: 0)),
         fontSize = 14.sp,
         color = colors.textMuted,
         modifier = Modifier.padding(top = 10.dp, bottom = 10.dp),
