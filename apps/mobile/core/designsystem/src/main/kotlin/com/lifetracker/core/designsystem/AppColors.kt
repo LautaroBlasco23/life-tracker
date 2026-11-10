@@ -23,6 +23,8 @@ data class AppColors(
     val warning: Color,
     val border: Color,
     val sticky: Color,
+    /** True for the dark palette — inks on tinted surfaces are role-adapted. */
+    val isDark: Boolean,
 )
 
 val LightAppColors = AppColors(
@@ -41,6 +43,7 @@ val LightAppColors = AppColors(
     warning = Color(0xFF96642A),
     border = Color(0xFFE8E3D8),
     sticky = Color(0xFFF4E8D4),
+    isDark = false,
 )
 
 val DarkAppColors = AppColors(
@@ -59,4 +62,5 @@ val DarkAppColors = AppColors(
     warning = Color(0xFFD8B58A),
     border = Color(0xFF3A3C33),
     sticky = Color(0xFF3E3524),
+    isDark = true,
 )

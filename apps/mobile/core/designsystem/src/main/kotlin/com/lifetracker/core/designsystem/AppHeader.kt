@@ -9,14 +9,18 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.AccountCircle
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Menu
 import androidx.compose.material3.HorizontalDivider
@@ -56,10 +60,12 @@ data class NavEntry(val key: String, val label: String, val icon: ImageVector)
 private val HeaderHeight = 56.dp
 
 /**
- * Header layout: hamburger left, title centered, `actions` right. The
+ * Header layout: hamburger left, title centered, profile avatar right. The
  * hamburger toggles a full-height dimmed scrim + slide-down panel right below
  * the header; the entry matching `currentKey` is highlighted (primary tint).
- * Provide [items] with already-translated labels (RN resolved them via i18n).
+ * The profile action is always present so navigation to the profile works
+ * from every screen. Provide [items] with already-translated labels (RN
+ * resolved them via i18n).
  */
 @Composable
 fun AppHeader(
@@ -67,26 +73,26 @@ fun AppHeader(
     items: List<NavEntry>,
     currentKey: String?,
     onNavigate: (String) -> Unit,
-    actions: @Composable RowScope.() -> Unit = {},
 ) {
     var menuOpen by rememberSaveable { mutableStateOf(false) }
     val density = LocalDensity.current
     val colors = LocalAppColors.current
+    // Edge-to-edge: the header must clear the status bar (title was clipped).
+    val statusBarTopPx = WindowInsets.statusBars.getTop(density)
 
-    // Header row (56px incl. 1px bottom border).
-    Column(modifier = Modifier.height(HeaderHeight)) {
+    // Header row (56px incl. 1px bottom border) below the status bar inset.
+    Column(modifier = Modifier.background(colors.background).statusBarsPadding()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f)
-                .background(colors.background)
+                .height(HeaderHeight - 1.dp)
                 .padding(horizontal = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Box(
                 modifier = Modifier
-                    .size(40.dp)
+                    .size(44.dp)
                     .clip(RoundedCornerShape(8.dp))
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
@@ -111,11 +117,25 @@ fun AppHeader(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                content = actions,
-            )
+            // Profile entry point on every screen (RN header right side).
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = { onNavigate("profile") },
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.AccountCircle,
+                    contentDescription = I18n.t("nav.profile"),
+                    tint = colors.primary,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
         }
         HorizontalDivider(thickness = 1.dp, color = colors.border)
     }
@@ -123,12 +143,13 @@ fun AppHeader(
     if (menuOpen) {
         Popup(
             alignment = Alignment.TopStart,
-            offset = with(density) { IntOffset(0, HeaderHeight.roundToPx()) },
+            offset = IntOffset(0, statusBarTopPx + with(density) { HeaderHeight.roundToPx() }),
             onDismissRequest = { menuOpen = false },
             properties = PopupProperties(focusable = true),
         ) {
             Box(modifier = Modifier.fillMaxSize()) {
                 // Dimmed scrim below the header; tap anywhere to close.
+                // Dark scrim in both modes (M3 drawer convention).
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -158,6 +179,7 @@ fun AppHeader(
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
+                                    .heightIn(min = 44.dp)
                                     .background(
                                         if (active) {
                                             colors.primary.copy(alpha = 0.1f)

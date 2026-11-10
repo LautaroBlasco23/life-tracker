@@ -211,7 +211,7 @@ class SocialViewModel @Inject constructor(
 
     /** RN toast: title bold line + parameterized description, joined for the port. */
     private fun emitSuccessPair(titleKey: String, descriptionKey: String, name: String? = null) {
-        val description = name?.let { tf(descriptionKey, "name" to it) } ?: I18n.t(descriptionKey)
+        val description = name?.let { I18n.t(descriptionKey, "name" to it) } ?: I18n.t(descriptionKey)
         emitMessage("${I18n.t(titleKey)} — $description")
     }
 
@@ -221,14 +221,4 @@ class SocialViewModel @Inject constructor(
     }
 
     // ---- local helpers ----
-
-    /**
-     * Duplicated from `feature/activities`' `ScreenHelpers.kt`: `I18n.t(key)`
-     * with `{name}` interpolation (the RN screens call `t(key, { name })`).
-     */
-    private fun tf(key: String, vararg params: Pair<String, Any>): String {
-        var text = I18n.t(key)
-        params.forEach { (name, value) -> text = text.replace("{$name}", value.toString()) }
-        return text
-    }
 }

@@ -18,9 +18,7 @@ internal val TIME_CATEGORIES: List<String> = listOf(
 private const val GROUP = "time"
 
 internal fun t(key: String, vararg params: Pair<String, Any?>): String =
-    params.fold(I18n.t(if (key.contains('.')) key else "$GROUP.$key")) { acc, (name, value) ->
-        acc.replace("{$name}", value?.toString() ?: "")
-    }
+    I18n.t(if (key.contains('.')) key else "$GROUP.$key", *params)
 
 /** Joiner for toast titles + optional descriptions (`showToast({title, description})`). */
 internal fun toastText(title: String, description: String? = null): String =

@@ -7,22 +7,13 @@ import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import com.lifetracker.core.i18n.I18n
 
 /**
- * Screen-level helpers for the Activities port: i18n interpolation (the RN
- * screens call `t(key, { param })`; `I18n.t` has no params), RFC3339 parsing
- * that mirrors the JS `new Date(string)` semantics ported in
- * `domain/lib/time` (internal there, so re-stated locally), and the
- * `formatDateTime` / `formatRemaining` outputs of `reminder-card.tsx`.
+ * Screen-level helpers for the Activities port: RFC3339 parsing that mirrors
+ * the JS `new Date(string)` semantics ported in `domain/lib/time` (internal
+ * there, so re-stated locally), and the `formatDateTime` / `formatRemaining`
+ * outputs of `reminder-card.tsx`.
  */
-
-/** `I18n.t(key)` with `{name}` interpolation, e.g. `tf("x.y", "date" to now)`. */
-internal fun tf(key: String, vararg params: Pair<String, Any>): String {
-    var text = I18n.t(key)
-    params.forEach { (name, value) -> text = text.replace("{$name}", value.toString()) }
-    return text
-}
 
 /**
  * JS `new Date(string)` semantics: full instants end with `Z`/offset and parse

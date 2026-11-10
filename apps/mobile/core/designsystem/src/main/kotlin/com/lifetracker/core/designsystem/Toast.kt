@@ -95,7 +95,9 @@ fun ToastHost(state: ToastState) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(shape)
-                        .background(if (shown.isError) colors.danger else colors.background)
+                        // Surface (not background): the toast floats over the
+                        // page background — same-color would hide its bounds.
+                        .background(if (shown.isError) colors.danger else colors.surface)
                         .border(
                             1.dp,
                             if (shown.isError) colors.danger else colors.border,

@@ -11,13 +11,12 @@ rules apply.
 
 | | Web (`frontend/`) | Mobile (`apps/mobile/`) |
 |---|---|---|
-| Styling | Tailwind CSS **v4** | Compose (tokens mirrored from shared theme-colors) |
-| UI primitives | shadcn/ui → `frontend/components/ui/` | Hand-rolled → `apps/mobile/components/ui/` |
-| Colors defined in | `frontend/app/globals.css` (hex CSS vars, exact parity with `theme-colors.ts`) | `apps/mobile/tailwind.config.js` (hex, paired light + `dark-*` tokens) |
-| Dark mode | `.dark` class + `@custom-variant dark` | `dark:` variants of paired `dark-*` tokens |
-| Theme switching | `ThemeContext` (`frontend/contexts/theme-context.tsx`): class toggle, `system`/`light`/`dark` preference in `localStorage('theme')` | `ThemeProvider` drives `Appearance.setColorScheme` (`'unspecified'` = follow OS) |
+| Styling | Tailwind CSS **v4** | Compose (`core/designsystem` tokens mirrored from shared theme-colors) |
+| UI primitives | shadcn/ui → `frontend/components/ui/` | `Lb*` composables → `apps/mobile/core/designsystem` |
+| Colors defined in | `frontend/app/globals.css` (hex CSS vars, exact parity with `theme-colors.ts`) | `apps/mobile/core/designsystem/AppColors.kt` (hex, paired Light/Dark palettes) |
+| Dark mode | `.dark` class + `@custom-variant dark` | `AppColors` data class pairs `LightAppColors`/`DarkAppColors`; `LifeTrackerTheme` picks by `ThemeController.preference` (SYSTEM/LIGHT/DARK, DataStore persisted) |
 | Icon library | Lucide React | Material icons (lucide equivalents) |
-| `cn()` helper | `@/lib/utils` | `apps/mobile/lib/cn` |
+| Type/spacing tokens | Tailwind config + CSS vars | `AppTypography.kt` + `AppDimens.kt` in `core/designsystem` |
 
 **Single source of truth for the palette:** [`packages/shared/src/lib/theme-colors.ts`](packages/shared/src/lib/theme-colors.ts). Both platforms derive their tokens from it. Never invent a color not present there.
 
@@ -31,9 +30,9 @@ rules apply.
 - Token names are identical across platforms for `bg-primary`, `bg-secondary`, `bg-danger`, `bg-success`, `bg-warning`, `bg-surface`, `border-border`, `text-foreground`.
 - Platform differences to watch:
   - Web has shadcn extras: `card`, `popover`, `muted`, `accent`, `destructive`, `ring`, `input`, `sidebar-*`, `chart-1..5`. `--card`/`--popover`/`--destructive`/`--muted-foreground`/`--ring`/`--sidebar-*` alias the canonical shared tokens — don't give them independent values.
-  - Mobile's muted text is `text-muted` (mapped from `textMuted`); the web equivalent is `text-muted-foreground`.
-  - Mobile always pairs base + dark token: `bg-surface dark:bg-dark-surface`. Web only needs one class; the `.dark` variant resolves via CSS vars.
-  - Mobile dark surfaces are registered as separate `dark-*` colors, so on-fill *ink* also needs its dark twin (e.g. `text-primary-foreground dark:text-dark-primary-foreground`).
+  - Mobile's muted text is `textMuted` via `LocalAppColors`; the web equivalent is `text-muted-foreground`.
+  - Mobile reads paired Light/Dark tokens from `LocalAppColors` — no per-element dark variants.
+  - Dark mode is role-adapted (accents lighter, warm-charcoal backgrounds) — handled inside `AppColors.kt`.
 - Typography/spacing differentiate muted text from foreground rather than adding new grays or opacity hacks (`opacity-50` is reserved for disabled/loading states).
 
 ### Palette (`theme-colors.ts`; web `globals.css` mirrors it exactly)
@@ -93,10 +92,10 @@ children.
 ## Component reuse rules (in priority order)
 
 1. **Web:** use existing shadcn primitives in `frontend/components/ui/` before writing anything. If a needed one isn't there, add it via shadcn (`npx shadcn@latest add <name>`) rather than hand-rolling.
-2. **Mobile:** use `apps/mobile/components/ui/` (`button.tsx`, `card.tsx`, `form-field.tsx`, `option-select.tsx`, `segmented-tabs.tsx`). Extend these with variants/props instead of creating parallel components.
-3. **Feature-specific components** (`frontend/components/notes`, `frontend/components/ui/card`, `frontend/components/ui/filterModal`, `apps/mobile/components/activity`, `apps/mobile/components/finance`) hold composed, feature-specific pieces. Promote to `ui/` only when genuinely shared across features or platforms.
+2. **Mobile:** use the `Lb*` composables in `apps/mobile/core/designsystem` (`LbButton`, `LbCard`, `LbTextField`, `LbOptionSelect`, `LbSegmentedTabs`, `LbModalSheet`, …). Extend these with variants/props instead of creating parallel components.
+3. **Feature-specific components** (`frontend/components/notes`, `frontend/components/ui/card`, `frontend/components/ui/filterModal`, `apps/mobile/feature/*` composables) hold composed, feature-specific pieces. Promote to `core/designsystem` only when genuinely shared across features.
 4. **Business logic, types, i18n** → `packages/shared`. Never duplicate in frontend/mobile.
-5. Feature screens live in `frontend/app/<feature>` (App Router) and `apps/mobile/app/<feature>` (expo-router). Keep styling in components, not pages.
+5. Feature screens live in `frontend/app/<feature>` (App Router) and `apps/mobile/feature/<feature>` (Compose). Keep styling in components, not screens.
 
 ## Baseline look
 
@@ -114,10 +113,10 @@ children.
 - No new component libraries (no Radix directly outside shadcn wrappers, no new icon packs).
 - No per-platform visual divergence beyond what platform primitives require — tokens must stay in sync with `theme-colors.ts` (web parity is test-enforced).
 - No pure black (`#000`) backgrounds, pure white text on dark surfaces, or gradients as decoration.
-- Don't edit `globals.css` palettes or `apps/mobile/tailwind.config.js` directly for UI changes; change `theme-colors.ts` first, run the contract tests, then propagate.
+- Don't edit `globals.css` palettes or `AppColors.kt` directly for UI changes; change `theme-colors.ts` first, run the contract tests, then propagate.
 
 ## Where themes/tokens are wired (for token changes)
 
 - Shared: `packages/shared/src/lib/theme-colors.ts` (+ `theme-colors.test.ts` contract/AA tests).
 - Web: `frontend/app/globals.css` (`:root`/`.dark` hex must match `theme-colors.ts` — `app/globals-parity.test.ts`), `@theme inline` token mapping, `frontend/contexts/theme-context.tsx` (class toggle + `system` preference; no runtime var injection), pre-paint theme script in `app/layout.tsx`.
-- Mobile: `apps/mobile/tailwind.config.js` (duplicates `theme-colors.ts`; keep in sync), `apps/mobile/lib/theme-provider.tsx`, `apps/mobile/lib/use-colors.ts` (token palette for non-Tailwind props).
+- Mobile: `apps/mobile/core/designsystem/AppColors.kt` (mirrors `theme-colors.ts`; keep in sync) and `Theme.kt` (M3 scheme + `LocalAppColors` wiring). Spacing/radius/touch-target tokens: `AppDimens.kt`; type scale: `AppTypography.kt`.

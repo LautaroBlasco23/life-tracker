@@ -16,9 +16,7 @@ import java.util.Locale
  * (same pattern as the other feature ports).
  */
 internal fun t(key: String, vararg params: Pair<String, Any?>): String =
-    params.fold(I18n.t(key)) { acc, (name, value) ->
-        acc.replace("{$name}", value?.toString() ?: "")
-    }
+    I18n.t(key, *params)
 
 /** Joiner for toast titles + optional descriptions (`showToast({title, description})`). */
 internal fun toastText(title: String, description: String? = null): String =

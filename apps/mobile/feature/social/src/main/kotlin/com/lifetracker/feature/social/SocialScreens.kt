@@ -595,7 +595,7 @@ fun PublicProfileScreen(
                                     modifier = Modifier.padding(top = 12.dp),
                                 )
                                 Text(
-                                    text = tf(
+                                    text = I18n.t(
                                         "profilePublic.lockedMessage",
                                         "name" to profile.firstName,
                                     ),
@@ -812,8 +812,3 @@ private val Enum<*>.wireLabel: String
     }
 
 /** `I18n.t(key)` with `{name}` interpolation (RN `t(key, { name })`). */
-private fun tf(key: String, vararg params: Pair<String, Any>): String {
-    var text = I18n.t(key)
-    params.forEach { (name, value) -> text = text.replace("{$name}", value.toString()) }
-    return text
-}

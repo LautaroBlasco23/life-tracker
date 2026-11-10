@@ -3,27 +3,31 @@ package com.lifetracker.feature.activities
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.lifetracker.core.designsystem.AppDimens
 import com.lifetracker.core.designsystem.LocalAppColors
 
 /**
@@ -33,14 +37,16 @@ import com.lifetracker.core.designsystem.LocalAppColors
  */
 
 /** Wrapping horizontal row of chips (RN `flex-row flex-wrap gap-2`). */
+@OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 internal fun ChipRow(
     modifier: Modifier = Modifier,
     content: @Composable RowScope.() -> Unit,
 ) {
-    Row(
+    FlowRow(
         modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
         content = content,
     )
 }
@@ -64,7 +70,10 @@ internal fun LbSelectableChip(
                 shape,
             )
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(horizontal = 14.dp, vertical = 10.dp)
+            // 44dp touch target floor (styles.md) without enlarging the label.
+            .defaultMinSize(minHeight = AppDimens.MinTouchTarget),
+        contentAlignment = Alignment.Center,
     ) {
         Text(
             text = text,
@@ -113,19 +122,21 @@ internal fun LbCheckboxRow(
 ) {
     val colors = LocalAppColors.current
     val shape = RoundedCornerShape(12.dp)
-    Box(
+    Column(
         modifier = Modifier
             .clip(shape)
             .border(1.dp, colors.border, shape)
+            // Whole card toggles; `toggleable` gives checkbox semantics (state
+            // announced, tap target = the full card, min 44dp).
+            .toggleable(
+                value = checked,
+                role = Role.Checkbox,
+                onValueChange = { onToggle() },
+            )
             .padding(12.dp),
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onToggle,
-            ),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Box(
