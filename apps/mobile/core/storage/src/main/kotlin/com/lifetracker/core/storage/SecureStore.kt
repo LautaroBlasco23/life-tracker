@@ -20,9 +20,6 @@ import kotlinx.serialization.json.Json
 private const val PREFS_NAME = "lifetracker_secure"
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore("settings")
 
-/** This URL corresponds to the default Application production API. */
-const val DEFAULT_API_URL = "https://api.example.com/api"
-
 /**
  * Everything persisted on-device for the app:
  * - tokens + current user: EncryptedSharedPreferences (Android Keystore) — sync for OkHttp
