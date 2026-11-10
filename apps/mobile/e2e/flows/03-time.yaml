@@ -1,0 +1,61 @@
+# Time-tracking smoke: start a live session from the record-start card
+# (category + description), stop it, and save. The client floors the duration
+# to 1 minute (TimeViewModel.saveActiveSession), so a 1–2 s session saves fine.
+#
+# Env: MAESTRO_E2E_USER / MAESTRO_E2E_PASS. Conventions: text selectors match
+# FULL text; "Open menu" opens the hamburger drawer.
+
+appId: com.lifetracker.mobile
+name: mobile smoke — time · start · stop · save
+---
+
+# Session guard: run individually, or when a previous flow left us logged out.
+- launchApp
+- runFlow:
+    when:
+      visible: "Sign in"
+    commands:
+      - tapOn: "Enter your username or email"
+      - inputText: "${MAESTRO_E2E_USER}"
+      - hideKeyboard
+      - tapOn: "Enter your password"
+      - inputText: "${MAESTRO_E2E_PASS}"
+      - hideKeyboard
+      # "Sign in" also matches the unclickable screen title — the button sits
+      # below the password field (relational selector).
+      - tapOn:
+          text: "Sign in"
+          below: "Password"
+      - assertVisible: "Today's Activities"
+
+- assertVisible: "Today's Activities"
+- tapOn: "Open menu"
+- tapOn: "Time tracker"
+- assertVisible: "Time Tracking"
+- assertVisible: "Start Recording"
+
+# ---------------------------------------------------------------- start
+- tapOn: "Select category"
+- assertVisible: "Work"
+- tapOn: "Work"
+- tapOn: "What are you working on?"
+- inputText: "E2e time session"
+- hideKeyboard
+- tapOn: "Start"
+- assertVisible: "Active Recordings"
+- assertVisible: "E2e time session"
+
+# ---------------------------------------------------------------- stop + save
+- tapOn: "Stop"
+- assertVisible: "Resume"
+- tapOn: "Save"
+- scrollUntilVisible:
+    element:
+      text: "1 entry"
+    direction: DOWN
+- assertVisible: "E2e time session"
+
+# Back on the home screen for the next flow.
+- tapOn: "Open menu"
+- tapOn: "Activities"
+- assertVisible: "Today's Activities"

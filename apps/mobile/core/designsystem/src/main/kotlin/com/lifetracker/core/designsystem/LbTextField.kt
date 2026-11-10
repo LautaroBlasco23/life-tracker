@@ -29,6 +29,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -100,7 +102,19 @@ fun LbTextField(
                 BasicTextField(
                     value = value,
                     onValueChange = onValueChange,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        // e2e hook: Compose a11y exposes empty BasicTextFields
+                        // unreliably (Maestro sometimes can't see the
+                        // placeholder Text), while contentDescription nodes are
+                        // always reported — mirror the placeholder on the field.
+                        .then(
+                            if (placeholder.isNotEmpty()) {
+                                Modifier.semantics { contentDescription = placeholder }
+                            } else {
+                                Modifier
+                            },
+                        ),
                     enabled = enabled,
                     singleLine = singleLine,
                     textStyle = TextStyle(fontSize = 16.sp, color = colors.foreground),

@@ -76,8 +76,10 @@ make test-mobile     # Kotlin unit tests (all Gradle modules):
 cd apps/mobile && ./gradlew :app:assembleDebug   # compile gate
 make e2e-mobile      # pre-push smoke gate (Maestro): boots the local AVD,
                      # starts the API, installs a debug APK baked to
-                     # http://10.0.2.2:8080/api, then apps/mobile/e2e/flows/smoke.yaml:
-                     # register throwaway user → hamburger nav → login (needs the
+                     # http://10.0.2.2:8080/api, then runs every flow in
+                     # apps/mobile/e2e/flows/ in order (01-auth registers a
+                     # throwaway user and logs back in; 02-… cover activities,
+                     # time, notes, finance, social, profile — needs the
                      # Android SDK on ANDROID_HOME + Maestro in ~/.maestro/bin).
 ```
 

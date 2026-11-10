@@ -20,10 +20,14 @@ import java.util.Locale
 
 /**
  * `t(key, param = value)`: dot-path lookup with `{name}` interpolation
- * (same convention as the time feature's translator shim).
+ * (same convention as the time feature's translator shim). Bare keys resolve
+ * inside the feature's message group — `t("title")` → `notes.title` — while
+ * dotted keys ("common.cancel") pass through unchanged.
  */
+private const val GROUP = "notes"
+
 internal fun t(key: String, vararg params: Pair<String, Any?>): String =
-    params.fold(I18n.t(key)) { acc, (name, value) ->
+    params.fold(I18n.t(if (key.contains('.')) key else "$GROUP.$key")) { acc, (name, value) ->
         acc.replace("{$name}", value?.toString() ?: "")
     }
 
