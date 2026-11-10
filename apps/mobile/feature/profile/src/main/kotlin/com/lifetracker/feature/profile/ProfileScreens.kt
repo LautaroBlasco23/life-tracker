@@ -136,8 +136,8 @@ fun ProfileScreen(onLogout: () -> Unit, onNavigate: (String) -> Unit) {
                 )
                 val themePref = ThemeController.preference
                 SettingsRow(
-                    label = I18n.t("theme"),
-                    value = if (themePref == ThemePreference.DARK) I18n.t("dark") else I18n.t("light"),
+                    label = t("theme"),
+                    value = if (themePref == ThemePreference.DARK) t("dark") else t("light"),
                     onClick = {
                         viewModel.setTheme(
                             if (themePref == ThemePreference.DARK) ThemePreference.LIGHT else ThemePreference.DARK,
@@ -145,14 +145,14 @@ fun ProfileScreen(onLogout: () -> Unit, onNavigate: (String) -> Unit) {
                     },
                 )
                 SettingsRow(
-                    label = I18n.t("language"),
-                    value = if (I18n.current == I18n.Language.SPANISH) I18n.t("spanish") else I18n.t("english"),
+                    label = t("language"),
+                    value = if (I18n.current == I18n.Language.SPANISH) t("spanish") else t("english"),
                     onClick = {
                         viewModel.setLanguage(if (I18n.current == I18n.Language.SPANISH) "en" else "es")
                     },
                 )
                 SettingsRow(
-                    label = I18n.t("apiUrl"),
+                    label = t("apiUrl"),
                     value = state.apiUrl.ifBlank { "—" },
                     onClick = { showApiUrlModal = true },
                 )
@@ -365,14 +365,14 @@ internal fun ApiUrlModal(
     var saving by rememberSaveable { mutableStateOf(false) }
     val colors = LocalAppColors.current
 
-    LbModalSheet(visible = visible, onDismiss = onDismiss, title = I18n.t("apiUrl")) {
+    LbModalSheet(visible = visible, onDismiss = onDismiss, title = t("apiUrl")) {
         Text(
             I18n.t("profile.pictureSizeHint").let { hint -> hint }, // muted helper line (RN used a paragraph under the field)
             fontSize = 12.sp,
             color = colors.textMuted,
         )
         Spacer(Modifier.height(12.dp))
-        LbTextField(value = input, onValueChange = { input = it }, label = I18n.t("apiUrl"))
+        LbTextField(value = input, onValueChange = { input = it }, label = t("apiUrl"))
         Spacer(Modifier.height(16.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
             Box(Modifier.weight(1f)) {

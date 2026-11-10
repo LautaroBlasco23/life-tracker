@@ -1,0 +1,72 @@
+# Finance smoke: read the dashboard totals, then create a one-time expense on
+# the transactions screen (FAB → form → submit). The create button's idle label
+# is literally "Creating..." (FinanceModals port artifact) — tap that.
+#
+# Env: MAESTRO_E2E_USER / MAESTRO_E2E_PASS. Conventions: text selectors match
+# FULL text; "Open menu" opens the hamburger drawer.
+
+appId: com.lifetracker.mobile
+name: mobile smoke — finance · dashboard · transaction
+---
+
+# Session guard: run individually, or when a previous flow left us logged out.
+- launchApp
+- runFlow:
+    when:
+      visible: "Sign in"
+    commands:
+      - tapOn: "Enter your username or email"
+      - inputText: "${MAESTRO_E2E_USER}"
+      - hideKeyboard
+      - tapOn: "Enter your password"
+      - inputText: "${MAESTRO_E2E_PASS}"
+      - hideKeyboard
+      # "Sign in" also matches the unclickable screen title — the button sits
+      # below the password field (relational selector).
+      - tapOn:
+          text: "Sign in"
+          below: "Password"
+      - assertVisible: "Today's Activities"
+
+# ---------------------------------------------------------------- dashboard
+- tapOn: "Open menu"
+- tapOn: "Finance Dashboard"
+- assertVisible: "Dashboard"
+- assertVisible: "Total income"
+- assertVisible: "Total expenses"
+- assertVisible: "Balance"
+
+# ---------------------------------------------------------------- transaction
+- tapOn: "Open menu"
+- tapOn: "Finance Transactions"
+- assertVisible: "Transactions"
+- tapOn: "New"
+- assertVisible: "Create New Transaction"
+- tapOn: "0"
+# Numeric IME: enter a dot-less amount ("42.5" collapses to "425" on it).
+- inputText: "42"
+- hideKeyboard
+- tapOn: "Select a category"
+- assertVisible: "Food & Groceries"
+- tapOn: "Food & Groceries"
+- scrollUntilVisible:
+    element:
+      text: "Describe your transaction"
+    direction: DOWN
+- tapOn: "Describe your transaction"
+- inputText: "E2e box of donuts"
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      text: "Creating..."
+    direction: DOWN
+- tapOn: "Creating..."
+- scrollUntilVisible:
+    element:
+      text: "E2e box of donuts"
+    direction: DOWN
+
+# Back on the home screen for the next flow.
+- tapOn: "Open menu"
+- tapOn: "Activities"
+- assertVisible: "Today's Activities"

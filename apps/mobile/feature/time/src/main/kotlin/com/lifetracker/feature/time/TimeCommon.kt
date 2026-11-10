@@ -9,12 +9,16 @@ internal val TIME_CATEGORIES: List<String> = listOf(
 )
 
 /**
- * `t(key, param = value)`: dot-path string lookup with `{name}` interpolation
+ * `t(key, param = value)`: dot-path lookup with `{name}` interpolation
  * (the shared messages JSON uses react-intl style placeholders that the
- * flattened-string `I18n.t` does not interpolate).
+ * flattened-string `I18n.t` does not interpolate). Bare keys resolve
+ * inside the feature's message group — `t("title")` → `time.title` — while
+ * dotted keys ("common.cancel") pass through unchanged.
  */
+private const val GROUP = "time"
+
 internal fun t(key: String, vararg params: Pair<String, Any?>): String =
-    params.fold(I18n.t(key)) { acc, (name, value) ->
+    params.fold(I18n.t(if (key.contains('.')) key else "$GROUP.$key")) { acc, (name, value) ->
         acc.replace("{$name}", value?.toString() ?: "")
     }
 

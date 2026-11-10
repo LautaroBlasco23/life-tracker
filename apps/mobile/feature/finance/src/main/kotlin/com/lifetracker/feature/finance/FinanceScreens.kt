@@ -633,45 +633,53 @@ fun FinanceTransactionsScreen(
     }
 
     // ---- screen modals (RN renders these at the screen root) ----
+    // The RN port renders Alert.alert() menus only with a target; gate them on
+    // their state so they never surface empty (a stacked Dialog shows when the
+    // screen is re-entered via the drawer otherwise).
 
-    TransactionActionsModal(
-        title = if (menuMovement != null) categoryLabel(menuMovement?.category.orEmpty()) else "",
-        onClose = { menuMovement = null },
-        onEdit = {
-            menuMovement?.let { movement ->
-                editing = EditingTransaction(
-                    id = movement.id,
-                    type = movement.type,
-                    isFixed = false,
-                    paymentFrequency = null,
-                    amount = movement.amount,
-                    category = movement.category,
-                    description = movement.description,
-                )
-                showFormModal = true
-            }
-        },
-        onDelete = { menuMovement?.let { deletingMovement = it } },
-    )
-    TransactionActionsModal(
-        title = if (menuFixed != null) categoryLabel(menuFixed?.categoryName.orEmpty()) else "",
-        onClose = { menuFixed = null },
-        onEdit = {
-            menuFixed?.let { fixed ->
-                editing = EditingTransaction(
-                    id = fixed.id,
-                    type = fixed.type,
-                    isFixed = true,
-                    paymentFrequency = fixed.paymentFrequency,
-                    amount = 0.0,
-                    category = fixed.categoryName,
-                    description = fixed.description,
-                )
-                showFormModal = true
-            }
-        },
-        onDelete = { menuFixed?.let { deletingFixed = it } },
-    )
+    if (menuMovement != null) {
+        TransactionActionsModal(
+            title = categoryLabel(menuMovement?.category.orEmpty()),
+            onClose = { menuMovement = null },
+            onEdit = {
+                menuMovement?.let { movement ->
+                    editing = EditingTransaction(
+                        id = movement.id,
+                        type = movement.type,
+                        isFixed = false,
+                        paymentFrequency = null,
+                        amount = movement.amount,
+                        category = movement.category,
+                        description = movement.description,
+                    )
+                    showFormModal = true
+                }
+            },
+            onDelete = { menuMovement?.let { deletingMovement = it } },
+        )
+    }
+
+    if (menuFixed != null) {
+        TransactionActionsModal(
+            title = categoryLabel(menuFixed?.categoryName.orEmpty()),
+            onClose = { menuFixed = null },
+            onEdit = {
+                menuFixed?.let { fixed ->
+                    editing = EditingTransaction(
+                        id = fixed.id,
+                        type = fixed.type,
+                        isFixed = true,
+                        paymentFrequency = fixed.paymentFrequency,
+                        amount = 0.0,
+                        category = fixed.categoryName,
+                        description = fixed.description,
+                    )
+                    showFormModal = true
+                }
+            },
+            onDelete = { menuFixed?.let { deletingFixed = it } },
+        )
+    }
 
     TransactionFormModal(
         visible = showFormModal,

@@ -683,10 +683,12 @@ mobile-stop:
 # `make e2e-mobile` is the pre-push gate: boots the Linux AVD, builds a debug
 # APK with the local API URL baked in (core/network reads the `apiBaseUrl`
 # Gradle property; normal builds keep the production URL), installs it and
-# runs apps/mobile/e2e/flows/smoke.yaml via Maestro. Requires Android SDK
+# runs every flow in apps/mobile/e2e/flows/ via Maestro (alphabetical order:
+# 01-auth must run first; 02-07 reuse its session). Requires Android SDK
 # (ANDROID_HOME) and Maestro (install: curl -Ls get.maestro.mobile.dev | bash).
-# The flow registers a throwaway user against the local API (unique per run),
-# walks the hamburger nav, then logs back in with clean app state.
+# The auth flow registers a throwaway user against the local API (unique per
+# run), walks the hamburger nav, then logs back in with clean app state; the
+# social flow targets a second throwaway user seeded via curl below.
 #
 # Unlike the `mobile` target (Windows adb.exe via WSL interop), this drives
 # the Linux SDK directly.
@@ -741,13 +743,19 @@ e2e-mobile:
 		$(E2E_ADB) install "$$(realpath apps/mobile/android-app/build/outputs/apk/debug/app-debug.apk)"; \
 	}
 	@$(MAKE) --no-print-directory api-up
-	@echo "==> maestro smoke flow"
+	@echo "==> maestro smoke flows"
 	ts=$$(date +%s); \
+	target="e2e_t_$$ts"; \
+	seed=$$(curl -s -X POST -H 'Content-Type: application/json' \
+		-d "{\"email\":\"$$target@test.local\",\"password\":\"$(E2E_PASS)\",\"firstName\":\"E2e\",\"lastName\":\"Target\",\"username\":\"$$target\"}" \
+		http://localhost:8080/api/auth/register); \
+	echo "$$seed" | grep -q accessToken || { echo "✗ failed to seed social target user — $$seed"; exit 1; }; \
 	MAESTRO_CLI_NO_ANALYTICS=1 \
 	MAESTRO_E2E_USER="e2e_$$ts" \
 	MAESTRO_E2E_EMAIL="e2e_$$ts@test.local" \
 	MAESTRO_E2E_PASS="$(E2E_PASS)" \
-	$(MAESTRO_BIN) test apps/mobile/e2e/flows/smoke.yaml; \
+	MAESTRO_E2E_TARGET_USER="$$target" \
+	$(MAESTRO_BIN) test apps/mobile/e2e/flows; \
 	status=$$?; \
 	[ $$status = 0 ] && echo "✓ mobile e2e passed — safe to commit/push"; \
 	exit $$status

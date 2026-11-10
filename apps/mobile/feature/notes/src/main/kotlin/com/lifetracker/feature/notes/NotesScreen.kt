@@ -326,7 +326,16 @@ fun NotesScreen(
         Column(modifier = Modifier.fillMaxSize()) {
             AppHeader(
                 title = "LifeTracker",
-                items = navItems().map { (key, icon) -> NavEntry(key, I18n.t("nav.$key"), icon) },
+                // The finance nav keys contain "/" (route-shaped), so the plain
+                // "nav.$key" lookup misses them — resolve their own label keys.
+                items = navItems().map { (key, icon) ->
+                    val label = when (key) {
+                        "finance/transactions" -> I18n.t("nav.financeTransactions")
+                        "finance/dashboard" -> I18n.t("nav.financeDashboard")
+                        else -> I18n.t("nav.$key")
+                    }
+                    NavEntry(key, label, icon)
+                },
                 currentKey = "notes",
                 onNavigate = onNavigate,
             )

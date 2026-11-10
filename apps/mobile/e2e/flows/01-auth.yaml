@@ -5,18 +5,15 @@
 #
 # Env (set by the Makefile): MAESTRO_E2E_USER, MAESTRO_E2E_EMAIL, MAESTRO_E2E_PASS.
 # Flow: clean state → register a throwaway user → main app → hamburger nav to
-# Notes/Social → back → clean state again → login with the same user → main app.
-# Tap/assert text comes from packages/shared/src/messages/en.json (mobile i18n
-# mirrors the shared strings).
+# Notes/Social/Activities → back → clean state again → login with the same user
+# → main app. Later flows (02-…) reuse this session, so this must run first.
+# Tap/assert text comes from apps/mobile/core/i18n messages/en.json (mobile i18n
+# mirrors the shared strings). Note: Maestro text selectors are regex and match
+# the FULL text — plain strings match exactly.
 
 appId: com.lifetracker.mobile
-name: mobile smoke — register · nav · login
-
-- runFlow:
-    when:
-      visible: "Open menu"
-    commands:
-      - assertVisible: "unexpected-precondition"   # never runs; placeholder for future shared steps
+name: "mobile smoke — register · nav · login"
+---
 
 # ---------------------------------------------------------------- step 1: clean launch
 - launchApp:
@@ -25,28 +22,41 @@ name: mobile smoke — register · nav · login
 - assertVisible: "Don't have an account?"
 
 # ---------------------------------------------------------------- step 2: register
-- tapOn: "Don't have an account?"
+# AuthSwitchText: the clickable part is the "Sign up" action label, not the
+# static "Don't have an account?" text before it.
+- tapOn: "Sign up"
 - assertVisible: "Create account"
 
-# Fields are plain-decorated BasicTextFields: tap the visible placeholder to
-# focus, then type. Placeholder disappears once the field is filled.
+# NOTE: while the keyboard is up, the app vanishes from the accessibility
+# tree (only the IME window is exposed), so every tapOn/unhide cycle closes
+# the keyboard with `hideKeyboard` before the next screen lookup.
 - tapOn: "John"
 - inputText: "E2e"
+- hideKeyboard
 - tapOn: "Doe"
 - inputText: "Test"
+- hideKeyboard
 - tapOn: "john_doe"
 - inputText: "${MAESTRO_E2E_USER}"
+- hideKeyboard
 - tapOn: "john@example.com"
 - inputText: "${MAESTRO_E2E_EMAIL}"
+- hideKeyboard
 - tapOn: "Create a password"
 - inputText: "${MAESTRO_E2E_PASS}"
+- hideKeyboard
 - tapOn: "Confirm your password"
 - inputText: "${MAESTRO_E2E_PASS}"
+- hideKeyboard
 
 # Submit — the availability checks (500 ms debounce) hit the local API, a
 # timeout here means the baked base URL doesn't reach the host API.
+- scrollUntilVisible:
+    element:
+      text: "Sign up"
+    direction: DOWN
 - tapOn: "Sign up"
-- assertVisible: "Activities"
+- assertVisible: "Today's Activities"
 
 # ---------------------------------------------------------------- step 3: hamburger nav
 # AppHeader carries a hamburger (contentDescription "Open menu"); the drawer
@@ -62,7 +72,7 @@ name: mobile smoke — register · nav · login
 
 - tapOn: "Open menu"
 - tapOn: "Activities"
-- assertVisible: "Activities"
+- assertVisible: "Today's Activities"
 
 # ---------------------------------------------------------------- step 4: login with the new user
 # A clean relaunch wipes the session token (SecureStore) and lands on login.
@@ -72,7 +82,13 @@ name: mobile smoke — register · nav · login
 
 - tapOn: "Enter your username or email"
 - inputText: "${MAESTRO_E2E_USER}"
+- hideKeyboard
 - tapOn: "Enter your password"
 - inputText: "${MAESTRO_E2E_PASS}"
-- tapOn: "Sign in"
-- assertVisible: "Activities"
+- hideKeyboard
+# "Sign in" also matches the unclickable screen title — target the button,
+# which sits below the password field (relational selector).
+- tapOn:
+    text: "Sign in"
+    below: "Password"
+- assertVisible: "Today's Activities"
