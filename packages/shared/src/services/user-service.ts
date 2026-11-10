@@ -52,6 +52,19 @@ class UserService {
     return result.data;
   }
 
+  async completeOnboarding(): Promise<User> {
+    const response = await authService.makeAuthenticatedRequest(
+      `${this.baseUrl}/users/me/onboarding`,
+      { method: 'PUT' }
+    );
+    if (!response.ok) {
+      throw new Error('Failed to complete onboarding');
+    }
+    const result: ApiResponse<User> = await response.json();
+    authService.setCurrentUser(result.data);
+    return result.data;
+  }
+
   // Web passes a DOM File; React Native passes { uri, name, type }.
   async uploadProfilePicture(file: File | { uri: string; name: string; type: string }): Promise<User> {
     const formData = new FormData();

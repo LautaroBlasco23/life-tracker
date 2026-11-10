@@ -439,6 +439,21 @@ export default function ProfilePage() {
                     </Select>
                   </div>
                 </div>
+                <div className="pt-4 border-t border-border">
+                  <Label className="text-sm font-medium text-foreground">
+                    {t('starterGuideTitle')}
+                  </Label>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    {t('starterGuideDescription')}
+                  </p>
+                  <Button
+                    variant="outline"
+                    onClick={() => router.push('/onboarding')}
+                    className="flex items-center gap-2"
+                  >
+                    {t('starterGuideButton')}
+                  </Button>
+                </div>
                 <div className="pt-4 border-t border-border space-y-3">
                   <div className="flex gap-3">
                     <Button

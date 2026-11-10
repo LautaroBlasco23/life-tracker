@@ -179,7 +179,7 @@ export default function RegisterPage() {
         title: t('accountCreated'),
         description: t('accountCreatedDescription'),
       });
-      router.push('/activities');
+      router.push('/onboarding');
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : 'An error occurred';

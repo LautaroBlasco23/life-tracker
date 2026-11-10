@@ -31,6 +31,7 @@ type UserResponse struct {
 	LastName             string    `json:"lastName"`
 	Email                string    `json:"email"`
 	ProfilePrivacyStatus string    `json:"profilePrivacyStatus,omitempty"`
+	OnboardingCompleted  bool      `json:"onboardingCompleted"`
 	ID                   uint      `json:"id"`
 }
 
