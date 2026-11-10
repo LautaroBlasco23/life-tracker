@@ -33,21 +33,30 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lifetracker.core.designsystem.LbButton
 import com.lifetracker.core.designsystem.LbModalSheet
+import com.lifetracker.core.designsystem.LbOptionSelect
+import com.lifetracker.core.designsystem.LbSelectOption
 import com.lifetracker.core.designsystem.LocalAppColors
 import com.lifetracker.core.designsystem.ToastState
 import com.lifetracker.core.i18n.I18n
 import com.lifetracker.core.network.model.CreateActivityRequest
+import com.lifetracker.core.network.model.PrivacyStatus
+import com.lifetracker.core.network.model.RoutineStatus
 import com.lifetracker.domain.lib.activities.ACTIVITY_TEMPLATES
-import com.lifetracker.domain.lib.activities.ACTIVITY_TEMPLATE_CATEGORIES
+import com.lifetracker.domain.lib.activities.ROUTINE_TEMPLATES
+import com.lifetracker.domain.lib.activities.TEMPLATE_CATEGORIES_BY_KIND
 import com.lifetracker.domain.lib.activities.ActivityTemplate
+import com.lifetracker.domain.lib.activities.RoutineTemplate
+import com.lifetracker.domain.lib.activities.TemplateKind
 import com.lifetracker.domain.lib.activities.Frequency as TemplateFrequency
+import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import kotlinx.serialization.encodeToString
 
 /**
- * Port of `components/activity/templates-modal.tsx`: category chips, the
- * curated template catalog multi-select with per-row metadata chips, pencil
- * customize (prefills the form) and sequential "create selected".
+ * Port of `components/activity/templates-modal.tsx`: kind + category
+ * dropdowns, the curated template catalogs (activities and routines)
+ * multi-select with per-row metadata chips, pencil customize (prefills the
+ * activity form) and sequential "create selected".
  */
 
 /** Wire day order for the days chip label / created dayFrequency JSON. */
@@ -65,22 +74,28 @@ internal fun TemplatesModal(
 ) {
     val colors = LocalAppColors.current
     val scope = rememberCoroutineScope()
+    val routinesViewModel: RoutinesViewModel = hiltViewModel()
 
-    var category by rememberSaveable { mutableStateOf(ACTIVITY_TEMPLATE_CATEGORIES.first()) }
+    var kind by rememberSaveable { mutableStateOf(TemplateKind.ACTIVITY) }
+    var category by rememberSaveable { mutableStateOf(TEMPLATE_CATEGORIES_BY_KIND[TemplateKind.ACTIVITY].orEmpty().first()) }
     var selectedKeys by rememberSaveable { mutableStateOf(emptySet<String>()) }
     var isCreating by rememberSaveable { mutableStateOf(false) }
 
-    // Category + selection reset when reopened (RN parity).
+    // Kind + category + selection reset when reopened (RN parity).
     LaunchedEffect(visible) {
         if (visible) {
-            category = ACTIVITY_TEMPLATE_CATEGORIES.first()
+            kind = TemplateKind.ACTIVITY
+            category = TEMPLATE_CATEGORIES_BY_KIND[TemplateKind.ACTIVITY].orEmpty().first()
             selectedKeys = emptySet()
             isCreating = false
         }
     }
 
-    val templates = ACTIVITY_TEMPLATES.filter { it.category == category }
-    val selectedCount = ACTIVITY_TEMPLATES.count { it.key in selectedKeys }
+    val kindCategories = TEMPLATE_CATEGORIES_BY_KIND[kind].orEmpty()
+    val activityTemplates = ACTIVITY_TEMPLATES.filter { it.category.raw == category }
+    val routineTemplates = ROUTINE_TEMPLATES.filter { it.category.raw == category }
+    val selectedCount = ACTIVITY_TEMPLATES.count { it.key in selectedKeys } +
+        ROUTINE_TEMPLATES.count { it.key in selectedKeys }
 
     LbModalSheet(visible = visible, onDismiss = onClose, title = I18n.t("activityTemplates.title")) {
         Text(
@@ -90,15 +105,31 @@ internal fun TemplatesModal(
             modifier = Modifier.padding(bottom = 12.dp),
         )
 
-        // Category chips
-        ChipRow(modifier = Modifier.padding(bottom = 12.dp)) {
-            ACTIVITY_TEMPLATE_CATEGORIES.forEach { c ->
-                LbSmallChip(
-                    text = I18n.t("activityTemplates.category_${c.raw}"),
-                    selected = category == c,
-                    onClick = { category = c },
-                )
-            }
+        // Kind + category dropdowns
+        Column(modifier = Modifier.padding(bottom = 12.dp)) {
+            LbOptionSelect(
+                label = I18n.t("activityTemplates.kind"),
+                options = listOf(
+                    LbSelectOption(TemplateKind.ACTIVITY, I18n.t("activityTemplates.kind_activity")),
+                    LbSelectOption(TemplateKind.ROUTINE, I18n.t("activityTemplates.kind_routine")),
+                ),
+                selected = kind,
+                onSelect = { next ->
+                    kind = next
+                    // Reset the category to the first of the new kind's list.
+                    category = TEMPLATE_CATEGORIES_BY_KIND[next].orEmpty().first()
+                    selectedKeys = emptySet()
+                },
+            )
+            LbOptionSelect(
+                label = I18n.t("activityTemplates.category"),
+                options = kindCategories.map { c ->
+                    LbSelectOption(c, I18n.t("activityTemplates.category_$c"))
+                },
+                selected = category,
+                onSelect = { category = it },
+                modifier = Modifier.padding(top = 10.dp),
+            )
         }
 
         Column(
@@ -106,35 +137,51 @@ internal fun TemplatesModal(
                 .heightIn(max = 380.dp)
                 .verticalScroll(rememberScrollState()),
         ) {
-            templates.forEach { template ->
-                TemplateRow(
-                    template = template,
-                    isSelected = template.key in selectedKeys,
-                    onToggle = {
-                        selectedKeys = if (template.key in selectedKeys) {
-                            selectedKeys - template.key
-                        } else {
-                            selectedKeys + template.key
-                        }
-                    },
-                    onCustomize = {
-                        // Web parity: customize a template = prefill the create form.
-                        onCustomize(
-                            ActivityPrefill(
-                                title = I18n.t("activityTemplates.template_${template.key}"),
-                                completionAmount = template.completionAmount,
-                                frequency = template.frequency.toNetwork(),
-                                dayTime = template.dayTime.toNetwork(),
-                                dayFrequency = if (template.frequency == TemplateFrequency.WEEKLY) {
-                                    template.dayFrequency?.map { it.raw }
-                                } else {
-                                    null
-                                },
-                            ),
-                        )
-                        onClose()
-                    },
-                )
+            if (kind == TemplateKind.ACTIVITY) {
+                activityTemplates.forEach { template ->
+                    TemplateRow(
+                        template = template,
+                        isSelected = template.key in selectedKeys,
+                        onToggle = {
+                            selectedKeys = if (template.key in selectedKeys) {
+                                selectedKeys - template.key
+                            } else {
+                                selectedKeys + template.key
+                            }
+                        },
+                        onCustomize = {
+                            // Web parity: customize a template = prefill the create form.
+                            onCustomize(
+                                ActivityPrefill(
+                                    title = I18n.t("activityTemplates.template_${template.key}"),
+                                    completionAmount = template.completionAmount,
+                                    frequency = template.frequency.toNetwork(),
+                                    dayTime = template.dayTime.toNetwork(),
+                                    dayFrequency = if (template.frequency == TemplateFrequency.WEEKLY) {
+                                        template.dayFrequency?.map { it.raw }
+                                    } else {
+                                        null
+                                    },
+                                ),
+                            )
+                            onClose()
+                        },
+                    )
+                }
+            } else {
+                routineTemplates.forEach { template ->
+                    RoutineTemplateRow(
+                        template = template,
+                        isSelected = template.key in selectedKeys,
+                        onToggle = {
+                            selectedKeys = if (template.key in selectedKeys) {
+                                selectedKeys - template.key
+                            } else {
+                                selectedKeys + template.key
+                            }
+                        },
+                    )
+                }
             }
         }
 
@@ -156,13 +203,15 @@ internal fun TemplatesModal(
                     I18n.t("activityTemplates.createSelected", "count" to selectedCount)
                 },
                 onClick = {
-                    val selected = ACTIVITY_TEMPLATES.filter { it.key in selectedKeys }
-                    if (selected.isEmpty() || isCreating) return@LbButton
+                    val selectedActivities = ACTIVITY_TEMPLATES.filter { it.key in selectedKeys }
+                    val selectedRoutines = ROUTINE_TEMPLATES.filter { it.key in selectedKeys }
+                    if (selectedActivities.isEmpty() && selectedRoutines.isEmpty()) return@LbButton
+                    if (isCreating) return@LbButton
                     isCreating = true
                     scope.launch {
                         var created = 0
                         var failed = 0
-                        selected.forEach { template ->
+                        selectedActivities.forEach { template ->
                             val result = viewModel.createActivity(
                                 CreateActivityRequest(
                                     title = I18n.t("activityTemplates.template_${template.key}"),
@@ -182,6 +231,52 @@ internal fun TemplatesModal(
                                 ),
                             )
                             if (result.isSuccess) created += 1 else failed += 1
+                        }
+                        selectedRoutines.forEach { template ->
+                            // Create the child activities first, then the routine
+                            // bundling their ids (POST /activities → POST /routines).
+                            val picks = mutableListOf<RoutineActivityPick>()
+                            var routineFailed = false
+                            template.activities.forEach { activityKey ->
+                                val activityTemplate = ACTIVITY_TEMPLATES.firstOrNull { it.key == activityKey }
+                                if (activityTemplate == null) return@forEach
+                                val result = viewModel.createActivity(
+                                    CreateActivityRequest(
+                                        title = I18n.t("activityTemplates.template_${activityTemplate.key}"),
+                                        description = "",
+                                        completionAmount = activityTemplate.completionAmount,
+                                        frequency = activityTemplate.frequency.toNetwork(),
+                                        dayFrequency = if (activityTemplate.frequency == TemplateFrequency.WEEKLY) {
+                                            kotlinx.serialization.json.Json.encodeToString(
+                                                TEMPLATE_DAY_ORDER.filter { day ->
+                                                    activityTemplate.dayFrequency?.any { it.raw == day } == true
+                                                },
+                                            )
+                                        } else {
+                                            null
+                                        },
+                                        dayTime = activityTemplate.dayTime.toNetwork(),
+                                    ),
+                                )
+                                result.fold(
+                                    onSuccess = { saved ->
+                                        picks.add(RoutineActivityPick(saved.id, saved.title))
+                                    },
+                                    onFailure = { routineFailed = true },
+                                )
+                            }
+                            if (routineFailed || picks.isEmpty()) {
+                                failed += 1
+                            } else {
+                                val routineResult = routinesViewModel.createRoutine(
+                                    title = I18n.t("activityTemplates.template_${template.key}"),
+                                    description = "",
+                                    privacy = PrivacyStatus.PRIVATE,
+                                    status = RoutineStatus.ACTIVE,
+                                    selected = picks,
+                                )
+                                if (routineResult.isSuccess) created += 1 else failed += 1
+                            }
                         }
                         isCreating = false
                         if (created > 0) {
@@ -285,6 +380,78 @@ private fun TemplateRow(
                 .size(16.dp)
                 .clickable(onClick = onCustomize),
         )
+    }
+}
+
+@Composable
+private fun RoutineTemplateRow(
+    template: RoutineTemplate,
+    isSelected: Boolean,
+    onToggle: () -> Unit,
+) {
+    val colors = LocalAppColors.current
+    val accentShape = RoundedCornerShape(8.dp)
+    Row(
+        modifier = Modifier
+            .padding(bottom = 8.dp)
+            .clip(accentShape)
+            .background(if (isSelected) colors.primary.copy(alpha = 0.05f) else colors.surface)
+            .border(
+                1.dp,
+                if (isSelected) colors.primary.copy(alpha = 0.5f) else colors.border,
+                accentShape,
+            )
+            .clickable(onClick = onToggle)
+            .padding(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(20.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .background(if (isSelected) colors.primary else colors.surface)
+                .border(1.dp, if (isSelected) colors.primary else colors.border, RoundedCornerShape(4.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (isSelected) {
+                Icon(
+                    imageVector = Icons.Filled.Check,
+                    contentDescription = null,
+                    tint = colors.primaryForeground,
+                    modifier = Modifier.size(13.dp),
+                )
+            }
+        }
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = I18n.t("activityTemplates.template_${template.key}"),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                color = colors.foreground,
+            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier.padding(top = 6.dp),
+            ) {
+                LbChip(
+                    text = I18n.t(
+                        "activityTemplates.activitiesCount",
+                        "count" to template.activities.size,
+                    ),
+                )
+            }
+            Text(
+                text = template.activities
+                    .mapNotNull { key ->
+                        ACTIVITY_TEMPLATES.firstOrNull { it.key == key }
+                            ?.let { I18n.t("activityTemplates.template_${it.key}") }
+                    }
+                    .joinToString(" · "),
+                fontSize = 12.sp,
+                color = colors.textMuted,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
     }
 }
 
