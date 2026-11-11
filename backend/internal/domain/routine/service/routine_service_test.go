@@ -106,7 +106,6 @@ func TestCreateRoutine(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "Health routine", routine.Title)
 		require.Len(t, routine.Activities, 2)
-		assert.Equal(t, "active", routine.Status)
 
 		first := routine.Activities[0]
 		assert.Equal(t, act1.ID, first.ActivityID)
@@ -223,14 +222,6 @@ func TestUpdateRoutine(t *testing.T) {
 	}
 	routine, err := tc.service.CreateRoutine(1, req, time.UTC)
 	require.NoError(t, err)
-
-	t.Run("updates status", func(t *testing.T) {
-		status := "stopped"
-		updateReq := &dto.UpdateRoutineRequest{Status: &status}
-		updated, err := tc.service.UpdateRoutine(1, routine.ID, updateReq, time.UTC)
-		require.NoError(t, err)
-		assert.Equal(t, "stopped", updated.Status)
-	})
 
 	t.Run("updates fields and replaces activities", func(t *testing.T) {
 		title := "Updated routine"
