@@ -39,7 +39,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -67,6 +66,7 @@ import kotlinx.coroutines.delay
  * ProfileCommon provides `t`/`toastText`, ScreenActions the ActivityResult
  * wiring + [AvatarImage], ProfileViewModel owns the state machine.
  */
+
 /** The six drawer destinations of RN `components/navigation.tsx`. */
 private val profileNavItems = listOf(
     NavEntry("activities", I18n.t("nav.activities"), Icons.Outlined.MonitorHeart),
@@ -83,10 +83,6 @@ fun ProfileScreen(onLogout: () -> Unit, onNavigate: (String) -> Unit) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val toast = rememberToastState()
     val colors = LocalAppColors.current
-    // FLAG_DEBUGGABLE == debug build (same check the ApiUrlModal used inline):
-    // the API URL row is server config, only for development builds.
-    val isDebuggable = (LocalContext.current.applicationInfo.flags and
-        android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
 
     LaunchedEffect(Unit) { viewModel.refreshProfile() }
     LaunchedEffect(Unit) {
@@ -98,7 +94,6 @@ fun ProfileScreen(onLogout: () -> Unit, onNavigate: (String) -> Unit) {
     }
 
     val actions = rememberProfileActivityResultActions(viewModel)
-    var showApiUrlModal by rememberSaveable { mutableStateOf(false) }
     var showPasswordModal by rememberSaveable { mutableStateOf(false) }
     var showEmailModal by rememberSaveable { mutableStateOf(false) }
 
@@ -193,13 +188,6 @@ fun ProfileScreen(onLogout: () -> Unit, onNavigate: (String) -> Unit) {
                             viewModel.setLanguage(if (I18n.current == I18n.Language.SPANISH) "en" else "es")
                         },
                     )
-                if (isDebuggable) {
-                    SettingsRow(
-                        label = t("apiUrl"),
-                        value = state.apiUrl.ifBlank { "—" },
-                        onClick = { showApiUrlModal = true },
-                    )
-                }
                 }
 
                 Spacer(Modifier.height(12.dp))
@@ -271,15 +259,6 @@ fun ProfileScreen(onLogout: () -> Unit, onNavigate: (String) -> Unit) {
     }
 
     // --- modals ---
-    if (showApiUrlModal) {
-        ApiUrlModal(
-            visible = true,
-            current = state.apiUrl,
-            isDebug = isDebuggable,
-            onSave = { input, onResult -> viewModel.saveApiUrl(input, isDebuggable, onResult) },
-            onDismiss = { showApiUrlModal = false },
-        )
-    }
     if (showPasswordModal) {
         UpdatePasswordModal(
             visible = true,
@@ -405,56 +384,6 @@ private fun SettingsRow(
             )
             Spacer(Modifier.width(4.dp))
             Icon(Icons.Outlined.ChevronRight, null, tint = colors.textMuted, modifier = Modifier.size(20.dp))
-        }
-    }
-}
-
-@Composable
-internal fun ApiUrlModal(
-    visible: Boolean,
-    current: String,
-    isDebug: Boolean,
-    onSave: (input: String, onResult: (Boolean) -> Unit) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    var input by rememberSaveable { mutableStateOf(current) }
-    var saving by rememberSaveable { mutableStateOf(false) }
-    val colors = LocalAppColors.current
-
-    LbModalSheet(visible = visible, onDismiss = onDismiss, title = t("apiUrl")) {
-        Text(
-            I18n.t("profile.pictureSizeHint").let { hint -> hint }, // muted helper line (RN used a paragraph under the field)
-            fontSize = 12.sp,
-            color = colors.textMuted,
-        )
-        Spacer(Modifier.height(12.dp))
-        LbTextField(value = input, onValueChange = { input = it }, label = t("apiUrl"))
-        Spacer(Modifier.height(16.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-            Box(Modifier.weight(1f)) {
-                LbButton(
-                    text = I18n.t("common.cancel"),
-                    onClick = onDismiss,
-                    variant = LbButtonVariant.SECONDARY,
-                    enabled = !saving,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-            Box(Modifier.weight(1f)) {
-                LbButton(
-                    text = I18n.t("common.save"),
-                    onClick = {
-                        saving = true
-                        onSave(input) { applied ->
-                            saving = false
-                            if (applied) onDismiss()
-                        }
-                    },
-                    enabled = !saving,
-                    loading = saving,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
         }
     }
 }
