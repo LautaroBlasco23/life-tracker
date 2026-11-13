@@ -1,13 +1,9 @@
-package com.lifetracker.feature.activities
+package com.lifetracker.core.designsystem
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Alarm
-import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.Replay
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -18,14 +14,14 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.lifetracker.core.designsystem.LocalAppColors
 
 /**
- * Long-press context menu (RN `Alert.alert(title, undefined, options)`):
- * stacked rows with icons, destructive-tinted delete row, trailing Cancel.
+ * Context menu dialog (RN `Alert.alert(title, undefined, options)` port):
+ * stacked icon rows, destructive-tinted rows, trailing Cancel button.
+ * Used by any screen for record/item actions (Edit / Revert / Delete…).
  */
 
-internal data class LbMenuOption(
+data class LbMenuOption(
     val text: String,
     val icon: ImageVector? = null,
     val destructive: Boolean = false,
@@ -33,7 +29,7 @@ internal data class LbMenuOption(
 )
 
 @Composable
-internal fun LbMenuDialog(
+fun LbMenuDialog(
     visible: Boolean,
     title: String,
     options: List<LbMenuOption>,

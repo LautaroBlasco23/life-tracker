@@ -52,7 +52,10 @@ import com.lifetracker.core.designsystem.LbButton
 import com.lifetracker.core.designsystem.LbButtonVariant
 import com.lifetracker.core.designsystem.LbCategoryHeader
 import com.lifetracker.core.designsystem.LbDeleteConfirm
+import com.lifetracker.core.designsystem.LbFilterChipsRow
 import com.lifetracker.core.designsystem.LbHeaderAction
+import com.lifetracker.core.designsystem.LbMenuDialog
+import com.lifetracker.core.designsystem.LbMenuOption
 import com.lifetracker.core.designsystem.LbStreakBadge
 import com.lifetracker.core.designsystem.LocalAppColors
 import com.lifetracker.core.designsystem.LocalToast
@@ -687,44 +690,19 @@ private fun ActiveFilterChipsRow(
     onClear: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val colors = LocalAppColors.current
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier = modifier,
-    ) {
-        Text(
-            text = I18n.t("common.activeFilters"),
-            fontSize = 12.sp,
-            color = colors.textMuted,
-        )
-        filter.frequency?.let { LbChip(text = activityLabel(it.wire)) }
-        filter.dayTime?.let { LbChip(text = activityLabel(it.wire)) }
+    val labels = buildList {
+        filter.frequency?.let { add(activityLabel(it.wire)) }
+        filter.dayTime?.let { add(activityLabel(it.wire)) }
         filter.scheduledFor?.let { date ->
-            LbChip(text = parseJsDate(date)?.let { formatShortDate(it) } ?: date)
-        }
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
-            modifier = Modifier
-                .heightIn(min = 32.dp)
-                .clip(RoundedCornerShape(6.dp))
-                .clickable(onClick = onClear)
-                .padding(horizontal = 8.dp),
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.Close,
-                contentDescription = null,
-                tint = colors.primary,
-                modifier = Modifier.size(12.dp),
-            )
-            Text(
-                text = I18n.t("common.clearAll"),
-                fontSize = 12.sp,
-                color = colors.primary,
-            )
+            add(parseJsDate(date)?.let { formatShortDate(it) } ?: date)
         }
     }
+    LbFilterChipsRow(
+        labels = labels,
+        clearLabel = I18n.t("common.clearAll"),
+        onClear = onClear,
+        modifier = modifier,
+    )
 }
 
 /**

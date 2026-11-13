@@ -67,72 +67,6 @@ import java.time.ZoneId
 import kotlinx.coroutines.launch
 
 /// ---------------------------------------------------------------------
-/// Long-press record actions (RN `Alert.alert(t('editEntry'), …)` port).
-/// ---------------------------------------------------------------------
-
-@Composable
-internal fun RecordActionsModal(
-    record: TimeRecordResponse?,
-    onDismiss: () -> Unit,
-    onEdit: (TimeRecordResponse) -> Unit,
-    onDelete: (TimeRecordResponse) -> Unit,
-) {
-    if (record == null) return
-    val colors = LocalAppColors.current
-    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Column(
-            modifier = Modifier
-                .padding(horizontal = 24.dp)
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .background(colors.background)
-                .padding(20.dp),
-        ) {
-            Text(
-                text = t("editEntry"),
-                fontSize = 18.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = colors.foreground,
-                modifier = Modifier.padding(bottom = 12.dp),
-            )
-            listOf(
-                ActionRow(label = I18n.t("common.edit"), ink = colors.foreground) {
-                    onEdit(record)
-                    onDismiss()
-                },
-                ActionRow(label = I18n.t("common.delete"), ink = colors.danger) {
-                    onDelete(record)
-                    onDismiss()
-                },
-                ActionRow(label = I18n.t("common.cancel"), ink = colors.textMuted, onClick = onDismiss),
-            ).forEach { content -> content() }
-        }
-    }
-}
-
-private fun ActionRow(
-    label: String,
-    ink: androidx.compose.ui.graphics.Color,
-    onClick: () -> Unit = {},
-): @Composable () -> Unit = {
-    val colors = LocalAppColors.current
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .border(1.dp, colors.border, RoundedCornerShape(8.dp))
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onClick,
-            )
-            .padding(vertical = 14.dp, horizontal = 16.dp),
-    ) {
-        Text(label, fontSize = 16.sp, fontWeight = FontWeight.Medium, color = ink)
-    }
-}
-
-/// ---------------------------------------------------------------------
 /// Delete confirm — port of `components/ui/delete-modal.tsx` with a live
 /// details slot (the fixed design-system variant cannot host the details
 /// box / delete-scope select this screen needs).
@@ -448,7 +382,9 @@ internal fun FilterModal(
         LbOptionSelect(
             label = t("category"),
             options = listOf(LbSelectOption(ALL_VALUE, t("allCategories"))) +
-                TIME_CATEGORIES.map { LbSelectOption(it, it) },
+                TIME_CATEGORIES.map {
+                    LbSelectOption(it, categoryLabel({ key -> I18n.t("timeCategories.$key") }, it))
+                },
             selected = draft.category ?: ALL_VALUE,
             onSelect = { value -> draft = draft.copy(category = value.takeUnless { it == ALL_VALUE }) },
             placeholder = t("allCategories"),

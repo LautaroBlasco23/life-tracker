@@ -67,22 +67,6 @@ private const val DEFAULT_START_MINUTES = 9 * 60
 private const val DEFAULT_DURATION_MINUTES = 60
 
 /**
- * Accent color per category (same mapping as web's event-block accent bars),
- * expressed with palette tokens so it follows the light/dark theme.
- */
-private val EVENT_ACCENT_MAP: Map<String, AccentKey> = mapOf(
-    "Work" to AccentKey.SECONDARY,
-    "Hobbies" to AccentKey.SECONDARY,
-    "Exercise" to AccentKey.SUCCESS,
-    "Meditation" to AccentKey.SUCCESS,
-    "Social" to AccentKey.WARNING,
-    "Gaming" to AccentKey.WARNING,
-    "Entertainment" to AccentKey.WARNING,
-    "Study" to AccentKey.PRIMARY,
-    "Reading" to AccentKey.PRIMARY,
-)
-
-/**
  * Calendar tab (mobile port of web's calendar-view): a 7-day strip for the
  * current week plus the agenda of the selected day.
  *
@@ -165,7 +149,6 @@ internal fun CalendarTab(
                                 weekStart = getWeekStart(today)
                                 selectedDay = today
                             },
-                            modifier = Modifier.height(36.dp),
                             variant = LbButtonVariant.SECONDARY,
                         )
                         ChevronButton(
@@ -190,7 +173,6 @@ internal fun CalendarTab(
                             )
                             showFormModal = true
                         },
-                        modifier = Modifier.height(36.dp),
                     )
                 }
 
@@ -377,13 +359,13 @@ private fun DeleteEventDetails(
     }
 }
 
-/** Rounded h-9/w-9 outline chevron (RN `Button outline h-9 w-9 px-0`). */
+/** 44dp outline chevron (touch-target token; was a 36dp h-9 port). */
 @Composable
 private fun ChevronButton(icon: ImageVector, contentDescription: String, onClick: () -> Unit) {
     val colors = LocalAppColors.current
     Box(
         modifier = Modifier
-            .size(36.dp)
+            .size(44.dp)
             .clip(RoundedCornerShape(8.dp))
             .border(1.dp, colors.border, RoundedCornerShape(8.dp))
             .clickable(
@@ -397,7 +379,7 @@ private fun ChevronButton(icon: ImageVector, contentDescription: String, onClick
             imageVector = icon,
             contentDescription = contentDescription,
             tint = colors.foreground,
-            modifier = Modifier.size(16.dp),
+            modifier = Modifier.size(20.dp),
         )
     }
 }
@@ -406,13 +388,7 @@ private fun ChevronButton(icon: ImageVector, contentDescription: String, onClick
 @Composable
 private fun AgendaEventCard(event: CalendarEventResponse, onClick: () -> Unit) {
     val colors = LocalAppColors.current
-    val accent = when (EVENT_ACCENT_MAP[event.category] ?: AccentKey.PRIMARY) {
-        AccentKey.PRIMARY -> colors.primary
-        AccentKey.SECONDARY -> colors.secondary
-        AccentKey.SUCCESS -> colors.success
-        AccentKey.WARNING -> colors.warning
-        AccentKey.DANGER -> colors.danger
-    }
+    val accent = accentColor(categoryVisual(event.category).accent)
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
