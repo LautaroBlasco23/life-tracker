@@ -12,6 +12,10 @@
 /test-results
 coverage.log
 
+# demo video artifacts (source: demo/demo.spec.ts; output: demo/output/*)
+/demo/recordings
+/demo/output
+
 # next.js
 /.next/
 /out/
