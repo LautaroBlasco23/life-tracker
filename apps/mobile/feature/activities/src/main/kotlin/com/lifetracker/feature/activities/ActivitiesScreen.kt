@@ -96,8 +96,8 @@ fun ActivitiesScreen(onNavigate: (String) -> Unit = {}) {
     var showTemplates by rememberSaveable { mutableStateOf(false) }
     var showFilter by rememberSaveable { mutableStateOf(false) }
     var prefill by rememberSaveable { mutableStateOf<ActivityPrefill?>(null) }
-    // Collapsed day-time/reminder sections, keyed by wire value.
-    val collapsedSections = rememberSaveable { mutableStateMapOf<String, Boolean>() }
+    // Collapsed day-time/reminder sections (Bundle-saveable: a String set).
+    var collapsedSections by rememberSaveable { mutableStateOf(emptySet<String>()) }
 
     // Focus-refetch (RN useFocusEffect): re-entering this destination refreshes.
     LaunchedEffect(viewModel) {
@@ -258,14 +258,18 @@ fun ActivitiesScreen(onNavigate: (String) -> Unit = {}) {
                                 description = I18n.t("reminders.description"),
                                 summary = "$remindersDone/${sortedReminders.size}",
                                 summaryHint = reminderCountHint(sortedReminders.size),
-                                collapsed = collapsedSections["reminders"] == true,
+                                collapsed = "reminders" in collapsedSections,
                                 onToggle = {
-                                    collapsedSections["reminders"] =
-                                        !(collapsedSections["reminders"] ?: false)
+                                    collapsedSections =
+                                        if ("reminders" in collapsedSections) {
+                                            collapsedSections - "reminders"
+                                        } else {
+                                            collapsedSections + "reminders"
+                                        }
                                 },
                                 modifier = Modifier.padding(top = 16.dp),
                             )
-                            if (collapsedSections["reminders"] != true) {
+                            if ("reminders" !in collapsedSections) {
                                 sortedReminders.forEach { reminder ->
                                     ReminderCard(
                                         reminder = reminder,
@@ -328,13 +332,18 @@ fun ActivitiesScreen(onNavigate: (String) -> Unit = {}) {
                                 description = spec.tagline,
                                 summary = "$done/${items.size}",
                                 summaryHint = activityCountHint(items.size),
-                                collapsed = collapsedSections[cat] == true,
+                                collapsed = cat in collapsedSections,
                                 onToggle = {
-                                    collapsedSections[cat] = !(collapsedSections[cat] ?: false)
+                                    collapsedSections =
+                                        if (cat in collapsedSections) {
+                                            collapsedSections - cat
+                                        } else {
+                                            collapsedSections + cat
+                                        }
                                 },
                                 modifier = Modifier.padding(top = 16.dp),
                             )
-                            if (collapsedSections[cat] != true) {
+                            if (cat !in collapsedSections) {
                                 items.forEach { activity ->
                                     ActivityCard(
                                         activity = activity,
