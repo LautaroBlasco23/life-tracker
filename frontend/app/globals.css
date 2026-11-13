@@ -27,6 +27,10 @@
   --warning: #96642a;
   --border: #e8e3d8;
   --sticky: #f4e8d4;
+  --section-anytime: #6a6c61;
+  --section-morning: #96642a;
+  --section-afternoon: #4a7183;
+  --section-evening: #6b5b8e;
   --radius: 0.75rem;
 
   /* shadcn aliases — resolve to the canonical tokens above */
@@ -74,6 +78,10 @@
   --warning: #d8b58a;
   --border: #3a3c33;
   --sticky: #3e3524;
+  --section-anytime: #aaa99f;
+  --section-morning: #d8b58a;
+  --section-afternoon: #93bccb;
+  --section-evening: #b3a6cf;
 
   /* shadcn aliases */
   --card: var(--surface);
@@ -132,6 +140,10 @@
   --color-input-border: var(--input-border);
   --color-ring: var(--ring);
   --color-sticky: var(--sticky);
+  --color-section-anytime: var(--section-anytime);
+  --color-section-morning: var(--section-morning);
+  --color-section-afternoon: var(--section-afternoon);
+  --color-section-evening: var(--section-evening);
   --color-chart-1: var(--chart-1);
   --color-chart-2: var(--chart-2);
   --color-chart-3: var(--chart-3);

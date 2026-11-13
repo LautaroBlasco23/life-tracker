@@ -161,8 +161,8 @@ export function ReminderSection({
         icon={Bell}
         label={t('title')}
         description={t('description')}
-        accentColor="border-indigo-400"
-        iconColor="text-indigo-500"
+        accentColor="border-section-evening"
+        iconColor="text-section-evening"
         summaryValue={total.toString()}
         summaryLabel={tCommon('total')}
         itemCount={total}
