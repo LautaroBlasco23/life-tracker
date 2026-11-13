@@ -31,9 +31,41 @@ env:
   REGISTRY: docker.io
 
 jobs:
+  # Path scoping: see backend-ci.yml "changes" job for the rationale.
+  # e2e also runs for backend changes: it boots the full-stack container
+  # lane (postgres + mongodb + api + nginx), so backend edits can break it.
+  changes:
+    name: Detect affected paths
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      frontend: ${{ steps.filter.outputs.frontend }}
+      backend: ${{ steps.filter.outputs.backend }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3
+        id: filter
+        with:
+          filters: |
+            frontend:
+              - "frontend/**"
+              - "packages/shared/**"
+              - ".github/workflows/frontend-ci.yml"
+            backend:
+              - "backend/**"
+              - "docker-compose.yml"
+              - "nginx/**"
+              - "scripts/**"
+              - "Makefile"
+
   # Fast quality gate for PRs: prettier formatting and TypeScript types.
   # Both are required status checks on main.
   lint:
+    needs: [changes]
+    if: github.event_name != 'pull_request' || needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -168,6 +200,8 @@ jobs:
   # A deploy smoke test is intentionally skipped here; the e2e job already
   # exercises the full container lane end-to-end.
   build-export:
+    needs: [changes]
+    if: github.event_name != 'pull_request' || needs.changes.outputs.frontend == 'true'
     runs-on: ubuntu-latest
 
     steps:
@@ -197,6 +231,11 @@ jobs:
   # the critical-path specs. Essential-only policy — deeper E2E is follow-up
   # work (same split as the k6 loadtest: PR smoke lane, nightly full suite).
   e2e:
+    needs: [changes]
+    if: >-
+      github.event_name != 'pull_request' ||
+      needs.changes.outputs.frontend == 'true' ||
+      needs.changes.outputs.backend == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 40
 
