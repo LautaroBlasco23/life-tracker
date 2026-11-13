@@ -2,7 +2,9 @@ name: Frontend CI
 
 on:
   push:
-    branches: [main]
+    # Exclude merge-queue staging branches: the merge_group trigger below
+    # covers them; without this, queue builds would run push CI in duplicate.
+    branches: [main, "!gh-readonly-queue/**"]
     tags:
       - "v*"
     paths:
@@ -13,6 +15,11 @@ on:
     # No paths filter: every PR must report this workflow's required checks
     # (the merge ruleset blocks on unreported contexts — a path-filtered
     # workflow would leave them "waiting for status to be reported").
+    branches: [main]
+  merge_group:
+    # Merge queue builds: report the same required checks on the queue's
+    # integration branch. Required by the main-branch ruleset.
+    types: [checks_requested]
     branches: [main]
 
 # Least privilege: these jobs only read code and never need write scopes.

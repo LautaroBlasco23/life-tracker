@@ -2,10 +2,17 @@ name: Mobile CI
 
 on:
   push:
-    branches: [main]
+    # Exclude merge-queue staging branches: the merge_group trigger below
+    # covers them; without this, queue builds would run push CI in duplicate.
+    branches: [main, "!gh-readonly-queue/**"]
     paths: ["apps/mobile/**", ".github/workflows/mobile-ci.yml"]
   pull_request:
     # No paths filter — see frontend-ci.yml.
+    branches: [main]
+  merge_group:
+    # Merge queue builds: report the same required checks on the queue's
+    # integration branch. Required by the main-branch ruleset.
+    types: [checks_requested]
     branches: [main]
 
 # Least privilege: this job only reads code and never needs write scopes.
