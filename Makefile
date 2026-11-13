@@ -60,7 +60,7 @@ COMPOSE := docker compose -f docker-compose.yml
 	db-up db-down db-remove db-test-up db-test-down db-test-remove \
 	frontend-up frontend-down \
 	mobile mobile-rebuild mobile-logs mobile-stop \
-	e2e-mobile api-up \
+	e2e-mobile api-up generate-apk \
 	monitoring-up monitoring-down dev-migrate deploy-frontend
 
 .DEFAULT_GOAL := help
@@ -136,6 +136,7 @@ components:
 	@printf "    make %-18s %s\n" "mobile-rebuild" "rebuild the Kotlin app + reinstall (same as the [R] key)"
 	@printf "    make %-18s %s\n" "mobile-logs"      "tail the API log"
 	@printf "    make %-18s %s\n" "mobile-stop"      "stop what make mobile started (pidfiles)"
+	@printf "    make %-18s %s\n" "generate-apk" "signed release APK → ~/Desktop (assemble + zipalign + sign)"
 
 # --- Docs ---
 #
@@ -677,6 +678,44 @@ mobile-stop:
 		fi; \
 	done; \
 	[ "$$stopped" = 1 ] || echo "nothing to stop (no pidfiles found)"
+
+# Signed release APK, one command: assembleRelease + zipalign + apksigner.
+# Keystore lives OUTSIDE the repo (~/.keystores) so it's never committed and
+# survives worktrees; on first run it's generated with a random password saved
+# next to it. The signed APK (versioned name) lands on ~/Desktop for sideload.
+# Losing the keystore = no more updates over existing installs, back it up.
+RELEASE_KEYSTORE := $(HOME)/keystores/lifetracker-release.keystore
+RELEASE_PASSFILE := $(HOME)/keystores/lifetracker.pass
+
+generate-apk:
+	@if [ ! -f "$(RELEASE_KEYSTORE)" ]; then \
+		echo "==> no release keystore — generating $(RELEASE_KEYSTORE)"; \
+		mkdir -p $(HOME)/keystores; \
+		pass=$$(tr -dc 'A-Za-z0-9' </dev/urandom | head -c 20); \
+		echo "$$pass" > "$(RELEASE_PASSFILE)"; \
+		chmod 600 "$(RELEASE_PASSFILE)"; \
+		keytool -genkeypair -v -keystore "$(RELEASE_KEYSTORE)" -alias lifetracker \
+			-keyalg RSA -keysize 2048 -validity 10000 \
+			-storepass "$$pass" -keypass "$$pass" \
+			-dname "CN=Life Tracker, OU=Personal, O=Life Tracker, C=AR" >/dev/null; \
+		echo "✓ keystore created (password in $(RELEASE_PASSFILE)) — back it up"; \
+	fi
+	@version=$$(sed -n 's/.*versionName = "\([^"]*\)".*/\1/p' apps/mobile/android-app/build.gradle.kts); \
+	echo "==> assembleRelease (v$$version)"; \
+	cd apps/mobile && ./gradlew :app:assembleRelease; \
+	gradle_exit=$$?; \
+	[ $$gradle_exit = 0 ] || exit $$gradle_exit; \
+	bt=$$(ls -d $(ANDROID_ROOT)/build-tools/* | sort -V | tail -n 1); \
+	echo "==> zipalign + sign ($$bt)"; \
+	"$$bt/zipalign" -f 4 android-app/build/outputs/apk/release/app-release-unsigned.apk app-release-aligned.apk && \
+	"$$bt/apksigner" sign \
+		--ks "$(RELEASE_KEYSTORE)" \
+		--ks-pass pass:"$$(cat "$(RELEASE_PASSFILE)")" \
+		--key-pass pass:"$$(cat "$(RELEASE_PASSFILE)")" \
+		--out app-release-$$version.apk app-release-aligned.apk && \
+	rm -f app-release-aligned.apk; \
+	cp app-release-$$version.apk $(HOME)/Desktop/lifetracker-v$$version.apk; \
+	echo "✓ $(HOME)/Desktop/lifetracker-v$$version.apk (also at apps/mobile/app-release-$$version.apk)"
 
 # --- Mobile e2e (Maestro) — local Linux emulator + local API ---
 #
