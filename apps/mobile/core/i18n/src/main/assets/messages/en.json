@@ -136,6 +136,7 @@
     "deleteFailed": "Delete failed",
     "deleteActivity": "Delete Activity",
     "revertLast": "Revert Last",
+    "failedToRevert": "Failed to revert completion",
     "complete": "Complete",
     "tapToComplete": "Tap to complete",
     "filterActivities": "Filter Activities",

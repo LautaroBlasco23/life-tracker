@@ -10,7 +10,6 @@ import com.lifetracker.core.network.model.DayTime
 import com.lifetracker.core.network.model.Frequency
 import com.lifetracker.core.network.model.MessageOnly
 import com.lifetracker.core.network.model.RecordActivityRequest
-import com.lifetracker.core.network.model.RevertCompletionRequest
 import com.lifetracker.core.network.model.StreakInfo
 import com.lifetracker.core.network.model.UpdateActivityRequest
 import retrofit2.Response
@@ -78,10 +77,10 @@ interface ActivitiesApi {
     @GET("activities/{id}/stats")
     suspend fun getActivityStats(@Path("id") id: Long): Response<ApiEnvelope<ActivityStatsResponse>>
 
-    /** DELETE /activities/:id/revert — revert last completion (optional body). */
+    /** DELETE /activities/:id/revert — revert last completion (no body; the
+     *  server reverts the latest completion when `targetDate` is absent,
+     *  which is the only flow the mobile app uses. `@DELETE` + `@Body` is
+     *  rejected by Retrofit with "Non-body HTTP method cannot contain @Body"). */
     @DELETE("activities/{id}/revert")
-    suspend fun revertLastCompletion(
-        @Path("id") id: Long,
-        @Body request: RevertCompletionRequest? = null,
-    ): Response<MessageOnly>
+    suspend fun revertLastCompletion(@Path("id") id: Long): Response<MessageOnly>
 }

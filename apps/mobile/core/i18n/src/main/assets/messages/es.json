@@ -136,6 +136,7 @@
     "deleteFailed": "Error al eliminar",
     "deleteActivity": "Eliminar actividad",
     "revertLast": "Revertir último",
+    "failedToRevert": "No se pudo revertir la compleción",
     "complete": "Completar",
     "tapToComplete": "Tocá para completar",
     "filterActivities": "Filtrar actividades",

@@ -117,9 +117,3 @@ data class ActivityStatsResponse(
     val recentRecords: List<ActivityRecordResponse>? = null,
 )
 
-/** Optional body of `DELETE /activities/:id/revert`. */
-@Serializable
-data class RevertCompletionRequest(
-    /** RFC3339 instant; when omitted the server reverts the latest completion. */
-    val targetDate: String? = null,
-)

@@ -519,7 +519,27 @@ fun ActivitiesScreen(onNavigate: (String) -> Unit = {}) {
                                 text = I18n.t("activities.revertLast"),
                                 icon = Icons.Outlined.Replay,
                                 onClick = {
-                                    scope.launch { viewModel.revertLastCompletion(activity) }
+                                    scope.launch {
+                                        viewModel.revertLastCompletion(activity).fold(
+                                            onSuccess = {
+                                                toast.show(
+                                                    I18n.t("activities.completionReverted") + "\n" +
+                                                        I18n.t(
+                                                            "activities.revertedDescription",
+                                                            "title" to activity.title,
+                                                            "date" to formatShortDate(now),
+                                                        ),
+                                                )
+                                            },
+                                            onFailure = {
+                                                toast.show(
+                                                    I18n.t("common.error") + "\n" +
+                                                        I18n.t("activities.failedToRevert"),
+                                                    isError = true,
+                                                )
+                                            },
+                                        )
+                                    }
                                 },
                             ),
                         )
