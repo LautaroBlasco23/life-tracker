@@ -14,6 +14,7 @@ export interface User {
   thumbnailUrl?: string;
   timezone?: string;
   profilePrivacyStatus?: ProfilePrivacyStatus;
+  onboardingCompleted?: boolean;
   createdAt: string;
   updatedAt: string;
 }

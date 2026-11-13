@@ -7,8 +7,15 @@ name: Secret scan (gitleaks)
 
 on:
   push:
-    branches: ["main"]
+    # Exclude merge-queue staging branches: the merge_group trigger below
+    # covers them; without this, queue builds would run scan in duplicate.
+    branches: ["main", "!gh-readonly-queue/**"]
   pull_request:
+  merge_group:
+    # Merge queue builds: report the same required checks on the queue's
+    # integration branch. Required by the main-branch ruleset.
+    types: [checks_requested]
+    branches: ["main"]
 
 # Least privilege: detection only, no write scopes needed.
 permissions:

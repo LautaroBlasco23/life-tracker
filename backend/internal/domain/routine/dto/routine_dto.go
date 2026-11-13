@@ -11,7 +11,6 @@ type CreateRoutineRequest struct {
 	Title         string               `json:"title" binding:"required,min=1,max=255"`
 	Description   string               `json:"description" binding:"max=1000"`
 	PrivacyStatus string               `json:"privacyStatus" binding:"required,oneof=public private"`
-	Status        string               `json:"status" binding:"omitempty,oneof=draft active stopped"`
 	DayTime       string               `json:"dayTime" binding:"omitempty,oneof=notSpecified morning afternoon evening"`
 	DayFrequency  string               `json:"dayFrequency,omitempty"`
 	ActivityIDs   []ActivityIDPosition `json:"activityIds" binding:"required,min=1"`
@@ -21,7 +20,6 @@ type UpdateRoutineRequest struct {
 	Title         *string              `json:"title,omitempty" binding:"omitempty,min=1,max=255"`
 	Description   *string              `json:"description,omitempty" binding:"omitempty,max=1000"`
 	PrivacyStatus *string              `json:"privacyStatus,omitempty" binding:"omitempty,oneof=public private"`
-	Status        *string              `json:"status,omitempty" binding:"omitempty,oneof=draft active stopped"`
 	DayTime       *string              `json:"dayTime,omitempty" binding:"omitempty,oneof=notSpecified morning afternoon evening"`
 	DayFrequency  *string              `json:"dayFrequency,omitempty"`
 	ActivityIDs   []ActivityIDPosition `json:"activityIds,omitempty"`
@@ -52,7 +50,6 @@ type RoutineResponse struct {
 	Title            string                `json:"title"`
 	Description      string                `json:"description"`
 	PrivacyStatus    string                `json:"privacyStatus"`
-	Status           string                `json:"status"`
 	DayTime          string                `json:"dayTime"`
 	DayFrequency     string                `json:"dayFrequency,omitempty"`
 	Activities       []RoutineActivityItem `json:"activities"`

@@ -1,0 +1,52 @@
+# Profile smoke: reach the profile via the header avatar (only Activities has
+# the icon), sanity-check the settings sections by scrolling, then sign out.
+# Ends on the login screen — deliberately last in the suite order.
+#
+# Env: MAESTRO_E2E_USER / MAESTRO_E2E_PASS. Text selectors match FULL text.
+
+appId: com.lifetracker.mobile
+name: mobile smoke — profile · settings · sign out
+---
+
+# Session guard: run individually, or when a previous flow left us logged out.
+- launchApp
+- runFlow:
+    when:
+      visible: "Sign in"
+    commands:
+      - tapOn: "Enter your username or email"
+      - inputText: "${MAESTRO_E2E_USER}"
+      - tapOn: "Enter your password"
+      - inputText: "${MAESTRO_E2E_PASS}"
+      # "Sign in" also matches the unclickable screen title — the button sits
+      # below the password field (relational selector).
+      - tapOn:
+          text: "Sign in"
+          below: "Password"
+      - assertVisible: "Today's Activities"
+
+- assertVisible: "Today's Activities"
+- tapOn: "Profile"
+- assertVisible: "Profile"
+- assertVisible: "Change picture"
+- assertVisible: "Profile Privacy"
+- assertVisible: "Theme"
+- assertVisible: "Language"
+
+# Scroll through the settings to the bottom actions.
+- scrollUntilVisible:
+    element:
+      text: "Change Password"
+    direction: DOWN
+- scrollUntilVisible:
+    element:
+      text: "Export data"
+    direction: DOWN
+- scrollUntilVisible:
+    element:
+      text: "Sign out"
+    direction: DOWN
+
+# ---------------------------------------------------------------- sign out
+- tapOn: "Sign out"
+- assertVisible: "Sign in"
