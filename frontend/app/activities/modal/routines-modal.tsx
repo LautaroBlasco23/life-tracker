@@ -19,19 +19,13 @@ import {
   Plus,
   Search,
   ChevronLeft,
-  Play,
-  Square,
   Pencil,
   Trash2,
   ListChecks,
   Check,
 } from 'lucide-react';
 import { routineService } from '@shared/services/routine-service';
-import type {
-  Routine,
-  RoutineActivityItem,
-  RoutineStatus,
-} from '@shared/types';
+import type { Routine, RoutineActivityItem } from '@shared/types';
 import { showToast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 import { useTranslations } from '@shared/contexts/language-context';
@@ -44,8 +38,6 @@ interface RoutinesModalProps {
   /** Routine to preselect when opening (e.g. from an activity badge click). */
   initialRoutineId?: number | null;
 }
-
-const STATUS_OPTIONS: RoutineStatus[] = ['draft', 'active', 'stopped'];
 
 function formatDayFrequency(dayFrequency?: string): string | null {
   if (!dayFrequency) return null;
@@ -160,13 +152,9 @@ export function RoutinesModal({
     null
   );
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | RoutineStatus>(
-    'all'
-  );
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [deletingRoutine, setDeletingRoutine] = useState<Routine | null>(null);
-  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
   const loadRoutines = useCallback(async () => {
     setIsLoading(true);
@@ -191,7 +179,6 @@ export function RoutinesModal({
       loadRoutines();
       setSelectedRoutineId(initialRoutineId);
       setSearch('');
-      setStatusFilter('all');
     } else {
       setSelectedRoutineId(null);
     }
@@ -203,11 +190,6 @@ export function RoutinesModal({
   const filteredRoutines = useMemo(() => {
     const query = search.trim().toLowerCase();
     return routines.filter((routine) => {
-      if (
-        statusFilter !== 'all' &&
-        (routine.status ?? 'active') !== statusFilter
-      )
-        return false;
       if (query) {
         const haystack =
           `${routine.title} ${routine.description}`.toLowerCase();
@@ -215,7 +197,7 @@ export function RoutinesModal({
       }
       return true;
     });
-  }, [routines, search, statusFilter]);
+  }, [routines, search]);
 
   const handleRoutineCreated = (routine: Routine) => {
     setRoutines([routine, ...routines]);
@@ -228,33 +210,6 @@ export function RoutinesModal({
       routines.map((routine) => (routine.id === updated.id ? updated : routine))
     );
     setShowEditModal(false);
-  };
-
-  const handleStatusChange = async (
-    routine: Routine,
-    status: RoutineStatus
-  ) => {
-    setIsUpdatingStatus(true);
-    const previous = routines;
-    setRoutines(
-      routines.map((r) => (r.id === routine.id ? { ...r, status } : r))
-    );
-    try {
-      const updated = await routineService.updateRoutine(routine.id, {
-        status,
-      });
-      setRoutines(previous.map((r) => (r.id === updated.id ? updated : r)));
-    } catch (error) {
-      setRoutines(previous);
-      showToast({
-        title: t('updateFailed'),
-        description:
-          error instanceof Error ? error.message : 'An error occurred',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsUpdatingStatus(false);
-    }
   };
 
   const handleDeleteRoutine = async (routineId: number) => {
@@ -291,24 +246,6 @@ export function RoutinesModal({
     ? [...selectedRoutine.activities].sort((a, b) => a.position - b.position)
     : [];
 
-  const statusBadgeClass: Record<RoutineStatus, string> = {
-    draft: 'border-dashed text-muted-foreground',
-    active: '',
-    stopped: 'text-muted-foreground opacity-80',
-  };
-
-  const renderStatusBadge = (status?: RoutineStatus) => {
-    const value: RoutineStatus = status ?? 'active';
-    return (
-      <Badge
-        variant="outline"
-        className={cn('text-xs', statusBadgeClass[value])}
-      >
-        {t(`status_${value}`)}
-      </Badge>
-    );
-  };
-
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-4xl h-[85vh] max-h-[85vh] p-0 gap-0 flex flex-col overflow-hidden">
@@ -343,23 +280,6 @@ export function RoutinesModal({
                   placeholder={t('searchRoutines')}
                   className="pl-8 h-8 bg-input border-border"
                 />
-              </div>
-              <div className="flex items-center gap-1 flex-wrap">
-                {(['all', 'draft', 'active', 'stopped'] as const).map(
-                  (value) => (
-                    <Button
-                      key={value}
-                      variant={statusFilter === value ? 'default' : 'outline'}
-                      size="sm"
-                      className="h-7 px-2.5 text-xs"
-                      onClick={() => setStatusFilter(value)}
-                    >
-                      {value === 'all'
-                        ? t('allStatuses')
-                        : t(`status_${value}`)}
-                    </Button>
-                  )
-                )}
               </div>
             </div>
 
@@ -401,7 +321,6 @@ export function RoutinesModal({
                                 aria-label={t('completedToday')}
                               />
                             )}
-                            {renderStatusBadge(routine.status)}
                           </div>
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5 truncate">
@@ -460,7 +379,6 @@ export function RoutinesModal({
                             {t('completedToday')}
                           </Badge>
                         )}
-                        {renderStatusBadge(selectedRoutine.status)}
                         <Badge variant="secondary" className="text-xs">
                           {tPrivacy(selectedRoutine.privacyStatus)}
                         </Badge>
@@ -472,30 +390,6 @@ export function RoutinesModal({
                       )}
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      {(selectedRoutine.status ?? 'active') === 'active' ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          disabled={isUpdatingStatus}
-                          onClick={() =>
-                            handleStatusChange(selectedRoutine, 'stopped')
-                          }
-                        >
-                          <Square className="h-3.5 w-3.5" />
-                          {t('stop')}
-                        </Button>
-                      ) : (
-                        <Button
-                          size="sm"
-                          disabled={isUpdatingStatus}
-                          onClick={() =>
-                            handleStatusChange(selectedRoutine, 'active')
-                          }
-                        >
-                          <Play className="h-3.5 w-3.5" />
-                          {t('start')}
-                        </Button>
-                      )}
                       <Button
                         variant="ghost"
                         size="icon"

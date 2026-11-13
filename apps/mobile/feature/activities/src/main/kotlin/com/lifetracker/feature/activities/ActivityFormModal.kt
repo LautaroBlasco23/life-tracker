@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -433,7 +434,7 @@ internal fun ActivityFormModal(
                         I18n.t("createReminder.windowEndHint"),
                         fontSize = 12.sp,
                         color = colors.textMuted,
-                        modifier = Modifier.padding(top = (-4).dp),
+                        modifier = Modifier.offset(y = (-4).dp),
                     )
                 }
 
