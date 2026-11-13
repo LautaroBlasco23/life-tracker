@@ -180,13 +180,6 @@ func normalizeDayTime(dayTime string) activityModel.DayTime {
 	return activityModel.DayTime(dayTime)
 }
 
-func normalizeStatus(status string) model.RoutineStatus {
-	if status == "" {
-		return model.StatusActive
-	}
-	return model.RoutineStatus(status)
-}
-
 func (s *RoutineService) CreateRoutine(userID uint, req *dto.CreateRoutineRequest, loc *time.Location) (*dto.RoutineResponse, error) {
 	if err := s.validateActivitiesOwnership(userID, req.ActivityIDs); err != nil {
 		return nil, err
@@ -202,7 +195,6 @@ func (s *RoutineService) CreateRoutine(userID uint, req *dto.CreateRoutineReques
 		PrivacyStatus: model.PrivacyStatus(req.PrivacyStatus),
 		DayTime:       normalizeDayTime(req.DayTime),
 		DayFrequency:  req.DayFrequency,
-		Status:        normalizeStatus(req.Status),
 	}
 	if err := s.repo.Create(&routine); err != nil {
 		return nil, errors.New("failed to create routine")
@@ -262,9 +254,6 @@ func (s *RoutineService) routineUpdates(req *dto.UpdateRoutineRequest) (map[stri
 	}
 	if req.PrivacyStatus != nil {
 		updates["privacy_status"] = *req.PrivacyStatus
-	}
-	if req.Status != nil {
-		updates["status"] = normalizeStatus(*req.Status)
 	}
 	if req.DayTime != nil {
 		updates["day_time"] = normalizeDayTime(*req.DayTime)
