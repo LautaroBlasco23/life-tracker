@@ -50,8 +50,6 @@ data class PendingImportFile(
 data class ProfileUiState(
     val user: ProfileUser? = null,
     val isUploadingImage: Boolean = false,
-    /** Current API URL for the row display (override or build-time default). */
-    val apiUrl: String = "",
     // Backup card (RN isExporting/isImporting pair; mutually disabling).
     val isExporting: Boolean = false,
     val isImporting: Boolean = false,
@@ -70,7 +68,6 @@ sealed interface ProfileEvent {
  * - profile refresh (server fetch keeps the cached user on failure, no toast),
  * - optimistic privacy toggle with revert,
  * - avatar upload/remove (bytes come from the screen's ContentResolver read),
- * - API URL override (https-only in non-debug builds, trailing-slash trim),
  * - theme/language persisted through [SettingsRepository] (MainActivity
  *   bridges the DataStore values back into ThemeController/I18n),
  * - password/email changes through [AuthRepository] (fresh token pairs are
@@ -112,7 +109,6 @@ class ProfileViewModel @Inject constructor(
                 .map { profile -> profile.toProfileUser() }
                 .getOrNull() ?: return@launch
             _uiState.update { it.copy(user = updated) }
-            _uiState.update { it.copy(apiUrl = profileRepo.effectiveApiUrl()) }
         }
     }
 
@@ -167,35 +163,6 @@ class ProfileViewModel @Inject constructor(
     /** Persisted; MainActivity bridges the value into I18n (labels flip instantly). */
     fun setLanguage(code: String) {
         viewModelScope.launch { settings.setLanguage(code) }
-    }
-
-    /**
-     * RN `saveApiUrl`: trims + strips trailing slashes; empty input does
-     * nothing; non-https is rejected outside debug builds (this value decides
-     * where Bearer tokens are sent). `onResult(true)` means "applied".
-     */
-    fun saveApiUrl(
-        input: String,
-        isDebugBuild: Boolean,
-        onResult: (Boolean) -> Unit,
-    ) {
-        val url = input.trim().trimEnd('/')
-        if (url.isEmpty()) return
-        if (!url.startsWith("https://") && !isDebugBuild) {
-            toast(
-                toastText(t("profile.apiUrlInvalidTitle"), t("profile.apiUrlInvalidMessage")),
-                isError = true,
-            )
-            return
-        }
-        viewModelScope.launch {
-            settings.setApiUrl(url)
-            _uiState.update { it.copy(apiUrl = url) }
-            toast(
-                toastText(t("profile.apiUrlUpdated"), t("profile.apiUrlUpdatedDescription")),
-            )
-            onResult(true)
-        }
     }
 
     // ---- password / email (AuthRepository stashes the fresh token pairs) ----

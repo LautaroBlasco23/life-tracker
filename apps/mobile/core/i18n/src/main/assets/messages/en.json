@@ -568,11 +568,6 @@
     "dark": "Dark",
     "system": "System",
     "light": "Light",
-    "apiUrl": "API URL",
-    "apiUrlUpdated": "API URL updated",
-    "apiUrlUpdatedDescription": "Sign out and sign back in to use the new server.",
-    "apiUrlInvalidTitle": "Invalid API URL",
-    "apiUrlInvalidMessage": "The API URL must start with https:// in release builds.",
     "privacy": "Privacy"
   },
   "dataBackup": {
