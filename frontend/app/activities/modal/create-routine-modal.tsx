@@ -22,7 +22,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { routineService } from '@shared/services/routine-service';
-import type { Routine, PrivacyStatus, RoutineStatus } from '@shared/types';
+import type { Routine, PrivacyStatus } from '@shared/types';
 import { RoutineActivitiesSection } from './routine-activities-section';
 import { type SelectedActivityRef } from './select-existing-activities-modal';
 import { showToast } from '@/lib/toast';
@@ -42,7 +42,6 @@ export function CreateRoutineModal({
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [privacyStatus, setPrivacyStatus] = useState<PrivacyStatus>('private');
-  const [status, setStatus] = useState<RoutineStatus>('active');
   const [selectedActivities, setSelectedActivities] = useState<
     SelectedActivityRef[]
   >([]);
@@ -55,7 +54,6 @@ export function CreateRoutineModal({
     setTitle('');
     setDescription('');
     setPrivacyStatus('private');
-    setStatus('active');
     setSelectedActivities([]);
   };
 
@@ -78,7 +76,6 @@ export function CreateRoutineModal({
         title,
         description,
         privacyStatus,
-        status,
         activityIds: selectedActivities.map((activity, position) => ({
           activityId: activity.id,
           position,
@@ -141,23 +138,6 @@ export function CreateRoutineModal({
               className="bg-input border-border resize-none"
               rows={2}
             />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="routine-status">{t('statusLabel')}</Label>
-            <Select
-              value={status}
-              onValueChange={(value: RoutineStatus) => setStatus(value)}
-            >
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="draft">{t('status_draft')}</SelectItem>
-                <SelectItem value="active">{t('status_active')}</SelectItem>
-                <SelectItem value="stopped">{t('status_stopped')}</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
 
           <RoutineActivitiesSection

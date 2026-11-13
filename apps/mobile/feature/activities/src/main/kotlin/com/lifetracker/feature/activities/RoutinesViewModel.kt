@@ -7,7 +7,6 @@ import com.lifetracker.core.network.model.ActivityIDPosition
 import com.lifetracker.core.network.model.CreateRoutineRequest
 import com.lifetracker.core.network.model.PrivacyStatus
 import com.lifetracker.core.network.model.RoutineResponse
-import com.lifetracker.core.network.model.RoutineStatus
 import com.lifetracker.core.network.model.UpdateRoutineRequest
 import com.lifetracker.domain.activities.ActivitiesRepository
 import com.lifetracker.domain.routines.RoutinesRepository
@@ -19,14 +18,13 @@ import kotlinx.coroutines.flow.update
 
 /**
  * State of the routines manager modal (`components/activity/routines-modal.tsx`):
- * my routines + the activity pool for the form; optimistic status changes.
+ * my routines + the activity pool for the form.
  */
 data class RoutinesUiState(
     val routineList: List<RoutineResponse> = emptyList(),
     val isLoading: Boolean = true,
     val activityPool: List<RoutineActivityPick> = emptyList(),
     val poolLoading: Boolean = false,
-    val updatingStatus: Boolean = false,
 )
 
 /** Selected/pool entry of the routine form (id + title snapshot). */
@@ -69,7 +67,6 @@ class RoutinesViewModel @Inject constructor(
         title: String,
         description: String,
         privacy: PrivacyStatus,
-        status: RoutineStatus,
         selected: List<RoutineActivityPick>,
     ): Result<RoutineResponse> =
         routines.create(
@@ -77,7 +74,6 @@ class RoutinesViewModel @Inject constructor(
                 title = title,
                 description = description,
                 privacyStatus = privacy,
-                status = status,
                 activityIds = selected.mapIndexed { index, item ->
                     ActivityIDPosition(activityId = item.id, position = index)
                 },
@@ -91,7 +87,6 @@ class RoutinesViewModel @Inject constructor(
         title: String,
         description: String,
         privacy: PrivacyStatus,
-        status: RoutineStatus,
         selected: List<RoutineActivityPick>,
     ): Result<RoutineResponse> =
         routines.update(
@@ -100,7 +95,6 @@ class RoutinesViewModel @Inject constructor(
                 title = title,
                 description = description,
                 privacyStatus = privacy,
-                status = status,
                 activityIds = selected.mapIndexed { index, item ->
                     ActivityIDPosition(activityId = item.id, position = index)
                 },
@@ -111,30 +105,6 @@ class RoutinesViewModel @Inject constructor(
             }
         }
 
-    /** Optimistic status change (modal parity: revert + toast on failure). */
-    suspend fun setStatus(routine: RoutineResponse, to: RoutineStatus): Result<Unit> {
-        _uiState.update { s ->
-            s.copy(
-                updatingStatus = true,
-                routineList = s.routineList.map { if (it.id == routine.id) it.copy(status = to.wire) else it },
-            )
-        }
-        return runCatching {
-            routines.update(routine.id, UpdateRoutineRequest(status = to)).getOrThrow()
-        }.recoverCatching {
-            _uiState.update { s ->
-                s.copy(routineList = s.routineList.map { if (it.id == routine.id) routine else it })
-            }
-            throw it
-        }.also {
-            _uiState.update { s -> s.copy(updatingStatus = false) }
-        }.map { updated ->
-            _uiState.update { s ->
-                s.copy(routineList = s.routineList.map { if (it.id == updated.id) updated else it })
-            }
-        }.map { _ -> }
-    }
-
     /** Deletes on success only — the confirm modal stays open on failure. */
     suspend fun deleteRoutine(id: Long): Result<Unit> {
         val result = routines.delete(id)
@@ -143,7 +113,4 @@ class RoutinesViewModel @Inject constructor(
         }
         return result
     }
-
-    private val RoutineStatus.wire: String
-        get() = name.lowercase()
 }
