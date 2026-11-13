@@ -1,0 +1,52 @@
+# Social smoke: search for the throwaway target user (registered via curl by
+# `make e2e-mobile`, default public profile) and exercise follow → unfollow —
+# the button flips "Follow" → "Following" → "Follow".
+#
+# Env: MAESTRO_E2E_USER / MAESTRO_E2E_PASS / MAESTRO_E2E_TARGET_USER. Text
+# selectors match FULL text; "Open menu" opens the hamburger drawer.
+
+appId: com.lifetracker.mobile
+name: mobile smoke — social · search · follow · unfollow
+---
+
+# Session guard: run individually, or when a previous flow left us logged out.
+- launchApp
+- runFlow:
+    when:
+      visible: "Sign in"
+    commands:
+      - tapOn: "Enter your username or email"
+      - inputText: "${MAESTRO_E2E_USER}"
+      - hideKeyboard
+      - tapOn: "Enter your password"
+      - inputText: "${MAESTRO_E2E_PASS}"
+      - hideKeyboard
+      # "Sign in" also matches the unclickable screen title — the button sits
+      # below the password field (relational selector).
+      - tapOn:
+          text: "Sign in"
+          below: "Password"
+      - assertVisible: "Today's Activities"
+
+- assertVisible: "Today's Activities"
+- tapOn: "Open menu"
+- tapOn: "Social"
+- assertVisible: "Find Friends"
+
+# ---------------------------------------------------------------- follow
+- tapOn: "Search by username..."
+- inputText: "${MAESTRO_E2E_TARGET_USER}"
+- hideKeyboard
+- assertVisible: "E2e Target"
+- assertVisible: "@${MAESTRO_E2E_TARGET_USER}"
+- tapOn: "Follow"
+- assertVisible: "Following"
+
+# ---------------------------------------------------------------- unfollow
+- tapOn: "Following"
+- assertVisible: "Follow"
+
+# Back on the home screen for the next flow.
+- tapOn: "Open menu"
+- tapOn: "Activities"
+- assertVisible: "Today's Activities"

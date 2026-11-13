@@ -39,3 +39,8 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# Kotlin rewrite (gradle project root)
+.gradle/
+local.properties
+build/

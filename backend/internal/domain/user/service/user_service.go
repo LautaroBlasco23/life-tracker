@@ -113,6 +113,35 @@ func (s *UserService) UpdateProfile(userID uint, email string, username string, 
 	return s.fetchUpdatedUserResponse(userID, email)
 }
 
+// CompleteOnboarding marks the first-run guide as completed for the user.
+// Idempotent: once set, the timestamp is kept.
+func (s *UserService) CompleteOnboarding(userID uint) (*dto.UserResponse, error) {
+	user, err := s.repo.FindByID(userID)
+	if err != nil {
+		if errors.Is(err, repository.ErrUserNotFound) {
+			return nil, errors.New("user not found")
+		}
+		return nil, errors.New("failed to fetch user")
+	}
+
+	if user.OnboardingCompletedAt == nil {
+		now := time.Now()
+		if err = s.repo.Update(user, map[string]interface{}{
+			"onboarding_completed_at": now,
+		}); err != nil {
+			return nil, errors.New("failed to update user")
+		}
+		user.OnboardingCompletedAt = &now
+	}
+
+	auth, err := s.authRepo.FindByUserID(userID)
+	if err != nil {
+		return nil, errors.New("failed to fetch user auth")
+	}
+
+	return user.ToResponse(auth.Email, auth.Username), nil
+}
+
 func (s *UserService) handleUsernameUpdate(userID uint, currentUsername string, req *dto.UpdateUserRequest) error {
 	if req.Username == nil || *req.Username == currentUsername {
 		return nil

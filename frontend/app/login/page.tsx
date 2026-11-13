@@ -49,7 +49,12 @@ export default function LoginPage() {
         title: t('welcomeBack'),
         description: t('welcomeBackDescription'),
       });
-      router.push('/activities');
+      // First-run users land on the onboarding guide.
+      router.push(
+        authService.getCurrentUser()?.onboardingCompleted === false
+          ? '/onboarding'
+          : '/activities'
+      );
     } catch (error) {
       showToast({
         title: t('loginFailed'),

@@ -9,16 +9,17 @@ import (
 )
 
 type User struct {
-	CreatedAt            time.Time      `json:"createdAt"`
-	UpdatedAt            time.Time      `json:"updatedAt"`
-	ProfilePicURL        *string        `json:"profilePicUrl,omitempty"`
-	ThumbnailURL         *string        `json:"thumbnailUrl,omitempty"`
-	Timezone             *string        `json:"timezone,omitempty" gorm:"size:64"`
-	ProfilePrivacyStatus string         `json:"profilePrivacyStatus" gorm:"not null;default:'public';size:20"`
-	DeletedAt            gorm.DeletedAt `json:"-" gorm:"index"`
-	FirstName            string         `json:"firstName" gorm:"not null"`
-	LastName             string         `json:"lastName" gorm:"not null"`
-	ID                   uint           `json:"id" gorm:"primaryKey"`
+	CreatedAt             time.Time      `json:"createdAt"`
+	UpdatedAt             time.Time      `json:"updatedAt"`
+	ProfilePicURL         *string        `json:"profilePicUrl,omitempty"`
+	ThumbnailURL          *string        `json:"thumbnailUrl,omitempty"`
+	Timezone              *string        `json:"timezone,omitempty" gorm:"size:64"`
+	ProfilePrivacyStatus  string         `json:"profilePrivacyStatus" gorm:"not null;default:'public';size:20"`
+	OnboardingCompletedAt *time.Time     `json:"onboardingCompletedAt,omitempty"`
+	DeletedAt             gorm.DeletedAt `json:"-" gorm:"index"`
+	FirstName             string         `json:"firstName" gorm:"not null"`
+	LastName              string         `json:"lastName" gorm:"not null"`
+	ID                    uint           `json:"id" gorm:"primaryKey"`
 }
 
 func (u *User) ToResponse(email, username string) *dto.UserResponse {
@@ -32,6 +33,7 @@ func (u *User) ToResponse(email, username string) *dto.UserResponse {
 		Timezone:             u.Timezone,
 		Username:             username,
 		ProfilePrivacyStatus: u.ProfilePrivacyStatus,
+		OnboardingCompleted:  u.OnboardingCompletedAt != nil,
 		CreatedAt:            u.CreatedAt,
 		UpdatedAt:            u.UpdatedAt,
 	}
