@@ -29,6 +29,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,6 +42,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.lifetracker.core.designsystem.LbButton
 import com.lifetracker.core.designsystem.LbButtonVariant
+import com.lifetracker.core.designsystem.LbDeleteConfirm
 import com.lifetracker.core.designsystem.LbOptionSelect
 import com.lifetracker.core.designsystem.LbSelectOption
 import com.lifetracker.core.designsystem.LocalAppColors
@@ -61,26 +64,11 @@ import com.lifetracker.domain.lib.filters.categoryLabel
 import com.lifetracker.domain.time.parseInstant
 import java.time.ZoneId
 import java.time.ZonedDateTime
+import kotlinx.coroutines.launch
 
 /** Defaults for a freshly opened create form (RN constants). */
 private const val DEFAULT_START_MINUTES = 9 * 60
 private const val DEFAULT_DURATION_MINUTES = 60
-
-/**
- * Accent color per category (same mapping as web's event-block accent bars),
- * expressed with palette tokens so it follows the light/dark theme.
- */
-private val EVENT_ACCENT_MAP: Map<String, AccentKey> = mapOf(
-    "Work" to AccentKey.SECONDARY,
-    "Hobbies" to AccentKey.SECONDARY,
-    "Exercise" to AccentKey.SUCCESS,
-    "Meditation" to AccentKey.SUCCESS,
-    "Social" to AccentKey.WARNING,
-    "Gaming" to AccentKey.WARNING,
-    "Entertainment" to AccentKey.WARNING,
-    "Study" to AccentKey.PRIMARY,
-    "Reading" to AccentKey.PRIMARY,
-)
 
 /**
  * Calendar tab (mobile port of web's calendar-view): a 7-day strip for the
@@ -100,10 +88,23 @@ internal fun CalendarTab(
 ) {
     val colors = LocalAppColors.current
     val zone = remember { ZoneId.systemDefault() }
+    val scope = rememberCoroutineScope()
 
     var weekStart by remember { mutableStateOf(getWeekStart(ZonedDateTime.now())) }
     var selectedDay by remember { mutableStateOf(ZonedDateTime.now()) }
     val days = remember(weekStart) { getWeekDays(weekStart) }
+
+    // Per-day event counts for the strip dots (same overlap test as the agenda).
+    val eventCounts = remember(events, days) {
+        days.associateWith { day ->
+            val range = getDayRange(day)
+            events.count { event ->
+                val start = parseInstant(event.startAt, zone)?.toInstant() ?: return@count false
+                val end = parseInstant(event.endAt, zone)?.toInstant() ?: return@count false
+                start < range.end.toInstant() && end > range.start.toInstant()
+            }
+        }
+    }
 
     // RN `useFocusEffect`: reload on tab focus and on week / reloadKey change.
     LaunchedEffect(view, weekStart, eventsReloadKey) {
@@ -125,11 +126,11 @@ internal fun CalendarTab(
             .sortedBy { event -> parseInstant(event.startAt, zone)?.toInstant() }
     }
 
-    var showFormModal by remember { mutableStateOf(false) }
+    var showFormModal by rememberSaveable { mutableStateOf(false) }
     var editingEvent by remember { mutableStateOf<CalendarEventResponse?>(null) }
     var formDefaults by remember { mutableStateOf<CalendarEventDefaults?>(null) }
     var deletingEvent by remember { mutableStateOf<CalendarEventResponse?>(null) }
-    var deleteScope by remember { mutableStateOf(EventScope.OCCURRENCE) }
+    var deleteScope by rememberSaveable { mutableStateOf(EventScope.OCCURRENCE) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -165,7 +166,6 @@ internal fun CalendarTab(
                                 weekStart = getWeekStart(today)
                                 selectedDay = today
                             },
-                            modifier = Modifier.height(36.dp),
                             variant = LbButtonVariant.SECONDARY,
                         )
                         ChevronButton(
@@ -190,7 +190,6 @@ internal fun CalendarTab(
                             )
                             showFormModal = true
                         },
-                        modifier = Modifier.height(36.dp),
                     )
                 }
 
@@ -202,7 +201,7 @@ internal fun CalendarTab(
                     modifier = Modifier.padding(bottom = 12.dp),
                 )
 
-                // ---- 7-day picker strip (web's small-screen fallback) ----
+                // ---- 7-day picker strip: 44dp+ cells with event dots ----
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     modifier = Modifier
@@ -211,6 +210,7 @@ internal fun CalendarTab(
                 ) {
                     days.forEach { day ->
                         val selected = isSameDay(day, selectedDay)
+                        val dayEventCount = eventCounts[day] ?: 0
                         Column(
                             modifier = Modifier
                                 .weight(1f)
@@ -231,7 +231,7 @@ internal fun CalendarTab(
                                     indication = null,
                                     onClick = { selectedDay = day },
                                 )
-                                .padding(horizontal = 4.dp, vertical = 8.dp),
+                                .padding(vertical = 10.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
                             Text(
@@ -250,6 +250,32 @@ internal fun CalendarTab(
                                     else -> colors.foreground
                                 },
                             )
+                            // Up to 3 event dots + a "+" overflow marker.
+                            if (dayEventCount > 0) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(3.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(top = 3.dp),
+                                ) {
+                                    repeat(minOf(dayEventCount, 3)) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(4.dp)
+                                                .clip(CircleShape)
+                                                .background(
+                                                    if (selected) colors.primaryForeground else colors.primary,
+                                                ),
+                                        )
+                                    }
+                                    if (dayEventCount > 3) {
+                                        Text(
+                                            "+",
+                                            fontSize = 9.sp,
+                                            color = if (selected) colors.primaryForeground else colors.primary,
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -317,12 +343,30 @@ internal fun CalendarTab(
     )
 
     val deleteTarget = deletingEvent
-    DeleteModal(
+    var isDeletingEvent by remember { mutableStateOf(false) }
+    LbDeleteConfirm(
         visible = deleteTarget != null,
+        name = deleteTarget?.title ?: "",
         onDismiss = { deletingEvent = null },
+        onConfirm = {
+            val target = deleteTarget ?: return@LbDeleteConfirm
+            scope.launch {
+                isDeletingEvent = true
+                val error = viewModel.deleteEvent(target.id, if (target.seriesId != null) deleteScope else null)
+                isDeletingEvent = false
+                if (error == null) {
+                    deletingEvent = null
+                    toast.show(
+                        toastText(I18n.t("calendar.eventDeleted"), I18n.t("calendar.eventDeletedDescription")),
+                    )
+                } else {
+                    toast.show(toastText(I18n.t("calendar.failedToDelete"), error), isError = true)
+                }
+            }
+        },
         title = I18n.t("calendar.deleteEvent"),
-        itemName = deleteTarget?.title ?: "",
-        confirmLabel = I18n.t("calendar.deleteEventConfirm"),
+        message = I18n.t("deleteModal.areYouSure", "name" to (deleteTarget?.title ?: "")),
+        deleteLabel = I18n.t("calendar.deleteEventConfirm"),
         details = if (deleteTarget != null) {
             {
                 DeleteEventDetails(event = deleteTarget, scope = deleteScope, onScopeChange = { deleteScope = it })
@@ -330,18 +374,7 @@ internal fun CalendarTab(
         } else {
             null
         },
-        onConfirm = {
-            val target = deleteTarget ?: return@DeleteModal ""
-            val error = viewModel.deleteEvent(target.id, if (target.seriesId != null) deleteScope else null)
-            if (error == null) {
-                toast.show(
-                    toastText(I18n.t("calendar.eventDeleted"), I18n.t("calendar.eventDeletedDescription")),
-                )
-            } else {
-                toast.show(toastText(I18n.t("calendar.failedToDelete"), error), isError = true)
-            }
-            error
-        },
+        isBusy = isDeletingEvent,
     )
 }
 
@@ -377,13 +410,13 @@ private fun DeleteEventDetails(
     }
 }
 
-/** Rounded h-9/w-9 outline chevron (RN `Button outline h-9 w-9 px-0`). */
+/** 44dp outline chevron (touch-target token; was a 36dp h-9 port). */
 @Composable
 private fun ChevronButton(icon: ImageVector, contentDescription: String, onClick: () -> Unit) {
     val colors = LocalAppColors.current
     Box(
         modifier = Modifier
-            .size(36.dp)
+            .size(44.dp)
             .clip(RoundedCornerShape(8.dp))
             .border(1.dp, colors.border, RoundedCornerShape(8.dp))
             .clickable(
@@ -397,7 +430,7 @@ private fun ChevronButton(icon: ImageVector, contentDescription: String, onClick
             imageVector = icon,
             contentDescription = contentDescription,
             tint = colors.foreground,
-            modifier = Modifier.size(16.dp),
+            modifier = Modifier.size(20.dp),
         )
     }
 }
@@ -406,13 +439,7 @@ private fun ChevronButton(icon: ImageVector, contentDescription: String, onClick
 @Composable
 private fun AgendaEventCard(event: CalendarEventResponse, onClick: () -> Unit) {
     val colors = LocalAppColors.current
-    val accent = when (EVENT_ACCENT_MAP[event.category] ?: AccentKey.PRIMARY) {
-        AccentKey.PRIMARY -> colors.primary
-        AccentKey.SECONDARY -> colors.secondary
-        AccentKey.SUCCESS -> colors.success
-        AccentKey.WARNING -> colors.warning
-        AccentKey.DANGER -> colors.danger
-    }
+    val accent = accentColor(categoryVisual(event.category).accent)
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier

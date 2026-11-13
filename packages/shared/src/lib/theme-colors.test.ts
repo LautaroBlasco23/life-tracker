@@ -79,6 +79,16 @@ const AA_PAIRS: Array<[keyof typeof themeColors.light, keyof typeof themeColors.
   ['warning', 'background', 4.5],
   // Large text / UI components on the primary accent.
   ['foreground', 'accent', 3],
+  // Day-time section accents: section icons, 4px accent bars and the
+  // section-count numerals (16sp bold) all ink against background/surface.
+  ['sectionAnytime', 'background', 4.5],
+  ['sectionAnytime', 'surface', 4.5],
+  ['sectionMorning', 'background', 4.5],
+  ['sectionMorning', 'surface', 4.5],
+  ['sectionAfternoon', 'background', 4.5],
+  ['sectionAfternoon', 'surface', 4.5],
+  ['sectionEvening', 'background', 4.5],
+  ['sectionEvening', 'surface', 4.5],
 ];
 
 // Amber (secondary) is highlight-only: as text or a standalone UI fill on

@@ -25,6 +25,9 @@ dependencies {
     implementation(project(":domain"))
     // Network model types surfaced through the repositories (record/event DTOs).
     implementation(project(":core:network"))
+    // Material icons (outlined) for the per-category visuals — lucide
+    // stand-ins, same convention as the activities/social/profile features.
+    implementation(libs.compose.material.icons)
 
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)

@@ -130,34 +130,3 @@ val TimeIcons.CalendarX: ImageVector by lazy { strokeIcon("Time.LbCalendarX", li
     "M14 15 L10 19",
 )) }
 
-/** lucide `activity`. */
-val TimeIcons.Activity: ImageVector by lazy { strokeIcon("Time.LbActivity", listOf(
-    "M22 12 L18 12 L15 21 L9 3 L6 12 L2 12",
-)) }
-
-/** lucide `sticky-note`. */
-val TimeIcons.StickyNote: ImageVector by lazy { strokeIcon("Time.LbStickyNote", listOf(
-    "M15.5 3 L5 3 C3.9 3 3 3.9 3 5 L3 19 C3 20.1 3.9 21 5 21 L19 21 C20.1 21 21 20.1 21 19 L21 8.5 Z",
-    "M15 3 L15 8.5 L21 8.5",
-)) }
-
-/** lucide `wallet`. */
-val TimeIcons.Wallet: ImageVector by lazy { strokeIcon("Time.LbWallet", listOf(
-    "M21 12 L21 7 L5 7 C3.9 7 3 6.1 3 5 C3 3.9 3.9 3 5 3 L19 3",
-    "M3 5 L3 19 C3 20.1 3.9 21 5 21 L21 21 L21 19 L21 16",
-    "M18 12 C17 12 16 12.9 16 14 C16 15.1 17 16 18 16 L22 16 L22 12 Z",
-)) }
-
-/** lucide `chart-pie`. */
-val TimeIcons.ChartPie: ImageVector by lazy { strokeIcon("Time.LbChartPie", listOf(
-    "M21 12 C21.6 12 21.95 11.56 21.95 11 A10 10 0 0 0 13 2 C12.45 2 12 2.45 12 3 L12 11 C12 11.55 12.45 12 13 12 Z",
-    "M21.21 15.89 A10 10 0 1 1 8 2.83",
-)) }
-
-/** lucide `users`. */
-val TimeIcons.Users: ImageVector by lazy { strokeIcon("Time.LbUsers", listOf(
-    "M16 21 L16 19 C16 16.8 14.2 15 12 15 L6 15 C3.8 15 2 16.8 2 19 L2 21",
-    "M13 7 A4 4 0 1 1 5 7 A4 4 0 1 1 13 7",
-    "M22 21 L22 19 C22 17.13 20.87 15.63 19 15.13",
-    "M16 3.13 A4 4 0 0 1 16 10.87",
-)) }

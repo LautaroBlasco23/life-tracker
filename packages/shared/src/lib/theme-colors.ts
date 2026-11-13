@@ -33,6 +33,16 @@ export const themeColors = {
     warning: "#96642a",
     border: "#e8e3d8",
     sticky: "#f4e8d4",
+    // Day-time section accents (activities page: morning/afternoon/evening/
+    // any-moment). Used as section icons, 4px left bars and count numerals.
+    // Warm-leaning hues tuned to pass AA 4.5:1 on background/surface in both
+    // modes; the light `sectionMorning` is the darker amber (warning value)
+    // because the bright `secondary` amber fails text contrast on light
+    // surfaces by design.
+    sectionAnytime: "#6a6c61",
+    sectionMorning: "#96642a",
+    sectionAfternoon: "#4a7183",
+    sectionEvening: "#6b5b8e",
   },
   dark: {
     background: "#1c1d19",
@@ -50,5 +60,11 @@ export const themeColors = {
     warning: "#d8b58a",
     border: "#3a3c33",
     sticky: "#3e3524",
+    // Dark-mode section accents (lighter, role-adapted counterparts of the
+    // light values above; morning reuses the light secondary amber).
+    sectionAnytime: "#aaa99f",
+    sectionMorning: "#d8b58a",
+    sectionAfternoon: "#93bccb",
+    sectionEvening: "#b3a6cf",
   },
 } as const

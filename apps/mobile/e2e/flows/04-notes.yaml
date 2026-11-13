@@ -3,7 +3,7 @@
 # Dialog on this screen (works on other screens), so typing is not exercised.
 #
 # Env: MAESTRO_E2E_USER / MAESTRO_E2E_PASS. Text selectors match FULL text;
-# "Open menu" opens the hamburger drawer.
+# The bottom-nav tabs are the tap targets.
 
 appId: com.lifetracker.mobile
 name: mobile smoke — notes · editor open · close
@@ -29,7 +29,6 @@ name: mobile smoke — notes · editor open · close
       - assertVisible: "Today's Activities"
 
 - assertVisible: "Today's Activities"
-- tapOn: "Open menu"
 - tapOn: "Notes"
 - assertVisible: "Notes"
 - assertVisible: "Add Group"
@@ -44,6 +43,5 @@ name: mobile smoke — notes · editor open · close
 - assertVisible: "No notes yet"
 
 # Back on the home screen for the next flow.
-- tapOn: "Open menu"
 - tapOn: "Activities"
 - assertVisible: "Today's Activities"

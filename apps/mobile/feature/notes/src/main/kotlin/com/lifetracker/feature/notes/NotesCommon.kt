@@ -1,14 +1,7 @@
 package com.lifetracker.feature.notes
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.MonitorHeart
-import androidx.compose.material.icons.outlined.People
-import androidx.compose.material.icons.outlined.PieChart
-import androidx.compose.material.icons.outlined.StickyNote2
-import androidx.compose.material.icons.outlined.Timer
-import androidx.compose.material.icons.outlined.Wallet
 import androidx.compose.ui.graphics.vector.ImageVector
-import com.lifetracker.core.designsystem.NavEntry
 import com.lifetracker.core.i18n.I18n
 import com.lifetracker.core.network.model.NoteGroupResponse
 import com.lifetracker.core.network.model.NoteResponse
@@ -32,16 +25,6 @@ internal fun t(key: String, vararg params: Pair<String, Any?>): String =
 /** Joiner for toast titles + optional descriptions (`showToast({title, description})`). */
 internal fun toastText(title: String, description: String? = null): String =
     if (description.isNullOrBlank()) title else "$title — $description"
-
-/** Hamburger drawer entries (same nav list the other screens render). */
-internal fun navItems(): List<Pair<String, ImageVector>> = listOf(
-    "activities" to Icons.Outlined.MonitorHeart,
-    "time" to Icons.Outlined.Timer,
-    "notes" to Icons.Outlined.StickyNote2,
-    "finance/transactions" to Icons.Outlined.Wallet,
-    "finance/dashboard" to Icons.Outlined.PieChart,
-    "social" to Icons.Outlined.People,
-)
 
 /**
  * RN `formatEditedAt`: `toLocaleDateString(undefined, { month: 'short', day: 'numeric' })`.

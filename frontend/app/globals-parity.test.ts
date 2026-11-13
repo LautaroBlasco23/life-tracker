@@ -30,6 +30,10 @@ const TOKEN_VARS: Array<[keyof typeof themeColors.light, string]> = [
   ['warning', '--warning'],
   ['border', '--border'],
   ['sticky', '--sticky'],
+  ['sectionAnytime', '--section-anytime'],
+  ['sectionMorning', '--section-morning'],
+  ['sectionAfternoon', '--section-afternoon'],
+  ['sectionEvening', '--section-evening'],
 ];
 
 function extractBlock(selector: string): string {

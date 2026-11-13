@@ -94,7 +94,8 @@ fun LbModalSheet(
 
 /**
  * Port of RN `components/ui/delete-modal.tsx`: warning icon in a danger-tinted
- * circle, title, message (with the item name in semibold ink), Cancel +
+ * circle, title, message (with the item name in semibold ink), optional
+ * details slot (e.g. record preview / delete-scope select), Cancel +
  * destructive Delete buttons side by side.
  *
  * The session-scoped `visible` dialog closes only when the caller flips it
@@ -109,6 +110,10 @@ fun LbDeleteConfirm(
     title: String,
     message: String,
     deleteLabel: String,
+    details: (@Composable () -> Unit)? = null,
+    /** Disables both buttons + shows the spinner on the confirm action while
+     *  the caller runs its delete (double-tap guard). */
+    isBusy: Boolean = false,
 ) {
     if (!visible) return
     val colors = LocalAppColors.current
@@ -156,6 +161,7 @@ fun LbDeleteConfirm(
                 color = colors.textMuted,
                 modifier = Modifier.padding(top = 16.dp, bottom = 12.dp),
             )
+            details?.invoke()
             Row(
                 modifier = Modifier.padding(top = 20.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -165,12 +171,15 @@ fun LbDeleteConfirm(
                     onClick = onDismiss,
                     modifier = Modifier.weight(1f),
                     variant = LbButtonVariant.SECONDARY,
+                    enabled = !isBusy,
                 )
                 LbButton(
                     text = deleteLabel,
                     onClick = onConfirm,
                     modifier = Modifier.weight(1f),
                     variant = LbButtonVariant.DANGER,
+                    enabled = !isBusy,
+                    loading = isBusy,
                 )
             }
         }

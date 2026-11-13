@@ -53,6 +53,20 @@ rules apply.
 | warning | `#96642a` | `#d8b58a` |
 | border | `#e8e3d8` | `#3a3c33` |
 | sticky (sticky-note card) | `#f4e8d4` | `#3e3524` |
+| section-anytime | `#6a6c61` | `#aaa99f` |
+| section-morning | `#96642a` | `#d8b58a` |
+| section-afternoon | `#4a7183` | `#93bccb` |
+| section-evening | `#6b5b8e` | `#b3a6cf` |
+
+### Day-time section accents
+
+The activities page groups entries into Any Moment / Morning / Afternoon /
+Evening sections (plus Reminders). Each section renders a `CategoryHeader`
+(web) / `LbCategoryHeader` (mobile): a 4px left bar + icon + count in the
+section accent, and all four accents pass AA 4.5:1 on background/surface in
+both modes (enforced in the token tests). These are the only cool-toned hues
+in the palette — desaturated to sit in the warm scheme; never use them for
+buttons or general text.
 
 ### Color usage rules
 
@@ -81,6 +95,17 @@ by default, or full-bleed for tool pages like Notes. Do not hand-roll a
 per-page header block; pass `title`, `description`, and the controls as
 children.
 
+## Mobile navigation
+
+The Android app navigates with an M3 bottom navigation bar
+(`LbBottomNav`, hosted in `AppHost`) holding the five primary destinations
+(Activities, Time, Notes, Finance, Social). The `AppHeader` top bar carries
+only the screen title, the profile avatar (every screen), and optional
+screen actions (the finance dashboard/transactions cross-links). There is no
+hamburger drawer. Primary create actions are FABs (`CreateFab`). Keep new
+screens inside this pattern: add the route to `tabKeyForRoute`/`mainNavTabs`
+or render a back-navigation header for sub-screens.
+
 ## Spacing, radius, elevation
 
 - Spacing scale: 4 / 8 / 12 / 16 / 24 / 32 / 48 (Tailwind default steps; prefer 4 and 8 over odd values).
@@ -92,7 +117,7 @@ children.
 ## Component reuse rules (in priority order)
 
 1. **Web:** use existing shadcn primitives in `frontend/components/ui/` before writing anything. If a needed one isn't there, add it via shadcn (`npx shadcn@latest add <name>`) rather than hand-rolling.
-2. **Mobile:** use the `Lb*` composables in `apps/mobile/core/designsystem` (`LbButton`, `LbCard`, `LbTextField`, `LbOptionSelect`, `LbSegmentedTabs`, `LbModalSheet`, …). Extend these with variants/props instead of creating parallel components.
+2. **Mobile:** use the `Lb*` composables in `apps/mobile/core/designsystem` (`LbButton`, `LbCard`, `LbTextField`, `LbOptionSelect`, `LbSegmentedTabs`, `LbModalSheet`, `LbBottomNav`, `LbCategoryHeader`, `LbHeaderAction`, `LbMetricCarousel`, `LbFab`, `LbMenuDialog`, `LbFilterChipsRow`, …). Extend these with variants/props instead of creating parallel components.
 3. **Feature-specific components** (`frontend/components/notes`, `frontend/components/ui/card`, `frontend/components/ui/filterModal`, `apps/mobile/feature/*` composables) hold composed, feature-specific pieces. Promote to `core/designsystem` only when genuinely shared across features.
 4. **Business logic, types, i18n** → `packages/shared`. Never duplicate in frontend/mobile.
 5. Feature screens live in `frontend/app/<feature>` (App Router) and `apps/mobile/feature/<feature>` (Compose). Keep styling in components, not screens.

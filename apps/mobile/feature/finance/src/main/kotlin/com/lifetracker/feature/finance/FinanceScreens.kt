@@ -30,6 +30,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,13 +48,15 @@ import com.lifetracker.core.designsystem.AppHeader
 import com.lifetracker.core.designsystem.LbButton
 import com.lifetracker.core.designsystem.LbButtonVariant
 import com.lifetracker.core.designsystem.LbCard
+import com.lifetracker.core.designsystem.LbMetricCarousel
+import com.lifetracker.core.designsystem.LbMetricPage
 import com.lifetracker.core.designsystem.LbModalSheet
 import com.lifetracker.core.designsystem.LbOptionSelect
 import com.lifetracker.core.designsystem.LbProgressBar
+import com.lifetracker.core.designsystem.LbSegmentedTabs
 import com.lifetracker.core.designsystem.LbSelectOption
 import com.lifetracker.core.designsystem.LocalAppColors
-import com.lifetracker.core.designsystem.ToastHost
-import com.lifetracker.core.designsystem.rememberToastState
+import com.lifetracker.core.designsystem.LocalToast
 import com.lifetracker.core.i18n.I18n
 import com.lifetracker.core.network.model.CategoryResponse
 import com.lifetracker.core.network.model.CategorySummary
@@ -71,10 +74,39 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZonedDateTime
 
+/** 44dp header icon action (the finance dashboard/transactions cross-links). */
+@Composable
+private fun HeaderNavIconButton(
+    icon: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+) {
+    val colors = LocalAppColors.current
+    Box(
+        modifier = Modifier
+            .size(44.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = colors.primary,
+            modifier = Modifier.size(24.dp),
+        )
+    }
+}
+
 /**
  * `/finance/dashboard` — summary, monthly stats and fixed payments (web
- * parity). Mobile keeps TWO real finance routes (checklist correction): each
- * renders its own `AppHeader`, and the hamburger navigates between them.
+ * parity). Mobile keeps TWO real finance routes (checklist correction): the
+ * bottom-nav Finance tab opens transactions; the header icon action navigates
+ * between the two.
  */
 @Composable
 fun FinanceDashboardScreen(
@@ -82,7 +114,7 @@ fun FinanceDashboardScreen(
     viewModel: DashboardViewModel = hiltViewModel(),
 ) {
     val colors = LocalAppColors.current
-    val toast = rememberToastState()
+    val toast = LocalToast.current
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var paymentFor by remember { mutableStateOf<FixedTransactionResponse?>(null) }
 
@@ -102,9 +134,15 @@ fun FinanceDashboardScreen(
             // Full-screen spinner until the fixed list settles (web parity).
             AppHeader(
                 title = "LifeTracker",
-                items = financeNavItems(),
-                currentKey = "finance/dashboard",
-                onNavigate = onNavigate,
+                onProfile = { onNavigate("profile") },
+                actions = {
+                    // The finance tab opens transactions; dashboard stays one tap away.
+                    HeaderNavIconButton(
+                        icon = FinanceIcons.Wallet,
+                        contentDescription = I18n.t("nav.financeTransactions"),
+                        onClick = { onNavigate("finance/transactions") },
+                    )
+                },
             )
             if (state.isLoading) {
                 Box(
@@ -120,7 +158,6 @@ fun FinanceDashboardScreen(
                 )
             }
         }
-        ToastHost(state = toast)
     }
 
     PaymentModal(
@@ -136,8 +173,7 @@ fun FinanceDashboardScreen(
 private fun DashboardContent(
     state: DashboardUiState,
     onRecordPayment: (FixedTransactionResponse) -> Unit,
-) {
-    val colors = LocalAppColors.current
+) {    val colors = LocalAppColors.current
     val now = LocalDate.now()
 
     Column(
@@ -162,41 +198,37 @@ private fun DashboardContent(
             )
         }
 
-        // ---- three summary cards (degrade to $0 on fetch failure) ----
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            SummaryCard(
-                label = t("finance.totalIncome"),
-                amount = state.summary?.totalIncome ?: 0.0,
-                ink = colors.success,
-                modifier = Modifier.weight(1f),
-            )
-            SummaryCard(
-                label = t("finance.totalOutcome"),
-                amount = state.summary?.totalOutcome ?: 0.0,
-                ink = colors.danger,
-                modifier = Modifier.weight(1f),
-            )
-            SummaryCard(
-                label = t("finance.balance"),
-                amount = state.summary?.balance ?: 0.0,
-                ink = if ((state.summary?.balance ?: 0.0) >= 0) colors.success else colors.danger,
-                modifier = Modifier.weight(1f),
-            )
-        }
+        // ---- summary metrics: one full-width swipeable card ----
+        LbMetricCarousel(
+            pages = listOf(
+                LbMetricPage(
+                    label = t("finance.totalIncome"),
+                    value = "$${formatCurrency(state.summary?.totalIncome ?: 0.0)}",
+                    icon = FinanceIcons.TrendingUp,
+                    ink = colors.success,
+                ),
+                LbMetricPage(
+                    label = t("finance.totalOutcome"),
+                    value = "$${formatCurrency(state.summary?.totalOutcome ?: 0.0)}",
+                    icon = FinanceIcons.TrendingDown,
+                    ink = colors.danger,
+                ),
+                LbMetricPage(
+                    label = t("finance.balance"),
+                    value = "$${formatCurrency(state.summary?.balance ?: 0.0)}",
+                    icon = FinanceIcons.Wallet,
+                    ink = if ((state.summary?.balance ?: 0.0) >= 0) colors.success else colors.danger,
+                ),
+            ),
+        )
 
-        // ---- dolar rate cards ("unavailable" on external failure) ----
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            DolarCard(
-                label = t("finance.usdOficial"),
-                rate = state.dolarRates.oficial,
-                modifier = Modifier.weight(1f),
-            )
-            DolarCard(
-                label = t("finance.usdBlue"),
-                rate = state.dolarRates.blue,
-                modifier = Modifier.weight(1f),
-            )
-        }
+        // ---- dolar rates: one swipeable card (buy = value, sell = subline) ----
+        LbMetricCarousel(
+            pages = listOf(
+                dolarMetricPage(label = t("finance.usdOficial"), rate = state.dolarRates.oficial),
+                dolarMetricPage(label = t("finance.usdBlue"), rate = state.dolarRates.blue),
+            ),
+        )
 
         // ---- monthly trend ----
         LbCard(modifier = Modifier.fillMaxWidth()) {
@@ -232,20 +264,50 @@ private fun DashboardContent(
             }
         }
 
-        // ---- category breakdowns ----
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            BreakdownCard(
-                title = t("finance.incomeByCategory"),
-                items = state.summary?.incomeByCategory.orEmpty(),
-                isIncome = true,
-                modifier = Modifier.weight(1f),
+        // ---- category breakdowns: one full-width card, segmented toggle ----
+        var breakdownTab by rememberSaveable { mutableStateOf(0) }
+        LbCard(modifier = Modifier.fillMaxWidth()) {
+            LbSegmentedTabs(
+                items = listOf(t("finance.incomeByCategory"), t("finance.outcomeByCategory")),
+                selectedIndex = breakdownTab,
+                onSelect = { breakdownTab = it },
             )
-            BreakdownCard(
-                title = t("finance.outcomeByCategory"),
-                items = state.summary?.outcomeByCategory.orEmpty(),
-                isIncome = false,
-                modifier = Modifier.weight(1f),
-            )
+            val items =
+                if (breakdownTab == 0) state.summary?.incomeByCategory.orEmpty()
+                else state.summary?.outcomeByCategory.orEmpty()
+            val isIncome = breakdownTab == 0
+            if (items.isEmpty()) {
+                Text(
+                    if (isIncome) t("finance.noIncomeCategories") else t("finance.noOutcomeCategories"),
+                    fontSize = 14.sp,
+                    color = colors.textMuted,
+                )
+            } else {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    items.forEach { item ->
+                        Column {
+                            Row(modifier = Modifier.padding(bottom = 4.dp)) {
+                                Text(
+                                    categoryLabel(item.categoryName),
+                                    fontSize = 14.sp,
+                                    color = colors.foreground,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                Text(
+                                    "$${formatCurrency(item.total)}",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = if (isIncome) colors.success else colors.danger,
+                                    modifier = Modifier.padding(start = 8.dp),
+                                )
+                            }
+                            LbProgressBar(value = item.percentage.toInt())
+                        }
+                    }
+                }
+            }
         }
 
         // ---- upcoming bills (fixed transactions unpaid this period) ----
@@ -276,119 +338,26 @@ private fun DashboardContent(
     }
 }
 
+/** Dolar-rate metric page: buy rate as the value, sell rate as the subline. */
 @Composable
-private fun SummaryCard(label: String, amount: Double, ink: Color, modifier: Modifier = Modifier) {
-    val colors = LocalAppColors.current
-    LbCard(modifier = modifier) {
-        Text(
-            label,
-            fontSize = 12.sp,
-            color = colors.textMuted,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Text(
-            "$${formatCurrency(amount)}",
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = ink,
-            modifier = Modifier.padding(top = 4.dp),
-        )
-    }
-}
-
-@Composable
-private fun DolarCard(label: String, rate: DolarRate?, modifier: Modifier = Modifier) {
-    val colors = LocalAppColors.current
-    LbCard(modifier = modifier) {
-        Text(
-            label,
-            fontSize = 14.sp,
-            fontWeight = FontWeight.Medium,
-            color = colors.foreground,
-            modifier = Modifier.padding(bottom = 8.dp),
-        )
-        if (rate != null) {
-            RateRow(label = t("finance.buy"), value = rate.compra)
-            RateRow(label = t("finance.sell"), value = rate.venta, spaced = true)
-        } else {
-            Text(t("finance.unavailable"), fontSize = 12.sp, color = colors.textMuted)
-        }
-    }
-}
-
-@Composable
-private fun RateRow(label: String, value: Double, spaced: Boolean = false) {
-    val colors = LocalAppColors.current
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = if (spaced) 4.dp else 0.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Text(label, fontSize = 12.sp, color = colors.textMuted)
-        Text(
-            "$${formatCurrency(value)}",
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = colors.foreground,
-        )
-    }
-}
-
-@Composable
-private fun BreakdownCard(
-    title: String,
-    items: List<CategorySummary>,
-    isIncome: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    val colors = LocalAppColors.current
-    val ink = if (isIncome) colors.success else colors.danger
-    LbCard(modifier = modifier) {
-        Text(
-            title,
-            fontSize = 16.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = colors.foreground,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        if (items.isEmpty()) {
-            Text(
-                if (isIncome) t("finance.noIncomeCategories") else t("finance.noOutcomeCategories"),
-                fontSize = 14.sp,
-                color = colors.textMuted,
-                modifier = Modifier.padding(top = 12.dp),
+private fun dolarMetricPage(label: String, rate: DolarRate?): LbMetricPage {
+    val value = rate?.let { "$${formatCurrency(it.compra)}" }
+        ?: run {
+            return LbMetricPage(
+                label = label,
+                value = formatCurrency(0.0),
+                icon = FinanceIcons.DollarSign,
+                ink = LocalAppColors.current.textMuted,
+                subline = I18n.t("finance.unavailable"),
             )
-        } else {
-            Spacer(Modifier.height(12.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                items.forEach { item ->
-                    Column {
-                        Row(modifier = Modifier.padding(bottom = 4.dp)) {
-                            Text(
-                                categoryLabel(item.categoryName),
-                                fontSize = 14.sp,
-                                color = colors.foreground,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f),
-                            )
-                            Text(
-                                "$${formatCurrency(item.total)}",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = ink,
-                                modifier = Modifier.padding(start = 8.dp),
-                            )
-                        }
-                        LbProgressBar(value = item.percentage.toInt())
-                    }
-                }
-            }
         }
-    }
+    return LbMetricPage(
+        label = label,
+        value = value,
+        icon = FinanceIcons.DollarSign,
+        ink = LocalAppColors.current.foreground,
+        subline = I18n.t("finance.sell") + ": $" + formatCurrency(rate.venta),
+    )
 }
 
 @Composable
@@ -449,7 +418,7 @@ fun FinanceTransactionsScreen(
     viewModel: TransactionsViewModel = hiltViewModel(),
 ) {
     val colors = LocalAppColors.current
-    val toast = rememberToastState()
+    val toast = LocalToast.current
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
     // Screen-level modal state (RN useState family).
@@ -499,9 +468,14 @@ fun FinanceTransactionsScreen(
         Column(modifier = Modifier.fillMaxSize()) {
             AppHeader(
                 title = "LifeTracker",
-                items = financeNavItems(),
-                currentKey = "finance/transactions",
-                onNavigate = onNavigate,
+                onProfile = { onNavigate("profile") },
+                actions = {
+                    HeaderNavIconButton(
+                        icon = FinanceIcons.ChartPie,
+                        contentDescription = I18n.t("nav.financeDashboard"),
+                        onClick = { onNavigate("finance/dashboard") },
+                    )
+                },
             )
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -628,8 +602,6 @@ fun FinanceTransactionsScreen(
                 modifier = Modifier.size(26.dp),
             )
         }
-
-        ToastHost(state = toast)
     }
 
     // ---- screen modals (RN renders these at the screen root) ----

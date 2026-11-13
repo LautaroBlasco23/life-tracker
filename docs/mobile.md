@@ -21,7 +21,12 @@ apps/mobile/
 │   │                     # SettingsRepository (apiUrl, language, theme)
 │   ├── designsystem/     # theme tokens (Warm Minimalism, ported from shared theme-colors)
 │   │                     # + primitives: LbButton/Card/TextField/OptionSelect/SegmentedTabs/
-│   │                     #   ModalSheet/DeleteConfirm, ToastHost, AppHeader hamburger nav
+│   │                     #   ModalSheet/DeleteConfirm (details + busy slots),
+│   │                     #   ToastHost (app-root hosted), AppHeader (title +
+│   │                     #   profile + actions), LbBottomNav (5 tabs),
+│   │                     #   LbCategoryHeader (day-time/section headers),
+│   │                     #   LbHeaderAction, LbMetricCarousel (swipeable
+│   │                     #   metric card), LbFab, LbMenuDialog, LbFilterChipsRow
 │   └── i18n/             # Translator over messages/{en,es}.json assets, runtime switch
 ├── domain/               # Repositories per feature (Retrofit-backed) + pure logic (domain/lib)
 └── feature/<feature>/    # Compose screens + Hilt ViewModels: auth, activities, time, notes,
@@ -94,4 +99,6 @@ CI: `.github/workflows/mobile-ci.yml` (`kotlin-build` job — assembleDebug + un
 - **Networking**: all backend access via the Retrofit interfaces in `core/network/endpoints`;
   auth/refresh handling is centralized — never hand-roll token retries.
 - **New screens**: route in `android-app/.../AppHost.kt` (`Routes` + `mapNavKey`), screen in
-  its `feature/<name>` module, ViewModel via `@HiltViewModel`; AppHeader carries the nav.
+  its `feature/<name>` module, ViewModel via `@HiltViewModel`; primary navigation is the
+  `LbBottomNav` tab bar (add the route to `tabKeyForRoute` + `mainNavTabs`), the `AppHeader`
+  carries the profile entry point (and optional actions, e.g. the finance cross-links).

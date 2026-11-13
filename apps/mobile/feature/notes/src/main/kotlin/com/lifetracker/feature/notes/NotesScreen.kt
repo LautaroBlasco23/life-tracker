@@ -74,9 +74,7 @@ import com.lifetracker.core.designsystem.LbDeleteConfirm
 import com.lifetracker.core.designsystem.LbModalSheet
 import com.lifetracker.core.designsystem.LbTextField
 import com.lifetracker.core.designsystem.LocalAppColors
-import com.lifetracker.core.designsystem.NavEntry
-import com.lifetracker.core.designsystem.ToastHost
-import com.lifetracker.core.designsystem.rememberToastState
+import com.lifetracker.core.designsystem.LocalToast
 import com.lifetracker.core.i18n.I18n
 import com.lifetracker.core.network.model.NoteGroupResponse
 import com.lifetracker.core.network.model.NoteResponse
@@ -101,7 +99,7 @@ fun NotesScreen(
     viewModel: NotesViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val toast = rememberToastState()
+    val toast = LocalToast.current
     val scope = rememberCoroutineScope()
     val colors = LocalAppColors.current
 
@@ -324,21 +322,7 @@ fun NotesScreen(
 
     Box(modifier = Modifier.fillMaxSize().background(colors.background)) {
         Column(modifier = Modifier.fillMaxSize()) {
-            AppHeader(
-                title = "LifeTracker",
-                // The finance nav keys contain "/" (route-shaped), so the plain
-                // "nav.$key" lookup misses them — resolve their own label keys.
-                items = navItems().map { (key, icon) ->
-                    val label = when (key) {
-                        "finance/transactions" -> I18n.t("nav.financeTransactions")
-                        "finance/dashboard" -> I18n.t("nav.financeDashboard")
-                        else -> I18n.t("nav.$key")
-                    }
-                    NavEntry(key, label, icon)
-                },
-                currentKey = "notes",
-                onNavigate = onNavigate,
-            )
+            AppHeader(title = "LifeTracker", onProfile = { onNavigate("profile") })
 
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
@@ -430,7 +414,6 @@ fun NotesScreen(
         }
 
         // Toast overlay above everything (RN global toast port).
-        ToastHost(state = toast)
     }
 
     // ---- note editor modal (RN slide-up modal → LbModalSheet) ----

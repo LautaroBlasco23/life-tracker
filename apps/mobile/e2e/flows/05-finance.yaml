@@ -3,7 +3,7 @@
 # is literally "Creating..." (FinanceModals port artifact) — tap that.
 #
 # Env: MAESTRO_E2E_USER / MAESTRO_E2E_PASS. Conventions: text selectors match
-# FULL text; "Open menu" opens the hamburger drawer.
+# FULL text; the bottom-nav tabs are the tap targets.
 
 appId: com.lifetracker.mobile
 name: mobile smoke — finance · dashboard · transaction
@@ -29,16 +29,24 @@ name: mobile smoke — finance · dashboard · transaction
       - assertVisible: "Today's Activities"
 
 # ---------------------------------------------------------------- dashboard
-- tapOn: "Open menu"
+# The Finance tab opens transactions; the header icon opens the dashboard.
+# The summary metrics are a swipeable carousel: one page visible at a time.
+- tapOn: "Finance"
+- assertVisible: "Transactions"
 - tapOn: "Finance Dashboard"
 - assertVisible: "Dashboard"
 - assertVisible: "Total income"
+- swipe:
+    direction: LEFT
+    duration: 300
 - assertVisible: "Total expenses"
+- swipe:
+    direction: LEFT
+    duration: 300
 - assertVisible: "Balance"
 
 # ---------------------------------------------------------------- transaction
-- tapOn: "Open menu"
-- tapOn: "Finance Transactions"
+- tapOn: "Finance"
 - assertVisible: "Transactions"
 - tapOn: "New"
 - assertVisible: "Create New Transaction"
@@ -67,6 +75,5 @@ name: mobile smoke — finance · dashboard · transaction
     direction: DOWN
 
 # Back on the home screen for the next flow.
-- tapOn: "Open menu"
 - tapOn: "Activities"
 - assertVisible: "Today's Activities"

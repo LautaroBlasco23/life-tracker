@@ -1,6 +1,5 @@
 package com.lifetracker.feature.finance
 
-import com.lifetracker.core.designsystem.NavEntry
 import com.lifetracker.core.i18n.I18n
 import com.lifetracker.domain.lib.time.getDayKey
 import java.time.ZoneId
@@ -69,16 +68,3 @@ internal fun formatDayLabel(date: ZonedDateTime, now: ZonedDateTime): String {
 
 /** `t('financeCategories.<name>')` — the RN screens translate raw category names. */
 internal fun categoryLabel(name: String): String = I18n.t("financeCategories.$name")
-
-/**
- * Hamburger drawer entries, per RN `components/navigation.tsx` NAV_ITEMS
- * (same list + call-site wiring as the other ported screens).
- */
-internal fun financeNavItems(): List<NavEntry> = listOf(
-    NavEntry("activities", I18n.t("nav.activities"), FinanceIcons.Activity),
-    NavEntry("time", I18n.t("nav.timeTracker"), FinanceIcons.Timer),
-    NavEntry("notes", I18n.t("nav.notes"), FinanceIcons.StickyNote),
-    NavEntry("finance/transactions", I18n.t("nav.financeTransactions"), FinanceIcons.Wallet),
-    NavEntry("finance/dashboard", I18n.t("nav.financeDashboard"), FinanceIcons.ChartPie),
-    NavEntry("social", I18n.t("nav.social"), FinanceIcons.Users),
-)

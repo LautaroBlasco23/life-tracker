@@ -1,5 +1,10 @@
 package com.lifetracker.feature.time
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -15,16 +20,33 @@ import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.Circle
+import androidx.compose.material.icons.outlined.Celebration
+import androidx.compose.material.icons.outlined.Edit
+import androidx.compose.material.icons.outlined.FitnessCenter
+import androidx.compose.material.icons.outlined.Groups
+import androidx.compose.material.icons.outlined.MenuBook
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.School
+import androidx.compose.material.icons.outlined.SelfImprovement
+import androidx.compose.material.icons.outlined.SportsEsports
+import androidx.compose.material.icons.outlined.Work
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -34,9 +56,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -52,17 +76,24 @@ import com.lifetracker.core.designsystem.AppHeader
 import com.lifetracker.core.designsystem.LbButton
 import com.lifetracker.core.designsystem.LbButtonVariant
 import com.lifetracker.core.designsystem.LbCard
+import com.lifetracker.core.designsystem.LbCategoryHeader
+import com.lifetracker.core.designsystem.LbDeleteConfirm
+import com.lifetracker.core.designsystem.LbFab
+import com.lifetracker.core.designsystem.LbFilterChipsRow
+import com.lifetracker.core.designsystem.LbMenuDialog
+import com.lifetracker.core.designsystem.LbMenuOption
+import com.lifetracker.core.designsystem.LbMetricCarousel
+import com.lifetracker.core.designsystem.LbMetricPage
 import com.lifetracker.core.designsystem.LbOptionSelect
 import com.lifetracker.core.designsystem.LbSegmentedTabs
 import com.lifetracker.core.designsystem.LbSelectOption
 import com.lifetracker.core.designsystem.LbTextField
 import com.lifetracker.core.designsystem.LocalAppColors
-import com.lifetracker.core.designsystem.NavEntry
-import com.lifetracker.core.designsystem.ToastHost
-import com.lifetracker.core.designsystem.rememberToastState
+import com.lifetracker.core.designsystem.LocalToast
 import com.lifetracker.core.i18n.I18n
 import com.lifetracker.core.network.model.TimeRecordResponse
 import com.lifetracker.domain.lib.filters.monthLabel
+import com.lifetracker.domain.lib.filters.categoryLabel
 import com.lifetracker.domain.lib.time.formatDuration
 import com.lifetracker.domain.lib.time.formatRecordDate
 import com.lifetracker.domain.lib.time.formatTimerDisplay
@@ -73,18 +104,12 @@ import java.time.Instant
 import java.time.LocalDate
 import kotlinx.coroutines.launch
 
-/** Accent tokens for the per-category headers (RN `CATEGORY_ACCENT_KEYS`). */
-internal enum class AccentKey { PRIMARY, SECONDARY, SUCCESS, WARNING, DANGER }
-
-private val RECORD_ACCENT_MAP: Map<String, AccentKey> = mapOf(
-    "Work" to AccentKey.SECONDARY,
-    "Personal" to AccentKey.SUCCESS,
-    "Health" to AccentKey.DANGER,
-    "Learning" to AccentKey.WARNING,
-)
+/** Accent tokens for the per-category headers (RN `CATEGORY_ACCENT_KEYS` +
+ *  the day-time section tokens, so all ten categories get a distinct hue). */
+internal enum class AccentKey { PRIMARY, SECONDARY, SUCCESS, WARNING, DANGER, AFTERNOON, EVENING, ANYTIME }
 
 @Composable
-private fun accentColor(key: AccentKey): Color {
+internal fun accentColor(key: AccentKey): Color {
     val colors = LocalAppColors.current
     return when (key) {
         AccentKey.PRIMARY -> colors.primary
@@ -92,8 +117,33 @@ private fun accentColor(key: AccentKey): Color {
         AccentKey.SUCCESS -> colors.success
         AccentKey.WARNING -> colors.warning
         AccentKey.DANGER -> colors.danger
+        AccentKey.AFTERNOON -> colors.sectionAfternoon
+        AccentKey.EVENING -> colors.sectionEvening
+        AccentKey.ANYTIME -> colors.sectionAnytime
     }
 }
+
+/** Per-category section identity: icon + accent. Shared by the records tab
+ *  and the calendar (the old record map knew only 4 categories — the other
+ *  six all rendered the same primary color). */
+internal data class CategoryVisual(val icon: ImageVector, val accent: AccentKey)
+
+private val CATEGORY_VISUALS: Map<String, CategoryVisual> = mapOf(
+    "Work" to CategoryVisual(Icons.Outlined.Work, AccentKey.SECONDARY),
+    "Study" to CategoryVisual(Icons.Outlined.School, AccentKey.PRIMARY),
+    "Reading" to CategoryVisual(Icons.Outlined.MenuBook, AccentKey.PRIMARY),
+    "Exercise" to CategoryVisual(Icons.Outlined.FitnessCenter, AccentKey.SUCCESS),
+    "Meditation" to CategoryVisual(Icons.Outlined.SelfImprovement, AccentKey.SUCCESS),
+    "Gaming" to CategoryVisual(Icons.Outlined.SportsEsports, AccentKey.DANGER),
+    "Hobbies" to CategoryVisual(Icons.Outlined.Palette, AccentKey.EVENING),
+    "Social" to CategoryVisual(Icons.Outlined.Groups, AccentKey.AFTERNOON),
+    "Entertainment" to CategoryVisual(Icons.Outlined.Celebration, AccentKey.WARNING),
+    "Other" to CategoryVisual(Icons.Outlined.Circle, AccentKey.ANYTIME),
+)
+
+internal fun categoryVisual(category: String): CategoryVisual =
+    CATEGORY_VISUALS[category]
+        ?: CategoryVisual(Icons.Outlined.Circle, AccentKey.ANYTIME)
 
 /** Derived stats block (RN `stats` useMemo). */
 data class RecordStats(
@@ -115,19 +165,24 @@ fun TimeScreen(
     viewModel: TimeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val toast = rememberToastState()
+    val toast = LocalToast.current
     val colors = LocalAppColors.current
+    val scope = rememberCoroutineScope()
 
-    // Screen-level modal state (RN `time.tsx` useState family).
-    var showFilterModal by remember { mutableStateOf(false) }
-    var showFormModal by remember { mutableStateOf(false) }
+    // Screen-level modal state (RN `time.tsx` useState family). Booleans are
+    // saveable across process death; nullable model refs stay `remember`
+    // (kotlinx-serializable models aren't Bundle-compatible).
+    var showFilterModal by rememberSaveable { mutableStateOf(false) }
+    var showFormModal by rememberSaveable { mutableStateOf(false) }
     var editingRecord by remember { mutableStateOf<TimeRecordResponse?>(null) }
     var deletingRecord by remember { mutableStateOf<TimeRecordResponse?>(null) }
     var actionsRecord by remember { mutableStateOf<TimeRecordResponse?>(null) }
 
     // Timer start inputs (RN keeps those at screen level, across tab switches).
     var timerCategory by remember { mutableStateOf<String?>(null) }
-    var timerDescription by remember { mutableStateOf("") }
+    var timerDescription by rememberSaveable { mutableStateOf("") }
+    // Discard confirmation for an active session (it destroys tracked time).
+    var discardingSession by rememberSaveable { mutableStateOf<String?>(null) }
 
     // One-shot feedback from the async effects (load failures + sessions).
     LaunchedEffect(Unit) {
@@ -163,13 +218,7 @@ fun TimeScreen(
             .background(colors.background),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Hamburger navigation (RN `components/navigation.tsx` port).
-            AppHeader(
-                title = "LifeTracker",
-                items = navItems(),
-                currentKey = "time",
-                onNavigate = onNavigate,
-            )
+            AppHeader(title = "LifeTracker", onProfile = { onNavigate("profile") })
             Text(
                 t("title"),
                 fontSize = 24.sp,
@@ -208,6 +257,7 @@ fun TimeScreen(
                     },
                     onPeriodChange = viewModel::setPeriod,
                     onRecordActions = { actionsRecord = it },
+                    onDiscardSession = { discardingSession = it },
                 )
                 TimeView.CALENDAR -> CalendarTab(
                     viewModel = viewModel,
@@ -220,20 +270,55 @@ fun TimeScreen(
             }
         }
 
+        // Log Time: the create FAB (records tab only; the calendar keeps its
+        // own New event button).
+        if (state.view == TimeView.RECORDS) {
+            LbFab(
+                icon = TimeIcons.Plus,
+                contentDescription = t("logTime"),
+                onClick = {
+                    editingRecord = null
+                    showFormModal = true
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(bottom = 24.dp, end = 20.dp),
+            )
+        }
+
         // Toast overlay composes above everything (RN global toast port).
-        ToastHost(state = toast)
     }
 
     // ---- screen modals (RN renders these at the screen root) ----
 
-    RecordActionsModal(
-        record = actionsRecord,
-        onDismiss = { actionsRecord = null },
-        onEdit = { record ->
-            editingRecord = record
-            showFormModal = true
+    // Record actions: icon context menu (title = the record itself, not a
+    // misleading "Edit Time Entry").
+    val actionsTarget = actionsRecord
+    LbMenuDialog(
+        visible = actionsTarget != null,
+        title = actionsTarget?.description?.ifEmpty { actionsTarget.category } ?: "",
+        options = buildList {
+            add(
+                LbMenuOption(
+                    text = I18n.t("common.edit"),
+                    icon = Icons.Outlined.Edit,
+                    onClick = {
+                        editingRecord = actionsTarget
+                        showFormModal = true
+                    },
+                ),
+            )
+            add(
+                LbMenuOption(
+                    text = I18n.t("common.delete"),
+                    icon = TimeIcons.Trash,
+                    destructive = true,
+                    onClick = { deletingRecord = actionsTarget },
+                ),
+            )
         },
-        onDelete = { record -> deletingRecord = record },
+        cancelLabel = I18n.t("common.cancel"),
+        onDismiss = { actionsRecord = null },
     )
 
     RecordFormModal(
@@ -249,29 +334,56 @@ fun TimeScreen(
     )
 
     val deleteTarget = deletingRecord
-    DeleteModal(
+    var isDeletingRecord by remember { mutableStateOf(false) }
+    LbDeleteConfirm(
         visible = deleteTarget != null,
+        name = deleteTarget?.description ?: "",
         onDismiss = { deletingRecord = null },
+        onConfirm = {
+            val record = deleteTarget ?: return@LbDeleteConfirm
+            scope.launch {
+                isDeletingRecord = true
+                val error = viewModel.deleteRecord(record)
+                isDeletingRecord = false
+                if (error == null) {
+                    deletingRecord = null
+                    toast.show(
+                        toastText(I18n.t("time.recordDeleted"), I18n.t("time.recordDeletedDescription")),
+                    )
+                } else {
+                    toast.show(toastText(I18n.t("time.deleteFailed"), error), isError = true)
+                }
+            }
+        },
         title = I18n.t("time.deleteTimeEntry"),
-        itemName = deleteTarget?.description ?: "",
-        confirmLabel = I18n.t("time.deleteEntry"),
+        message = I18n.t("deleteModal.areYouSure", "name" to (deleteTarget?.description ?: "")),
+        deleteLabel = I18n.t("time.deleteEntry"),
         details = if (deleteTarget != null) {
             { RecordDeleteDetails(record = deleteTarget) }
         } else {
             null
         },
+        isBusy = isDeletingRecord,
+    )
+
+    // Discard-confirm for a running/paused session (destroys tracked time).
+    val discardingTarget = discardingSession?.let { id ->
+        state.sessions.firstOrNull { it.id == id }
+    }
+    LbDeleteConfirm(
+        visible = discardingTarget != null,
+        name = discardingTarget?.description?.ifEmpty { discardingTarget.category } ?: "",
+        onDismiss = { discardingSession = null },
         onConfirm = {
-            val record = deleteTarget ?: return@DeleteModal ""
-            val error = viewModel.deleteRecord(record)
-            if (error == null) {
-                toast.show(
-                    toastText(I18n.t("time.recordDeleted"), I18n.t("time.recordDeletedDescription")),
-                )
-            } else {
-                toast.show(toastText(I18n.t("time.deleteFailed"), error), isError = true)
-            }
-            error
+            discardingTarget?.let { viewModel.discardSession(it.id) }
+            discardingSession = null
         },
+        title = I18n.t("time.discard"),
+        message = I18n.t(
+            "deleteModal.areYouSure",
+            "name" to (discardingTarget?.description?.ifEmpty { discardingTarget.category } ?: ""),
+        ),
+        deleteLabel = I18n.t("time.discard"),
     )
 
     FilterModal(
@@ -282,16 +394,6 @@ fun TimeScreen(
         onDismiss = { showFilterModal = false },
     )
 }
-
-/** Hamburger drawer entries, per RN `components/navigation.tsx` NAV_ITEMS. */
-private fun navItems(): List<NavEntry> = listOf(
-    NavEntry("activities", I18n.t("nav.activities"), TimeIcons.Activity),
-    NavEntry("time", I18n.t("nav.timeTracker"), TimeIcons.Timer),
-    NavEntry("notes", I18n.t("nav.notes"), TimeIcons.StickyNote),
-    NavEntry("finance/transactions", I18n.t("nav.financeTransactions"), TimeIcons.Wallet),
-    NavEntry("finance/dashboard", I18n.t("nav.financeDashboard"), TimeIcons.ChartPie),
-    NavEntry("social", I18n.t("nav.social"), TimeIcons.Users),
-)
 
 /// ---------------------------------------------------------------------
 /// Records tab
@@ -311,9 +413,13 @@ private fun RecordsTab(
     onOpenCreateModal: () -> Unit,
     onPeriodChange: (TimePeriod) -> Unit,
     onRecordActions: (TimeRecordResponse) -> Unit,
+    onDiscardSession: (String) -> Unit,
 ) {
     val colors = LocalAppColors.current
     val now = LocalDate.now()
+
+    // Collapsed record sections (Bundle-saveable, like the activities screen).
+    var collapsedSections by rememberSaveable { mutableStateOf(emptySet<String>()) }
 
     val periodLabel = when (state.period) {
         TimePeriod.THIS_WEEK -> I18n.t("time.thisWeek")
@@ -357,33 +463,34 @@ private fun RecordsTab(
         // ===================== RN ListHeaderComponent =====================
         item {
             Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                Text(
-                    text = if (state.period == TimePeriod.ALL_TIME) {
-                        I18n.t("time.allRecords")
-                    } else {
-                        t("viewing", "period" to periodLabel)
-                    },
-                    fontSize = 14.sp,
-                    color = colors.textMuted,
-                    modifier = Modifier.padding(top = 4.dp),
-                )
-                Spacer(Modifier.height(12.dp))
-
-                // ---- action row: Filters (n) + Log Time ----
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    LbButton(
-                        text = buildString {
-                            append(I18n.t("common.filters"))
-                            if (state.filterCount > 0) append(" (${state.filterCount})")
+                // ---- viewing line + inline Filters icon button (44dp) ----
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp),
+                ) {
+                    Text(
+                        text = if (state.period == TimePeriod.ALL_TIME) {
+                            I18n.t("time.allRecords")
+                        } else {
+                            t("viewing", "period" to periodLabel)
                         },
-                        onClick = onOpenFilters,
-                        modifier = Modifier.height(36.dp),
-                        variant = LbButtonVariant.SECONDARY,
+                        fontSize = 14.sp,
+                        color = colors.textMuted,
+                        modifier = Modifier.weight(1f),
                     )
-                    LbButton(
-                        text = t("logTime"),
-                        onClick = onOpenCreateModal,
-                        modifier = Modifier.height(36.dp),
+                    FilterIconButton(
+                        badgeCount = state.filterCount,
+                        onClick = onOpenFilters,
+                    )
+                }
+                if (state.filterCount > 0) {
+                    LbFilterChipsRow(
+                        labels = activeFilterLabels(state.filter),
+                        clearLabel = I18n.t("common.clearAll"),
+                        onClear = { viewModel.applyFilter(TimeFilter()) },
+                        modifier = Modifier.padding(top = 8.dp),
                     )
                 }
                 Spacer(Modifier.height(12.dp))
@@ -415,7 +522,9 @@ private fun RecordsTab(
                                     indication = null,
                                     onClick = { onPeriodChange(period) },
                                 )
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                                .padding(horizontal = 12.dp)
+                                // 44dp touch-target token (labels are long in es).
+                                .heightIn(min = 44.dp),
                         )
                     }
                 }
@@ -460,6 +569,7 @@ private fun RecordsTab(
                                 session = session,
                                 now = state.now,
                                 isSaving = state.savingSessionId == session.id,
+                                onDiscard = { onDiscardSession(session.id) },
                                 viewModel = viewModel,
                             )
                         }
@@ -476,35 +586,55 @@ private fun RecordsTab(
                     modifier = Modifier.padding(bottom = 24.dp),
                 )
 
-                // ---- stats cards ----
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
-                ) {
-                    StatCard(
-                        label = t("totalTime"),
-                        value = formatDuration(stats.totalMinutes),
-                        modifier = Modifier.weight(1f),
-                    )
-                    StatCard(
-                        label = t("entries"),
-                        value = stats.recordCount.toString(),
-                        modifier = Modifier.weight(1f),
-                    )
-                    StatCard(
-                        label = t("topCategory"),
-                        value = stats.topCategory ?: I18n.t("common.na"),
-                        subline = if (stats.topCategory == null) null else formatDuration(stats.topCategoryMinutes),
-                        singleLineValue = true,
-                        modifier = Modifier.weight(1f),
-                    )
-                }
+                // ---- stats: one full-width swipeable metric card ----
+                LbMetricCarousel(
+                    pages = buildList {
+                        add(
+                            LbMetricPage(
+                                label = t("totalTime"),
+                                value = formatDuration(stats.totalMinutes),
+                                icon = TimeIcons.Clock,
+                                ink = colors.primary,
+                            ),
+                        )
+                        add(
+                            LbMetricPage(
+                                label = t("entries"),
+                                value = stats.recordCount.toString(),
+                                icon = Icons.Outlined.CalendarMonth,
+                                ink = colors.primary,
+                            ),
+                        )
+                        add(
+                            LbMetricPage(
+                                label = t("topCategory"),
+                                value = stats.topCategory
+                                    ?.let { categoryLabel({ key -> I18n.t("timeCategories.$key") }, it) }
+                                    ?: I18n.t("common.na"),
+                                subline = if (stats.topCategory == null) {
+                                    null
+                                } else {
+                                    formatDuration(stats.topCategoryMinutes)
+                                },
+                                icon = stats.topCategory
+                                    ?.let { categoryVisual(it).icon }
+                                    ?: Icons.Outlined.Circle,
+                                ink = stats.topCategory
+                                    ?.let { accentColor(categoryVisual(it).accent) }
+                                    ?: colors.textMuted,
+                            ),
+                        )
+                    },
+                    modifier = Modifier.padding(bottom = 24.dp),
+                )
 
                 // ---- empty state (differentiated: filter vs period) ----
                 if (state.records.isEmpty() && !state.isLoadingRecords) {
                     EmptyRecords(
                         filtered = state.filterCount > 0,
                         periodLabel = periodLabel,
+                        onClearFilters = { viewModel.applyFilter(TimeFilter()) },
+                        onLogTime = onOpenCreateModal,
                     )
                 }
             }
@@ -513,26 +643,36 @@ private fun RecordsTab(
         // ===================== grouped sections =====================
         grouped.forEach { (category, categoryRecords) ->
             item(key = category) {
+                val visual = categoryVisual(category)
                 Column(modifier = Modifier.padding(bottom = 16.dp)) {
                     val categoryTotal = categoryRecords.sumOf { it.durationMinutes }
-                    CategoryHeader(
-                        icon = TimeIcons.Clock,
-                        label = category,
-                        accentColor = accentColor(RECORD_ACCENT_MAP[category] ?: AccentKey.PRIMARY),
-                        iconColor = accentColor(RECORD_ACCENT_MAP[category] ?: AccentKey.PRIMARY),
-                        summaryValue = formatDuration(categoryTotal),
-                        itemCount = categoryRecords.size,
-                        itemName = t("entry"),
-                    )
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    LbCategoryHeader(
+                        label = categoryLabel({ key -> I18n.t("timeCategories.$key") }, category),
+                        icon = visual.icon,
+                        accent = accentColor(visual.accent),
+                        summary = formatDuration(categoryTotal),
+                        summaryHint = "${categoryRecords.size} ${pluralizedName(t("entry"), categoryRecords.size)}",
+                        collapsed = category in collapsedSections,
+                        onToggle = {
+                            collapsedSections =
+                                if (category in collapsedSections) collapsedSections - category
+                                else collapsedSections + category
+                        },
                         modifier = Modifier.padding(horizontal = 16.dp),
-                    ) {
-                        categoryRecords.forEach { record ->
-                            RecordRow(
-                                record = record,
-                                onLongPress = { onRecordActions(record) },
-                            )
+                    )
+                    if (category !in collapsedSections) {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier
+                                .padding(horizontal = 16.dp)
+                                .padding(top = 12.dp),
+                        ) {
+                            categoryRecords.forEach { record ->
+                                RecordRow(
+                                    record = record,
+                                    onOpenActions = { onRecordActions(record) },
+                                )
+                            }
                         }
                     }
                 }
@@ -545,63 +685,67 @@ private fun RecordsTab(
 /// Local composables mirroring RN `components/ui/category-header.tsx` etc.
 /// ---------------------------------------------------------------------
 
-/** Section header with accent border + summary (RN `CategoryHeader` usage). */
+/** Chip labels for the active time-record filter (web filter-chips parity). */
+private fun activeFilterLabels(filter: TimeFilter): List<String> = buildList {
+    filter.month?.let { add(monthLabel({ key -> I18n.t("months.$key") }, it.toInt())) }
+    filter.year?.let { add(it) }
+    filter.category?.let { add(categoryLabel({ key -> I18n.t("timeCategories.$key") }, it)) }
+}
+
+/** 44dp inline Filters icon button with an amber count badge (the records
+ *  tab has no tile row — Log Time lives on the FAB). */
 @Composable
-private fun CategoryHeader(
-    icon: ImageVector,
-    label: String,
-    accentColor: Color,
-    iconColor: Color,
-    summaryValue: String,
-    itemCount: Int,
-    itemName: String,
-) {
+private fun FilterIconButton(badgeCount: Int, onClick: () -> Unit) {
     val colors = LocalAppColors.current
-    Row(modifier = Modifier.height(IntrinsicSize.Min)) {
-        Box(
-            modifier = Modifier
-                .width(4.dp)
-                .fillMaxHeight()
-                .background(accentColor),
+    Box(
+        modifier = Modifier
+            .size(44.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .border(
+                1.dp,
+                if (badgeCount > 0) colors.secondary.copy(alpha = 0.4f) else colors.border,
+                RoundedCornerShape(8.dp),
+            )
+            .background(if (badgeCount > 0) colors.accent else colors.surface)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = TimeIcons.Filter,
+            contentDescription = I18n.t("common.filters"),
+            tint = colors.primary,
+            modifier = Modifier.size(20.dp),
         )
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier
-                .weight(1f)
-                .padding(start = 12.dp, end = 16.dp, top = 16.dp, bottom = 16.dp),
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = iconColor,
-                modifier = Modifier.size(24.dp),
-            )
+        if (badgeCount > 0) {
             Text(
-                label,
-                fontSize = 20.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = colors.foreground,
-                modifier = Modifier.weight(1f),
+                text = badgeCount.toString(),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                color = colors.secondaryForeground,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = 8.dp, y = (-4).dp)
+                    .clip(CircleShape)
+                    .background(colors.secondary)
+                    .defaultMinSize(minWidth = 16.dp)
+                    .padding(horizontal = 4.dp, vertical = 1.dp),
             )
-            Column(horizontalAlignment = Alignment.End) {
-                Text(summaryValue, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = iconColor)
-                Text(
-                    "${itemCount} ${pluralizedName(itemName, itemCount)}",
-                    fontSize = 14.sp,
-                    color = colors.textMuted,
-                )
-            }
         }
     }
 }
 
-/** One record card, long-press → Edit/Delete/Cancel alert (RN behavior). */
+/**
+ * One record card: description/date/duration + a visible `⋯` overflow button
+ * opening the Edit/Delete menu (long-press kept as the shortcut). The old
+ * version had a dead `onClick = {}` and hid the actions entirely.
+ */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun RecordRow(record: TimeRecordResponse, onLongPress: () -> Unit) {
+private fun RecordRow(record: TimeRecordResponse, onOpenActions: () -> Unit) {
     val colors = LocalAppColors.current
-    Column(
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(12.dp))
@@ -611,47 +755,73 @@ private fun RecordRow(record: TimeRecordResponse, onLongPress: () -> Unit) {
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = {},
-                onLongClick = onLongPress,
+                onLongClick = onOpenActions,
             )
-            .padding(16.dp),
+            .padding(start = 16.dp, top = 16.dp, bottom = 16.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-            Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
-                Text(
-                    record.description,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = colors.foreground,
-                )
-                Text(
-                    formatRecordDate(record.createdAt),
-                    fontSize = 12.sp,
-                    color = colors.textMuted,
-                    modifier = Modifier.padding(top = 2.dp),
-                )
-            }
+        Column(modifier = Modifier.weight(1f)) {
             Text(
-                formatDuration(record.durationMinutes),
-                fontSize = 14.sp,
+                record.description,
+                fontSize = 16.sp,
                 fontWeight = FontWeight.Medium,
                 color = colors.foreground,
+            )
+            Text(
+                formatRecordDate(record.createdAt),
+                fontSize = 12.sp,
+                color = colors.textMuted,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+        }
+        Text(
+            formatDuration(record.durationMinutes),
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            color = colors.foreground,
+            modifier = Modifier.padding(end = 4.dp),
+        )
+        Box(
+            modifier = Modifier
+                .size(32.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .clickable(onClick = onOpenActions),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.MoreVert,
+                contentDescription = I18n.t("common.moreOptions"),
+                tint = colors.textMuted,
+                modifier = Modifier.size(20.dp),
             )
         }
     }
 }
 
-/** RN `components/time/active-session-card.tsx` port. */
+/** RN `components/time/active-session-card.tsx` port: running sessions pulse
+ *  their timer icon; a missing description gets an inline field (Save
+ *  requires one — the old toast dead-end). */
 @Composable
 private fun ActiveSessionCard(
     session: ActiveTimeSession,
     now: Long,
     isSaving: Boolean,
+    onDiscard: () -> Unit,
     viewModel: TimeViewModel,
 ) {
     val colors = LocalAppColors.current
     val scope = rememberCoroutineScope()
     val isRunning = session.startedAt != null
     val elapsed = elapsedSeconds(session, now)
+    val pulse: Float = if (isRunning) {
+        rememberInfiniteTransition(label = "sessionPulse").animateFloat(
+            initialValue = 0.55f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(tween(800), RepeatMode.Reverse),
+            label = "sessionPulseAlpha",
+        ).value
+    } else {
+        1f
+    }
 
     Column(
         modifier = Modifier
@@ -674,7 +844,9 @@ private fun ActiveSessionCard(
                 imageVector = TimeIcons.Timer,
                 contentDescription = null,
                 tint = colors.primary,
-                modifier = Modifier.size(18.dp),
+                modifier = Modifier
+                    .size(18.dp)
+                    .alpha(pulse),
             )
             Text(
                 session.description.ifEmpty { session.category },
@@ -693,6 +865,16 @@ private fun ActiveSessionCard(
             ) {
                 Text(session.category, fontSize = 12.sp, color = colors.primary)
             }
+        }
+
+        // Save requires a description — offer it inline instead of failing.
+        if (session.description.isEmpty()) {
+            LbTextField(
+                value = session.description,
+                onValueChange = { viewModel.updateSessionDescription(session.id, it) },
+                label = t("whatAreYouWorkingOn"),
+                modifier = Modifier.padding(bottom = 12.dp),
+            )
         }
 
         Row(
@@ -733,22 +915,23 @@ private fun ActiveSessionCard(
                         loading = isSaving,
                     )
                 }
-                // Discard: trash icon button, immediate (no confirmation).
+                // Discard: 44dp trash; confirms first (it destroys tracked
+                // time without saving).
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(44.dp)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
-                            onClick = { viewModel.discardSession(session.id) },
+                            onClick = onDiscard,
                         ),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         imageVector = TimeIcons.Trash,
                         contentDescription = t("discard"),
-                        tint = colors.textMuted,
-                        modifier = Modifier.size(18.dp),
+                        tint = colors.danger,
+                        modifier = Modifier.size(20.dp),
                     )
                 }
             }
@@ -787,10 +970,13 @@ private fun StartRecordingCard(
                     color = colors.foreground,
                 )
             }
-            // Same raw-name labels as the RN start card (+ filter options).
+            // Localized category names (the form/filter modals already did;
+            // the value stays the wire name).
             LbOptionSelect(
                 label = t("category"),
-                options = TIME_CATEGORIES.map { LbSelectOption(it, it) },
+                options = TIME_CATEGORIES.map {
+                    LbSelectOption(it, categoryLabel({ key -> I18n.t("timeCategories.$key") }, it))
+                },
                 selected = timerCategory,
                 onSelect = onTimerCategoryChange,
                 placeholder = t("selectCategory"),
@@ -808,40 +994,15 @@ private fun StartRecordingCard(
     }
 }
 
-/** One "total time / entries / top category" stat card. */
+/** Empty-list state with CTAs (web parity): "clear filters" when filtered,
+ *  "log your first entry" otherwise — both keys existed but were unused. */
 @Composable
-private fun StatCard(
-    label: String,
-    value: String,
-    modifier: Modifier = Modifier,
-    subline: String? = null,
-    singleLineValue: Boolean = false,
+private fun EmptyRecords(
+    filtered: Boolean,
+    periodLabel: String,
+    onClearFilters: () -> Unit,
+    onLogTime: () -> Unit,
 ) {
-    val colors = LocalAppColors.current
-    LbCard(modifier = modifier) {
-        Text(label, fontSize = 14.sp, color = colors.textMuted)
-        Text(
-            value,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = colors.foreground,
-            maxLines = if (singleLineValue) 1 else Int.MAX_VALUE,
-            overflow = if (singleLineValue) TextOverflow.Ellipsis else TextOverflow.Clip,
-            modifier = Modifier.padding(top = 4.dp),
-        )
-        if (subline != null) {
-            Text(
-                subline,
-                fontSize = 12.sp,
-                color = colors.textMuted,
-            )
-        }
-    }
-}
-
-/** Empty-list state, RN filter vs period variants. */
-@Composable
-private fun EmptyRecords(filtered: Boolean, periodLabel: String) {
     val colors = LocalAppColors.current
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -877,6 +1038,12 @@ private fun EmptyRecords(filtered: Boolean, periodLabel: String) {
             color = colors.textMuted,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(top = 8.dp),
+        )
+        LbButton(
+            text = if (filtered) I18n.t("common.clearFilters") else I18n.t("time.logFirstEntry"),
+            onClick = if (filtered) onClearFilters else onLogTime,
+            variant = LbButtonVariant.SECONDARY,
+            modifier = Modifier.padding(top = 16.dp),
         )
     }
 }
