@@ -61,6 +61,27 @@ servers it started. Servers you started yourself are left alone.
    ```
 4. Commit both files. Budget: keep the mp4 **≤ 10 MB** (current ~2.7 MB).
 
+## Embedding on GitHub
+
+A committed mp4 referenced by path does **not** play inline in the rendered
+README (GitHub shows a raw-download link instead). GitHub's supported flow
+is its own attachment hosting:
+
+1. Open the README on github.com (pencil icon) — or any issue comment box.
+2. Drag `videos/app-demo.mp4` into the editor and wait for the upload
+   (limit: **10 MB** for repos on free plans; ours is ~2.7 MB).
+3. Copy the generated `https://github.com/user-attachments/assets/<id>` URL.
+4. Paste the **bare URL on its own line** in the README's Demo section and
+   commit. GitHub rewrites it to a signed URL and renders a native player.
+
+Do **not** wrap the URL in a `<video>` tag: GitHub doesn't rewrite the tag's
+`src`, and the signed-in CSP blocks it (the bare-URL form plays for
+everyone). See also
+[community discussion #209976](https://github.com/orgs/community/discussions/209976).
+
+The committed copy in this folder stays the source of truth for
+regeneration; the attachment URL is just the README player.
+
 ## Regeneration etiquette
 
 - Regenerate **deliberately** — after meaningful UI changes, not per commit
