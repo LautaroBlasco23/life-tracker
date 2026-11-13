@@ -72,6 +72,55 @@ val ACTIVITY_TEMPLATE_CATEGORIES: List<ActivityTemplateCategory> = listOf(
     ActivityTemplateCategory.MIND_SOCIAL,
 )
 
+/** Top-level template type shown in the first dropdown of the templates modal. */
+enum class TemplateKind { ACTIVITY, ROUTINE }
+
+/**
+ * Categories of routine templates. Raw values reuse existing activity
+ * categories so the i18n keys (`category_home`, `category_homeTraining`)
+ * are shared.
+ */
+enum class RoutineTemplateCategory(val raw: String) {
+    HOME("home"),
+    HOME_TRAINING("homeTraining"),
+}
+
+data class RoutineTemplate(
+    /** i18n key suffix for the title: `template_{key}`. */
+    val key: String,
+    val category: RoutineTemplateCategory,
+    /** Keys of the activity templates the routine bundles, in order. */
+    val activities: List<String>,
+)
+
+val ROUTINE_TEMPLATES: List<RoutineTemplate> = listOf(
+    RoutineTemplate(
+        key = "morningReset",
+        category = RoutineTemplateCategory.HOME,
+        activities = listOf("drinkWater", "vitamins", "stretch5", "makeBed"),
+    ),
+    RoutineTemplate(
+        key = "cleaningDay",
+        category = RoutineTemplateCategory.HOME,
+        activities = listOf("dishes", "laundry", "vacuum", "trash"),
+    ),
+    RoutineTemplate(
+        key = "eveningWindDown",
+        category = RoutineTemplateCategory.HOME,
+        activities = listOf("floss", "journal5", "planTomorrow", "sleep7to8"),
+    ),
+    RoutineTemplate(
+        key = "homeWorkout",
+        category = RoutineTemplateCategory.HOME_TRAINING,
+        activities = listOf("pushups20", "squats30", "plank1"),
+    ),
+)
+
+/** Second-dropdown options per template kind. */
+val TEMPLATE_CATEGORIES_BY_KIND: Map<TemplateKind, List<String>> = mapOf(
+    TemplateKind.ACTIVITY to ACTIVITY_TEMPLATE_CATEGORIES.map { it.raw },
+    TemplateKind.ROUTINE to RoutineTemplateCategory.entries.map { it.raw },
+)
 val ACTIVITY_TEMPLATES: List<ActivityTemplate> = listOf(
     // Health
     ActivityTemplate(key = "drinkWater", category = ActivityTemplateCategory.HEALTH, frequency = Frequency.DAILY, dayTime = DayTime.MORNING, completionAmount = 8),

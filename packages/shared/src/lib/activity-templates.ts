@@ -87,3 +87,54 @@ export const ACTIVITY_TEMPLATES: ActivityTemplate[] = [
   { key: 'digitalDetox', category: 'mindSocial', frequency: 'weekly', dayFrequency: ['sunday'], dayTime: 'evening', completionAmount: 1 },
   { key: 'hobby30', category: 'mindSocial', frequency: 'daily', dayTime: 'notSpecified', completionAmount: 1 },
 ];
+
+// ---- Template kinds (activities vs routines) ----
+
+/** Top-level template type shown in the first dropdown of the templates modal. */
+export type TemplateKind = 'activity' | 'routine';
+
+/**
+ * Categories of routine templates. Reuses the raw values of existing
+ * activity categories so the i18n keys (`category_home`,
+ * `category_homeTraining`) are shared.
+ */
+export type RoutineTemplateCategory = 'home' | 'homeTraining';
+
+export type TemplateCategory = ActivityTemplateCategory | RoutineTemplateCategory;
+
+export interface RoutineTemplate {
+  /** i18n key suffix for the title: `template_{key}`. */
+  key: string;
+  category: RoutineTemplateCategory;
+  /** Keys of the activity templates the routine bundles, in order. */
+  activities: string[];
+}
+
+export const ROUTINE_TEMPLATES: RoutineTemplate[] = [
+  {
+    key: 'morningReset',
+    category: 'home',
+    activities: ['drinkWater', 'vitamins', 'stretch5', 'makeBed'],
+  },
+  {
+    key: 'cleaningDay',
+    category: 'home',
+    activities: ['dishes', 'laundry', 'vacuum', 'trash'],
+  },
+  {
+    key: 'eveningWindDown',
+    category: 'home',
+    activities: ['floss', 'journal5', 'planTomorrow', 'sleep7to8'],
+  },
+  {
+    key: 'homeWorkout',
+    category: 'homeTraining',
+    activities: ['pushups20', 'squats30', 'plank1'],
+  },
+];
+
+/** Second-dropdown options per template kind. */
+export const TEMPLATE_CATEGORIES_BY_KIND: Record<TemplateKind, readonly TemplateCategory[]> = {
+  activity: ACTIVITY_TEMPLATE_CATEGORIES,
+  routine: ['home', 'homeTraining'] satisfies RoutineTemplateCategory[],
+};

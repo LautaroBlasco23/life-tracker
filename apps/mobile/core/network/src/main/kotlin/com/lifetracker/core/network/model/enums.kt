@@ -33,14 +33,6 @@ enum class PrivacyStatus {
     @SerialName("private") PRIVATE,
 }
 
-/** Routine `status` — wire values `draft`, `active`, `stopped`. */
-@Serializable
-enum class RoutineStatus {
-    @SerialName("draft") DRAFT,
-    @SerialName("active") ACTIVE,
-    @SerialName("stopped") STOPPED,
-}
-
 /** Calendar recurrence `rule` — currently only `weekly` is supported. */
 @Serializable
 enum class RecurrenceRule {

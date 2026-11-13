@@ -14,12 +14,23 @@ import {
 import { Loader2, Pencil } from 'lucide-react';
 import {
   ACTIVITY_TEMPLATES,
-  ACTIVITY_TEMPLATE_CATEGORIES,
+  ROUTINE_TEMPLATES,
+  TEMPLATE_CATEGORIES_BY_KIND,
   type ActivityTemplate,
-  type ActivityTemplateCategory,
+  type RoutineTemplate,
+  type TemplateCategory,
+  type TemplateKind,
 } from '@shared/lib/activity-templates';
 import type { DayOfWeek } from '@shared/types/activity';
 import { activityService } from '@shared/services/activity-service';
+import { routineService } from '@shared/services/routine-service';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { showToast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 import { useTranslations } from '@shared/contexts/language-context';
@@ -53,33 +64,49 @@ export function TemplatesModal({
   const tActivities = useTranslations('activities');
   const tCreate = useTranslations('createActivity');
 
-  const [category, setCategory] = useState<ActivityTemplateCategory>('health');
+  const [kind, setKind] = useState<TemplateKind>('activity');
+  const [category, setCategory] = useState<TemplateCategory>('health');
   const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [isCreating, setIsCreating] = useState(false);
 
+  const kindCategories = TEMPLATE_CATEGORIES_BY_KIND[kind];
+
   useEffect(() => {
     if (open) {
+      setKind('activity');
       setCategory('health');
       setSelectedKeys(new Set());
       setIsCreating(false);
     }
   }, [open]);
 
-  const templates = ACTIVITY_TEMPLATES.filter(
+  const handleKindChange = (nextKind: string) => {
+    setKind(nextKind as TemplateKind);
+    // Reset the category to the first of the new kind's list.
+    setCategory(TEMPLATE_CATEGORIES_BY_KIND[nextKind as TemplateKind][0]);
+    setSelectedKeys(new Set());
+  };
+
+  const activityTemplates = ACTIVITY_TEMPLATES.filter(
+    (template) => template.category === category
+  );
+  const routineTemplates = ROUTINE_TEMPLATES.filter(
     (template) => template.category === category
   );
 
-  const selectedCount = ACTIVITY_TEMPLATES.filter((template) =>
-    selectedKeys.has(template.key)
-  ).length;
+  const selectedCount =
+    ACTIVITY_TEMPLATES.filter((template) => selectedKeys.has(template.key))
+      .length +
+    ROUTINE_TEMPLATES.filter((template) => selectedKeys.has(template.key))
+      .length;
 
-  const toggleTemplate = (template: ActivityTemplate) => {
+  const toggleTemplate = (templateKey: string) => {
     setSelectedKeys((prev) => {
       const next = new Set(prev);
-      if (next.has(template.key)) {
-        next.delete(template.key);
+      if (next.has(templateKey)) {
+        next.delete(templateKey);
       } else {
-        next.add(template.key);
+        next.add(templateKey);
       }
       return next;
     });
@@ -103,21 +130,57 @@ export function TemplatesModal({
     privacyStatus: 'private' as const,
   });
 
+  /** Creates the routine's child activities, then the routine bundling them. */
+  const createRoutineFromTemplate = async (template: RoutineTemplate) => {
+    const activityIds: number[] = [];
+    for (const activityKey of template.activities) {
+      const activityTemplate = ACTIVITY_TEMPLATES.find(
+        (candidate) => candidate.key === activityKey
+      );
+      if (!activityTemplate) continue;
+      const created = await activityService.createActivity(
+        buildTemplate(activityTemplate)
+      );
+      activityIds.push(created.id);
+    }
+    await routineService.createRoutine({
+      title: t(`template_${template.key}`),
+      description: '',
+      privacyStatus: 'private',
+      activityIds: activityIds.map((activityId, position) => ({
+        activityId,
+        position,
+      })),
+    });
+  };
+
   const handleCreateSelected = async () => {
-    const selected = ACTIVITY_TEMPLATES.filter((template) =>
+    const selectedActivities = ACTIVITY_TEMPLATES.filter((template) =>
       selectedKeys.has(template.key)
     );
-    if (selected.length === 0) return;
+    const selectedRoutines = ROUTINE_TEMPLATES.filter((template) =>
+      selectedKeys.has(template.key)
+    );
+    if (selectedActivities.length + selectedRoutines.length === 0) return;
 
     setIsCreating(true);
     let created = 0;
     let failed = 0;
-    for (const template of selected) {
+    for (const template of selectedActivities) {
       try {
         await activityService.createActivity(buildTemplate(template));
         created += 1;
       } catch (error) {
         console.error('Failed to create activity from template:', error);
+        failed += 1;
+      }
+    }
+    for (const template of selectedRoutines) {
+      try {
+        await createRoutineFromTemplate(template);
+        created += 1;
+      } catch (error) {
+        console.error('Failed to create routine from template:', error);
         failed += 1;
       }
     }
@@ -158,86 +221,147 @@ export function TemplatesModal({
           <DialogDescription>{t('description')}</DialogDescription>
         </DialogHeader>
 
-        <div className="flex items-center gap-1 flex-wrap px-6 py-3 border-b shrink-0">
-          {ACTIVITY_TEMPLATE_CATEGORIES.map((value) => (
-            <Button
-              key={value}
-              variant={category === value ? 'default' : 'outline'}
-              size="sm"
-              className="h-7 px-2.5 text-xs"
-              onClick={() => setCategory(value)}
-            >
-              {t(`category_${value}`)}
-            </Button>
-          ))}
+        <div className="flex items-center gap-2 px-6 py-3 border-b shrink-0">
+          <Select value={kind} onValueChange={handleKindChange}>
+            <SelectTrigger className="w-[170px] h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="activity">{t('kind_activity')}</SelectItem>
+              <SelectItem value="routine">{t('kind_routine')}</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select
+            value={category}
+            onValueChange={(value) => setCategory(value as TemplateCategory)}
+          >
+            <SelectTrigger className="w-[170px] h-8 text-xs">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {kindCategories.map((value) => (
+                <SelectItem key={value} value={value}>
+                  {t(`category_${value}`)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto px-6 py-4 space-y-2">
-          {templates.map((template) => {
-            const isSelected = selectedKeys.has(template.key);
-            return (
-              <div
-                key={template.key}
-                role="checkbox"
-                aria-checked={isSelected}
-                tabIndex={0}
-                onClick={() => toggleTemplate(template)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    toggleTemplate(template);
-                  }
-                }}
-                className={cn(
-                  'flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors hover:bg-accent/50',
-                  isSelected && 'border-primary/50 bg-primary/5'
-                )}
-              >
-                <span
-                  className="mt-0.5 shrink-0"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <Checkbox checked={isSelected} />
-                </span>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-foreground break-words">
-                    {t(`template_${template.key}`)}
-                  </div>
-                  <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
-                    <Badge variant="outline" className="text-xs">
-                      {tActivities(template.frequency)}
-                    </Badge>
-                    {template.frequency === 'weekly' &&
-                      template.dayFrequency && (
-                        <Badge variant="outline" className="text-xs">
-                          {formatDays(template.dayFrequency)}
-                        </Badge>
-                      )}
-                    <Badge variant="outline" className="text-xs">
-                      {tActivities(template.dayTime)}
-                    </Badge>
-                    {template.completionAmount > 1 && (
-                      <Badge variant="secondary" className="text-xs">
-                        {template.completionAmount}
-                      </Badge>
+          {kind === 'activity'
+            ? activityTemplates.map((template) => {
+                const isSelected = selectedKeys.has(template.key);
+                return (
+                  <div
+                    key={template.key}
+                    role="checkbox"
+                    aria-checked={isSelected}
+                    tabIndex={0}
+                    onClick={() => toggleTemplate(template.key)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        toggleTemplate(template.key);
+                      }
+                    }}
+                    className={cn(
+                      'flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors hover:bg-accent/50',
+                      isSelected && 'border-primary/50 bg-primary/5'
                     )}
+                  >
+                    <span
+                      className="mt-0.5 shrink-0"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <Checkbox checked={isSelected} />
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-foreground break-words">
+                        {t(`template_${template.key}`)}
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
+                        <Badge variant="outline" className="text-xs">
+                          {tActivities(template.frequency)}
+                        </Badge>
+                        {template.frequency === 'weekly' &&
+                          template.dayFrequency && (
+                            <Badge variant="outline" className="text-xs">
+                              {formatDays(template.dayFrequency)}
+                            </Badge>
+                          )}
+                        <Badge variant="outline" className="text-xs">
+                          {tActivities(template.dayTime)}
+                        </Badge>
+                        {template.completionAmount > 1 && (
+                          <Badge variant="secondary" className="text-xs">
+                            {template.completionAmount}
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      aria-label={t('customize')}
+                      className="h-8 w-8 shrink-0"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onCustomize(template);
+                      }}
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
                   </div>
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label={t('customize')}
-                  className="h-8 w-8 shrink-0"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onCustomize(template);
-                  }}
-                >
-                  <Pencil className="h-4 w-4" />
-                </Button>
-              </div>
-            );
-          })}
+                );
+              })
+            : routineTemplates.map((template) => {
+                const isSelected = selectedKeys.has(template.key);
+                return (
+                  <div
+                    key={template.key}
+                    role="checkbox"
+                    aria-checked={isSelected}
+                    tabIndex={0}
+                    onClick={() => toggleTemplate(template.key)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        toggleTemplate(template.key);
+                      }
+                    }}
+                    className={cn(
+                      'flex items-start gap-3 rounded-lg border p-3 cursor-pointer transition-colors hover:bg-accent/50',
+                      isSelected && 'border-primary/50 bg-primary/5'
+                    )}
+                  >
+                    <span className="mt-0.5 shrink-0">
+                      <Checkbox checked={isSelected} />
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-medium text-foreground break-words">
+                        {t(`template_${template.key}`)}
+                      </div>
+                      <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
+                        <Badge variant="outline" className="text-xs">
+                          {t('activitiesCount', {
+                            count: template.activities.length,
+                          })}
+                        </Badge>
+                        {template.activities.map((activityKey) => (
+                          <Badge
+                            key={activityKey}
+                            variant="secondary"
+                            className="text-xs font-normal"
+                          >
+                            {t(`template_${activityKey}`)}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
         </div>
 
         <div className="flex items-center justify-between gap-2 px-6 py-4 border-t shrink-0">
