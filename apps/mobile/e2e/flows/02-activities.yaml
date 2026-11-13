@@ -1,0 +1,75 @@
+# Activity smoke: create an activity via the form modal, then delete it via the
+# long-press menu. Runs right after 01-auth, so the fresh throwaway user has an
+# empty activity list (the empty-state button is the create entry point).
+#
+# Env: MAESTRO_E2E_USER / MAESTRO_E2E_PASS (set by the Makefile). Conventions:
+# tapOn "Open menu" opens the hamburger drawer; text selectors match FULL text.
+
+appId: com.lifetracker.mobile
+name: mobile smoke — activities · create · delete
+---
+
+# Session guard: run individually, or when a previous flow left us logged out.
+- launchApp
+- runFlow:
+    when:
+      visible: "Sign in"
+    commands:
+      - tapOn: "Enter your username or email"
+      - inputText: "${MAESTRO_E2E_USER}"
+      - hideKeyboard
+      - tapOn: "Enter your password"
+      - inputText: "${MAESTRO_E2E_PASS}"
+      - hideKeyboard
+      # "Sign in" also matches the unclickable screen title — the button sits
+      # below the password field (relational selector).
+      - tapOn:
+          text: "Sign in"
+          below: "Password"
+      - assertVisible: "Today's Activities"
+
+- assertVisible: "Today's Activities"
+
+# Fresh users see the empty-state CTA; a reused session may already have
+# activities — cover both entry points. Branch 3 is skipped when a form is
+# already open (branches 1/2 cover those cases).
+- runFlow:
+    when:
+      visible: "Create your first activity"
+    commands:
+      - tapOn: "Create your first activity"
+- runFlow:
+    when:
+      visible: "Today's Activities"
+      notVisible: "Create Activity"
+      notVisible: "Create your first activity"
+    commands:
+      - tapOn: "+"
+- assertVisible: "Create Activity"
+- tapOn: "e.g., Morning Workout"
+- inputText: "E2e Morning Run"
+- hideKeyboard
+- scrollUntilVisible:
+    element:
+      text: "Create Activity"
+      index: 1
+    direction: DOWN
+# "Create Activity" matches both the sheet title and the submit — the submit
+# is the second match.
+- tapOn:
+    text: "Create Activity"
+    index: 1
+- assertVisible: "E2e Morning Run"
+
+# ---------------------------------------------------------------- delete
+- longPressOn: "E2e Morning Run"
+- assertVisible: "Delete Activity"
+- tapOn: "Delete Activity"
+- assertVisible: ".*permanently remove.*"
+- tapOn: "Delete"
+- assertNotVisible: "E2e Morning Run"
+
+# Back on the home screen for the next flow.
+- tapOn: "Open menu"
+- tapOn: "Activities"
+- assertVisible: "Today's Activities"

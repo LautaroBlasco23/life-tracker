@@ -18,6 +18,7 @@ func RegisterUserRoutes(router *gin.RouterGroup, db *gorm.DB, imageClient *image
 	{
 		userGroup.GET("/me", userController.GetMyProfile)
 		userGroup.PUT("/me", userController.UpdateProfile)
+		userGroup.PUT("/me/onboarding", userController.CompleteOnboarding)
 		userGroup.POST("/me/image", userController.UploadProfileImage)
 		userGroup.DELETE("/me/image", userController.DeleteProfileImage)
 

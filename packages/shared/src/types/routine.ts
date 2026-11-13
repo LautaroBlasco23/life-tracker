@@ -1,7 +1,5 @@
 import type { DayTime, Frequency, PrivacyStatus } from "./activity";
 
-export type RoutineStatus = "draft" | "active" | "stopped";
-
 export interface RoutineRef {
   id: number;
   title: string;
@@ -29,7 +27,6 @@ export interface Routine {
   title: string;
   description: string;
   privacyStatus: PrivacyStatus;
-  status?: RoutineStatus;
   activities: RoutineActivityItem[];
   /** All activities scheduled today are completed. */
   isCompletedToday: boolean;
@@ -46,7 +43,6 @@ export interface CreateRoutineRequest {
   title: string;
   description: string;
   privacyStatus: PrivacyStatus;
-  status?: RoutineStatus;
   activityIds: ActivityIDPosition[];
 }
 
@@ -54,6 +50,5 @@ export interface UpdateRoutineRequest {
   title?: string;
   description?: string;
   privacyStatus?: PrivacyStatus;
-  status?: RoutineStatus;
   activityIds?: ActivityIDPosition[];
 }

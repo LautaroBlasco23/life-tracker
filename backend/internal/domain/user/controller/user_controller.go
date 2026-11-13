@@ -115,6 +115,25 @@ func (c *UserController) UpdateProfile(ctx *gin.Context) {
 	})
 }
 
+func (c *UserController) CompleteOnboarding(ctx *gin.Context) {
+	userID, err := getUserID(ctx)
+	if err != nil {
+		ctx.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+
+	user, err := c.userService.CompleteOnboarding(userID)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": "Onboarding completed successfully",
+		"data":    user,
+	})
+}
+
 func (c *UserController) GetAllUsers(ctx *gin.Context) {
 	users, err := c.userService.GetAllUsers()
 	if err != nil {

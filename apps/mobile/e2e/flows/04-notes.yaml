@@ -1,0 +1,49 @@
+# Notes smoke: open the new-note editor and close it again. Text input is
+# deliberately out of scope — Maestro's IME injection dismisses the Compose
+# Dialog on this screen (works on other screens), so typing is not exercised.
+#
+# Env: MAESTRO_E2E_USER / MAESTRO_E2E_PASS. Text selectors match FULL text;
+# "Open menu" opens the hamburger drawer.
+
+appId: com.lifetracker.mobile
+name: mobile smoke — notes · editor open · close
+---
+
+# Session guard: run individually, or when a previous flow left us logged out.
+- launchApp
+- runFlow:
+    when:
+      visible: "Sign in"
+    commands:
+      - tapOn: "Enter your username or email"
+      - inputText: "${MAESTRO_E2E_USER}"
+      - hideKeyboard
+      - tapOn: "Enter your password"
+      - inputText: "${MAESTRO_E2E_PASS}"
+      - hideKeyboard
+      # "Sign in" also matches the unclickable screen title — the button sits
+      # below the password field (relational selector).
+      - tapOn:
+          text: "Sign in"
+          below: "Password"
+      - assertVisible: "Today's Activities"
+
+- assertVisible: "Today's Activities"
+- tapOn: "Open menu"
+- tapOn: "Notes"
+- assertVisible: "Notes"
+- assertVisible: "Add Group"
+
+# ---------------------------------------------------------------- editor
+- tapOn: "New Note"
+- assertVisible: "Note title"
+- assertVisible: "Preview"
+- assertVisible: "Cancel"
+- tapOn: "Cancel"
+- assertVisible: "Notes"
+- assertVisible: "No notes yet"
+
+# Back on the home screen for the next flow.
+- tapOn: "Open menu"
+- tapOn: "Activities"
+- assertVisible: "Today's Activities"

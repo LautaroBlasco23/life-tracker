@@ -156,7 +156,6 @@ func createPublicRoutine(t *testing.T, ownerID uint, activities []*activityModel
 		Title:         "Morning Routine",
 		Description:   "Wake up",
 		PrivacyStatus: routineModel.PrivacyPublic,
-		Status:        routineModel.StatusActive,
 	}
 	require.NoError(t, testDB.Create(r).Error)
 

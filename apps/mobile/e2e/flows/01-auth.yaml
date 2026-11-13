@@ -1,0 +1,94 @@
+# Smoke e2e for the Android app (Maestro).
+# Run via `make e2e-mobile`, which boots the emulator, starts the local API on
+# :8080, and installs a debug APK whose API_BASE_URL is baked to
+# http://10.0.2.2:8080/api (debug builds allow cleartext to 10.0.2.2).
+#
+# Env (set by the Makefile): MAESTRO_E2E_USER, MAESTRO_E2E_EMAIL, MAESTRO_E2E_PASS.
+# Flow: clean state → register a throwaway user → main app → hamburger nav to
+# Notes/Social/Activities → back → clean state again → login with the same user
+# → main app. Later flows (02-…) reuse this session, so this must run first.
+# Tap/assert text comes from apps/mobile/core/i18n messages/en.json (mobile i18n
+# mirrors the shared strings). Note: Maestro text selectors are regex and match
+# the FULL text — plain strings match exactly.
+
+appId: com.lifetracker.mobile
+name: "mobile smoke — register · nav · login"
+---
+
+# ---------------------------------------------------------------- step 1: clean launch
+- launchApp:
+    clearState: true
+- assertVisible: "Sign in"
+- assertVisible: "Don't have an account?"
+
+# ---------------------------------------------------------------- step 2: register
+# AuthSwitchText: the clickable part is the "Sign up" action label, not the
+# static "Don't have an account?" text before it.
+- tapOn: "Sign up"
+- assertVisible: "Create account"
+
+# NOTE: while the keyboard is up, the app vanishes from the accessibility
+# tree (only the IME window is exposed), so every tapOn/unhide cycle closes
+# the keyboard with `hideKeyboard` before the next screen lookup.
+- tapOn: "John"
+- inputText: "E2e"
+- hideKeyboard
+- tapOn: "Doe"
+- inputText: "Test"
+- hideKeyboard
+- tapOn: "john_doe"
+- inputText: "${MAESTRO_E2E_USER}"
+- hideKeyboard
+- tapOn: "john@example.com"
+- inputText: "${MAESTRO_E2E_EMAIL}"
+- hideKeyboard
+- tapOn: "Create a password"
+- inputText: "${MAESTRO_E2E_PASS}"
+- hideKeyboard
+- tapOn: "Confirm your password"
+- inputText: "${MAESTRO_E2E_PASS}"
+- hideKeyboard
+
+# Submit — the availability checks (500 ms debounce) hit the local API, a
+# timeout here means the baked base URL doesn't reach the host API.
+- scrollUntilVisible:
+    element:
+      text: "Sign up"
+    direction: DOWN
+- tapOn: "Sign up"
+- assertVisible: "Today's Activities"
+
+# ---------------------------------------------------------------- step 3: hamburger nav
+# AppHeader carries a hamburger (contentDescription "Open menu"); the drawer
+# lists the feature nav entries. Cross one screen and come back.
+- assertVisible: "Open menu"
+- tapOn: "Open menu"
+- tapOn: "Notes"
+- assertVisible: "Notes"
+
+- tapOn: "Open menu"
+- tapOn: "Social"
+- assertVisible: "Social"
+
+- tapOn: "Open menu"
+- tapOn: "Activities"
+- assertVisible: "Today's Activities"
+
+# ---------------------------------------------------------------- step 4: login with the new user
+# A clean relaunch wipes the session token (SecureStore) and lands on login.
+- launchApp:
+    clearState: true
+- assertVisible: "Sign in"
+
+- tapOn: "Enter your username or email"
+- inputText: "${MAESTRO_E2E_USER}"
+- hideKeyboard
+- tapOn: "Enter your password"
+- inputText: "${MAESTRO_E2E_PASS}"
+- hideKeyboard
+# "Sign in" also matches the unclickable screen title — target the button,
+# which sits below the password field (relational selector).
+- tapOn:
+    text: "Sign in"
+    below: "Password"
+- assertVisible: "Today's Activities"

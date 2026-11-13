@@ -1,0 +1,8 @@
+<!-- Debug builds only: allow plain-HTTP calls to the local API
+     (http://10.0.2.2:8080/api baked by core/network's debug build type).
+     Release keeps the platform default: HTTPS only. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application android:usesCleartextTraffic="true" />
+
+</manifest>

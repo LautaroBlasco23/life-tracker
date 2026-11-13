@@ -8,9 +8,15 @@ export default function HomePage() {
   const router = useRouter();
 
   useEffect(() => {
-    // Redirect to activities if authenticated, otherwise to login
+    // Redirect to onboarding guide (first run) or activities if authenticated,
+    // otherwise to login
     if (authService.isAuthenticated()) {
-      router.push('/activities');
+      const user = authService.getCurrentUser();
+      // `onboardingCompleted` is undefined in stale cached users (pre-feature)
+      // and is treated as completed, so only new users get the guide.
+      router.push(
+        user?.onboardingCompleted === false ? '/onboarding' : '/activities'
+      );
     } else {
       router.push('/login');
     }
