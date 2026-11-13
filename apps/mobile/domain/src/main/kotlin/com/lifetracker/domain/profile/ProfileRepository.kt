@@ -1,6 +1,5 @@
 package com.lifetracker.domain.profile
 
-import com.lifetracker.core.network.BuildConfigBaseUrlProvider
 import com.lifetracker.core.network.endpoints.UsersApi
 import com.lifetracker.core.network.model.PrivacyStatus
 import com.lifetracker.core.network.model.UpdateUserRequest
@@ -19,15 +18,11 @@ import javax.inject.Singleton
  * Port of the RN `packages/shared/src/services/user-service.ts` (own-profile
  * surface): profile fetch with write-through of the cached session user,
  * privacy toggle, and the multipart avatar upload/delete.
- *
- * `effectiveApiUrl` feeds the Profile screen's API URL row (port of
- * `getConfig().apiUrl`, incl. the DataStore override from storage-init).
  */
 @Singleton
 class ProfileRepository @Inject constructor(
     private val users: UsersApi,
     private val sessions: SessionStore,
-    private val baseUrlProvider: BuildConfigBaseUrlProvider,
 ) {
 
     /** GET /users/me — also refreshes the cached session user (RN parity). */
@@ -64,9 +59,6 @@ class ProfileRepository @Inject constructor(
         users.deleteProfileImage().successOrThrow()
         return getMyProfile()
     }
-
-    /** Current API URL for the Profile row display (override, else build default). */
-    fun effectiveApiUrl(): String = baseUrlProvider.get()
 
     private fun imageFileName(contentType: String): String {
         val extension = when {

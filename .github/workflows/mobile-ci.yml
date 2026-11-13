@@ -2,10 +2,17 @@ name: Mobile CI
 
 on:
   push:
-    branches: [main]
+    # Exclude merge-queue staging branches: the merge_group trigger below
+    # covers them; without this, queue builds would run push CI in duplicate.
+    branches: [main, "!gh-readonly-queue/**"]
     paths: ["apps/mobile/**", ".github/workflows/mobile-ci.yml"]
   pull_request:
     # No paths filter — see frontend-ci.yml.
+    branches: [main]
+  merge_group:
+    # Merge queue builds: report the same required checks on the queue's
+    # integration branch. Required by the main-branch ruleset.
+    types: [checks_requested]
     branches: [main]
 
 # Least privilege: this job only reads code and never needs write scopes.
@@ -13,8 +20,30 @@ permissions:
   contents: read
 
 jobs:
+  # Path scoping: see backend-ci.yml "changes" job for the rationale.
+  changes:
+    name: Detect affected paths
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      mobile: ${{ steps.filter.outputs.mobile }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3
+        id: filter
+        with:
+          filters: |
+            mobile:
+              - "apps/mobile/**"
+              - ".github/workflows/mobile-ci.yml"
+
   kotlin-build:
     name: kotlin-build
+    needs: [changes]
+    if: github.event_name != 'pull_request' || needs.changes.outputs.mobile == 'true'
     runs-on: ubuntu-latest
 
     steps:

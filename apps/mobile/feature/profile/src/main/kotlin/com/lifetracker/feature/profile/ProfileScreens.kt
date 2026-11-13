@@ -21,6 +21,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.MonitorHeart
+import androidx.compose.material.icons.outlined.People
+import androidx.compose.material.icons.outlined.PieChart
+import androidx.compose.material.icons.outlined.StickyNote2
+import androidx.compose.material.icons.outlined.Timer
+import androidx.compose.material.icons.outlined.Wallet
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -33,7 +39,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -41,11 +46,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.lifetracker.core.designsystem.AppHeader
 import com.lifetracker.core.designsystem.LbButton
 import com.lifetracker.core.designsystem.LbButtonVariant
 import com.lifetracker.core.designsystem.LbModalSheet
 import com.lifetracker.core.designsystem.LbTextField
 import com.lifetracker.core.designsystem.LocalAppColors
+import com.lifetracker.core.designsystem.NavEntry
 import com.lifetracker.core.designsystem.ThemeController
 import com.lifetracker.core.designsystem.ThemePreference
 import com.lifetracker.core.designsystem.ToastHost
@@ -59,6 +66,17 @@ import kotlinx.coroutines.delay
  * ProfileCommon provides `t`/`toastText`, ScreenActions the ActivityResult
  * wiring + [AvatarImage], ProfileViewModel owns the state machine.
  */
+
+/** The six drawer destinations of RN `components/navigation.tsx`. */
+private val profileNavItems = listOf(
+    NavEntry("activities", I18n.t("nav.activities"), Icons.Outlined.MonitorHeart),
+    NavEntry("time", I18n.t("nav.timeTracker"), Icons.Outlined.Timer),
+    NavEntry("notes", I18n.t("nav.notes"), Icons.Outlined.StickyNote2),
+    NavEntry("finance/transactions", I18n.t("nav.financeTransactions"), Icons.Outlined.Wallet),
+    NavEntry("finance/dashboard", I18n.t("nav.financeDashboard"), Icons.Outlined.PieChart),
+    NavEntry("social", I18n.t("nav.social"), Icons.Outlined.People),
+)
+
 @Composable
 fun ProfileScreen(onLogout: () -> Unit, onNavigate: (String) -> Unit) {
     val viewModel: ProfileViewModel = hiltViewModel()
@@ -76,180 +94,171 @@ fun ProfileScreen(onLogout: () -> Unit, onNavigate: (String) -> Unit) {
     }
 
     val actions = rememberProfileActivityResultActions(viewModel)
-    var showApiUrlModal by rememberSaveable { mutableStateOf(false) }
     var showPasswordModal by rememberSaveable { mutableStateOf(false) }
     var showEmailModal by rememberSaveable { mutableStateOf(false) }
 
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-        ) {
-            Text(I18n.t("profile.title"), fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = colors.foreground)
-            Text(I18n.t("profile.description"), fontSize = 12.sp, color = colors.textMuted)
-            Spacer(Modifier.height(24.dp))
-
-            // --- profile picture ---
-            CardShell {
-                Column(Modifier.padding(16.dp)) {
-                    val user = state.user
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        AvatarImage(
-                            url = user?.thumbnailUrl ?: user?.profilePicUrl,
-                            firstName = user?.firstName ?: "?",
-                        )
-                        Spacer(Modifier.width(16.dp))
-                        Column {
-                            Text(
-                                I18n.t("profile.changePicture"),
-                                fontSize = 14.sp,
-                                color = colors.primary,
-                                modifier = Modifier.clickable { actions.pickAvatar() },
-                            )
-                            Spacer(Modifier.height(4.dp))
-                            Text(
-                                I18n.t("common.delete"),
-                                fontSize = 14.sp,
-                                color = colors.danger,
-                                modifier = Modifier.clickable { viewModel.removeImage() },
-                            )
-                        }
-                    }
-                }
-            }
-
-            Spacer(Modifier.height(24.dp))
-
-            // --- settings rows (RN account card) ---
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .border(1.dp, colors.border, RoundedCornerShape(12.dp)),
-            ) {
-                val privacyLabel = when (state.user?.privacyStatus) {
-                    "public" -> I18n.t("privacy.public")
-                    else -> I18n.t("privacy.private")
-                }
-                SettingsRow(
-                    label = I18n.t("privacy.profilePrivacy"),
-                    value = privacyLabel,
-                    onClick = { viewModel.togglePrivacy() },
-                    icon = Icons.Outlined.Lock,
-                )
-                val themePref = ThemeController.preference
-                SettingsRow(
-                    label = t("theme"),
-                    value = when (themePref) {
-                        ThemePreference.SYSTEM -> t("system")
-                        ThemePreference.LIGHT -> t("light")
-                        ThemePreference.DARK -> t("dark")
-                    },
-                    // Cycle SYSTEM → LIGHT → DARK (controller persists all three).
-                    onClick = {
-                        viewModel.setTheme(
-                            when (themePref) {
-                                ThemePreference.SYSTEM -> ThemePreference.LIGHT
-                                ThemePreference.LIGHT -> ThemePreference.DARK
-                                ThemePreference.DARK -> ThemePreference.SYSTEM
-                            },
-                        )
-                    },
-                )
-                SettingsRow(
-                    label = t("language"),
-                    value = if (I18n.current == I18n.Language.SPANISH) t("spanish") else t("english"),
-                    onClick = {
-                        viewModel.setLanguage(if (I18n.current == I18n.Language.SPANISH) "en" else "es")
-                    },
-                )
-                SettingsRow(
-                    label = t("apiUrl"),
-                    value = state.apiUrl.ifBlank { "—" },
-                    onClick = { showApiUrlModal = true },
-                )
-            }
-
-            Spacer(Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                Box(Modifier.weight(1f)) {
-                    LbButton(
-                        text = I18n.t("profile.changePassword"),
-                        onClick = { showPasswordModal = true },
-                        variant = LbButtonVariant.SECONDARY,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-                Box(Modifier.weight(1f)) {
-                    LbButton(
-                        text = I18n.t("profile.changeEmail"),
-                        onClick = { showEmailModal = true },
-                        variant = LbButtonVariant.SECONDARY,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(24.dp))
-            Text(I18n.t("dataBackup.title"), fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = colors.foreground)
-            Text(I18n.t("dataBackup.description"), fontSize = 12.sp, color = colors.textMuted)
-            Spacer(Modifier.height(8.dp))
-            CardShell {
-                Column(Modifier.padding(16.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-                        Box(Modifier.weight(1f)) {
-                            LbButton(
-                                text = if (state.isExporting) I18n.t("dataBackup.exporting") else I18n.t("dataBackup.exportButton"),
-                                onClick = { actions.launchExport(DEFAULT_BACKUP_FILENAME) },
-                                variant = LbButtonVariant.SECONDARY,
-                                enabled = !state.isExporting && !state.isImporting,
-                                loading = state.isExporting,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        }
-                        Box(Modifier.weight(1f)) {
-                            LbButton(
-                                text = if (state.isImporting) I18n.t("dataBackup.importing") else I18n.t("dataBackup.importButton"),
-                                onClick = { actions.launchImport() },
-                                variant = LbButtonVariant.SECONDARY,
-                                enabled = !state.isExporting && !state.isImporting,
-                                loading = state.isImporting,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        }
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    Text(I18n.t("dataBackup.backupHint"), fontSize = 11.sp, color = colors.textMuted)
-                }
-            }
-
-            Spacer(Modifier.height(24.dp))
-            LbButton(
-                text = I18n.t("profile.signOut"),
-                onClick = { viewModel.logout(onLogout) },
-                variant = LbButtonVariant.DANGER,
-                enabled = !state.isLoggingOut,
-                loading = state.isLoggingOut,
-                modifier = Modifier.fillMaxWidth(),
+        Column(Modifier.fillMaxSize()) {
+            AppHeader(
+                title = "LifeTracker",
+                items = profileNavItems,
+                currentKey = "profile",
+                onNavigate = onNavigate,
             )
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+            ) {
+                Text(I18n.t("profile.title"), fontSize = 24.sp, fontWeight = FontWeight.SemiBold, color = colors.foreground)
+                Text(I18n.t("profile.description"), fontSize = 12.sp, color = colors.textMuted)
+                Spacer(Modifier.height(24.dp))
+
+                // --- profile picture ---
+                CardShell {
+                    Column(Modifier.padding(16.dp)) {
+                        val user = state.user
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            AvatarImage(
+                                url = user?.thumbnailUrl ?: user?.profilePicUrl,
+                                firstName = user?.firstName ?: "?",
+                            )
+                            Spacer(Modifier.width(16.dp))
+                            Column {
+                                Text(
+                                    I18n.t("profile.changePicture"),
+                                    fontSize = 14.sp,
+                                    color = colors.primary,
+                                    modifier = Modifier.clickable { actions.pickAvatar() },
+                                )
+                                Spacer(Modifier.height(4.dp))
+                                Text(
+                                    I18n.t("common.delete"),
+                                    fontSize = 14.sp,
+                                    color = colors.danger,
+                                    modifier = Modifier.clickable { viewModel.removeImage() },
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(24.dp))
+
+                // --- settings rows (RN account card) ---
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .border(1.dp, colors.border, RoundedCornerShape(12.dp)),
+                ) {
+                    val privacyLabel = when (state.user?.privacyStatus) {
+                        "public" -> I18n.t("privacy.public")
+                        else -> I18n.t("privacy.private")
+                    }
+                    SettingsRow(
+                        label = I18n.t("privacy.profilePrivacy"),
+                        value = privacyLabel,
+                        onClick = { viewModel.togglePrivacy() },
+                        icon = Icons.Outlined.Lock,
+                    )
+                    val themePref = ThemeController.preference
+                    SettingsRow(
+                        label = t("theme"),
+                        value = when (themePref) {
+                            ThemePreference.SYSTEM -> t("system")
+                            ThemePreference.LIGHT -> t("light")
+                            ThemePreference.DARK -> t("dark")
+                        },
+                        // Cycle SYSTEM → LIGHT → DARK (controller persists all three).
+                        onClick = {
+                            viewModel.setTheme(
+                                when (themePref) {
+                                    ThemePreference.SYSTEM -> ThemePreference.LIGHT
+                                    ThemePreference.LIGHT -> ThemePreference.DARK
+                                    ThemePreference.DARK -> ThemePreference.SYSTEM
+                                },
+                            )
+                        },
+                    )
+                    SettingsRow(
+                        label = t("language"),
+                        value = if (I18n.current == I18n.Language.SPANISH) t("spanish") else t("english"),
+                        onClick = {
+                            viewModel.setLanguage(if (I18n.current == I18n.Language.SPANISH) "en" else "es")
+                        },
+                    )
+                }
+
+                Spacer(Modifier.height(12.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                    Box(Modifier.weight(1f)) {
+                        LbButton(
+                            text = I18n.t("profile.changePassword"),
+                            onClick = { showPasswordModal = true },
+                            variant = LbButtonVariant.SECONDARY,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                    Box(Modifier.weight(1f)) {
+                        LbButton(
+                            text = I18n.t("profile.changeEmail"),
+                            onClick = { showEmailModal = true },
+                            variant = LbButtonVariant.SECONDARY,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(24.dp))
+                Text(I18n.t("dataBackup.title"), fontSize = 18.sp, fontWeight = FontWeight.SemiBold, color = colors.foreground)
+                Text(I18n.t("dataBackup.description"), fontSize = 12.sp, color = colors.textMuted)
+                Spacer(Modifier.height(8.dp))
+                CardShell {
+                    Column(Modifier.padding(16.dp)) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
+                            Box(Modifier.weight(1f)) {
+                                LbButton(
+                                    text = if (state.isExporting) I18n.t("dataBackup.exporting") else I18n.t("dataBackup.exportButton"),
+                                    onClick = { actions.launchExport(DEFAULT_BACKUP_FILENAME) },
+                                    variant = LbButtonVariant.SECONDARY,
+                                    enabled = !state.isExporting && !state.isImporting,
+                                    loading = state.isExporting,
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
+                            Box(Modifier.weight(1f)) {
+                                LbButton(
+                                    text = if (state.isImporting) I18n.t("dataBackup.importing") else I18n.t("dataBackup.importButton"),
+                                    onClick = { actions.launchImport() },
+                                    variant = LbButtonVariant.SECONDARY,
+                                    enabled = !state.isExporting && !state.isImporting,
+                                    loading = state.isImporting,
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Text(I18n.t("dataBackup.backupHint"), fontSize = 11.sp, color = colors.textMuted)
+                    }
+                }
+
+                Spacer(Modifier.height(24.dp))
+                LbButton(
+                    text = I18n.t("profile.signOut"),
+                    onClick = { viewModel.logout(onLogout) },
+                    variant = LbButtonVariant.DANGER,
+                    enabled = !state.isLoggingOut,
+                    loading = state.isLoggingOut,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
 
         ToastHost(toast)
     }
 
     // --- modals ---
-    if (showApiUrlModal) {
-        val context = LocalContext.current
-        val isDebug = (context.applicationInfo.flags and android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0
-        ApiUrlModal(
-            visible = true,
-            current = state.apiUrl,
-            isDebug = isDebug,
-            onSave = { input, onResult -> viewModel.saveApiUrl(input, isDebug, onResult) },
-            onDismiss = { showApiUrlModal = false },
-        )
-    }
     if (showPasswordModal) {
         UpdatePasswordModal(
             visible = true,
@@ -375,56 +384,6 @@ private fun SettingsRow(
             )
             Spacer(Modifier.width(4.dp))
             Icon(Icons.Outlined.ChevronRight, null, tint = colors.textMuted, modifier = Modifier.size(20.dp))
-        }
-    }
-}
-
-@Composable
-internal fun ApiUrlModal(
-    visible: Boolean,
-    current: String,
-    isDebug: Boolean,
-    onSave: (input: String, onResult: (Boolean) -> Unit) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    var input by rememberSaveable { mutableStateOf(current) }
-    var saving by rememberSaveable { mutableStateOf(false) }
-    val colors = LocalAppColors.current
-
-    LbModalSheet(visible = visible, onDismiss = onDismiss, title = t("apiUrl")) {
-        Text(
-            I18n.t("profile.pictureSizeHint").let { hint -> hint }, // muted helper line (RN used a paragraph under the field)
-            fontSize = 12.sp,
-            color = colors.textMuted,
-        )
-        Spacer(Modifier.height(12.dp))
-        LbTextField(value = input, onValueChange = { input = it }, label = t("apiUrl"))
-        Spacer(Modifier.height(16.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
-            Box(Modifier.weight(1f)) {
-                LbButton(
-                    text = I18n.t("common.cancel"),
-                    onClick = onDismiss,
-                    variant = LbButtonVariant.SECONDARY,
-                    enabled = !saving,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-            Box(Modifier.weight(1f)) {
-                LbButton(
-                    text = I18n.t("common.save"),
-                    onClick = {
-                        saving = true
-                        onSave(input) { applied ->
-                            saving = false
-                            if (applied) onDismiss()
-                        }
-                    },
-                    enabled = !saving,
-                    loading = saving,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
         }
     }
 }
