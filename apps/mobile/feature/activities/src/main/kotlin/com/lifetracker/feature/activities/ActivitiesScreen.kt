@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -57,11 +58,13 @@ import com.lifetracker.core.designsystem.LbButton
 import com.lifetracker.core.designsystem.LbButtonVariant
 import com.lifetracker.core.designsystem.LbCategoryHeader
 import com.lifetracker.core.designsystem.LbDeleteConfirm
+import com.lifetracker.core.designsystem.LbHeaderAction
 import com.lifetracker.core.designsystem.LbStreakBadge
 import com.lifetracker.core.designsystem.LocalAppColors
 import com.lifetracker.core.designsystem.LocalToast
 import com.lifetracker.core.designsystem.NavEntry
 import com.lifetracker.core.designsystem.ToastHost
+import com.lifetracker.domain.activities.ActivityFilter
 import com.lifetracker.core.network.model.ActivityResponse
 import com.lifetracker.core.network.model.ReminderResponse
 import com.lifetracker.core.network.model.StreakInfo
@@ -179,34 +182,42 @@ fun ActivitiesScreen(onNavigate: (String) -> Unit = {}) {
 
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.padding(top = 12.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 12.dp),
                         ) {
-                            HeaderOutlineButton(
+                            LbHeaderAction(
                                 text = I18n.t("routines.title"),
                                 icon = Icons.Outlined.Repeat,
                                 onClick = { showRoutines = true },
+                                modifier = Modifier.weight(1f),
                             )
-                            HeaderOutlineButton(
+                            LbHeaderAction(
                                 text = I18n.t("activityTemplates.button"),
                                 icon = Icons.Outlined.Dashboard,
                                 onClick = {
                                     prefill = null
                                     showTemplates = true
                                 },
+                                modifier = Modifier.weight(1f),
                             )
-                            HeaderOutlineButton(
-                                text = I18n.t("common.filters") +
-                                    (if (filterCount > 0) " ($filterCount)" else ""),
+                            LbHeaderAction(
+                                text = I18n.t("common.filters"),
                                 icon = Icons.Outlined.Tune,
+                                badgeCount = filterCount.takeIf { it > 0 },
+                                highlighted = filterCount > 0,
                                 onClick = { showFilter = true },
+                                modifier = Modifier.weight(1f),
                             )
-                            if (filterCount > 0) {
-                                HeaderGhostButton(
-                                    text = I18n.t("common.clearFilters"),
-                                    icon = Icons.Outlined.Close,
-                                    onClick = { viewModel.applyFilter(null) },
-                                )
-                            }
+                        }
+
+                        val activeFilter = state.filter
+                        if (activeFilter != null && filterCount > 0) {
+                            ActiveFilterChipsRow(
+                                filter = activeFilter,
+                                onClear = { viewModel.applyFilter(null) },
+                                modifier = Modifier.padding(top = 8.dp),
+                            )
                         }
 
                         if (state.loadFailed) {
@@ -665,57 +676,50 @@ private fun StreakBanner(current: Int, longest: Int) {
     }
 }
 
-/** 36dp outline header chip button (RN `Button variant="outline" className="h-9"`). */
+/** Chips row of the active filter values + "Clear all" (web filter-chips parity). */
 @Composable
-private fun HeaderOutlineButton(
-    text: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    onClick: () -> Unit,
+private fun ActiveFilterChipsRow(
+    filter: ActivityFilter,
+    onClear: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val colors = LocalAppColors.current
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        modifier = Modifier
-            .height(36.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .border(1.dp, colors.border, RoundedCornerShape(8.dp))
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = modifier,
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = colors.primary,
-            modifier = Modifier.size(14.dp),
+        Text(
+            text = I18n.t("common.activeFilters"),
+            fontSize = 12.sp,
+            color = colors.textMuted,
         )
-        Text(text = text, fontSize = 14.sp, color = colors.foreground, maxLines = 1)
-    }
-}
-
-/** Ghost header button (RN `variant="ghost"` — Clear filters). */
-@Composable
-private fun HeaderGhostButton(
-    text: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    onClick: () -> Unit,
-) {
-    val colors = LocalAppColors.current
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-        modifier = Modifier
-            .height(36.dp)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 8.dp),
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = colors.primary,
-            modifier = Modifier.size(14.dp),
-        )
-        Text(text = text, fontSize = 14.sp, color = colors.primary)
+        filter.frequency?.let { LbChip(text = activityLabel(it.wire)) }
+        filter.dayTime?.let { LbChip(text = activityLabel(it.wire)) }
+        filter.scheduledFor?.let { date ->
+            LbChip(text = parseJsDate(date)?.let { formatShortDate(it) } ?: date)
+        }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+            modifier = Modifier
+                .heightIn(min = 32.dp)
+                .clip(RoundedCornerShape(6.dp))
+                .clickable(onClick = onClear)
+                .padding(horizontal = 8.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Outlined.Close,
+                contentDescription = null,
+                tint = colors.primary,
+                modifier = Modifier.size(12.dp),
+            )
+            Text(
+                text = I18n.t("common.clearAll"),
+                fontSize = 12.sp,
+                color = colors.primary,
+            )
+        }
     }
 }
 

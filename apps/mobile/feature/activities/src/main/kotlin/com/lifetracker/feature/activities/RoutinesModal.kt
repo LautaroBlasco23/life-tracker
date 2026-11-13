@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.ChevronLeft
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Delete
@@ -40,6 +41,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -472,18 +474,21 @@ private fun RoutineDetailView(
 @Composable
 internal fun CreateFab(onClick: () -> Unit, modifier: Modifier = Modifier) {
     val colors = LocalAppColors.current
+    val shape = RoundedCornerShape(28.dp)
     Box(
         modifier = modifier
             .size(56.dp)
-            .clip(RoundedCornerShape(28.dp))
+            .shadow(elevation = 6.dp, shape = shape, clip = false)
+            .clip(shape)
             .background(colors.primary)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
-        androidx.compose.material3.Text(
-            text = "+",
-            fontSize = 26.sp,
-            color = colors.primaryForeground,
+        Icon(
+            imageVector = Icons.Outlined.Add,
+            contentDescription = I18n.t("activities.newActivity"),
+            tint = colors.primaryForeground,
+            modifier = Modifier.size(24.dp),
         )
     }
 }
