@@ -1,5 +1,43 @@
 # Changelog
 
+## [3.0.0](https://github.com/LautaroBlasco23/life-tracker/compare/v2.1.0...v3.0.0) (2026-11-13)
+
+
+### ⚠ BREAKING CHANGES
+
+* **mobile:** POST/PATCH /routines no longer accept 'status' and routine responses no longer include it. Old clients sending status are unaffected (the field is ignored).
+
+### Features
+
+* **mobile:** add nav header to profile screen; remove API URL section ([#126](https://github.com/LautaroBlasco23/life-tracker/issues/126)) ([e225ea8](https://github.com/LautaroBlasco23/life-tracker/commit/e225ea8ea3921cdeebd88d57e5a7eca7a0894640))
+* **mobile:** UI polish — design tokens, bottom sheets, contrast and nav fixes ([#118](https://github.com/LautaroBlasco23/life-tracker/issues/118)) ([c2e96f9](https://github.com/LautaroBlasco23/life-tracker/commit/c2e96f91ff5aa26d78429c1e2cad567c686f1100))
+* **onboarding:** add first-run guide with starter activity and finance templates (web) ([#119](https://github.com/LautaroBlasco23/life-tracker/issues/119)) ([a5c1937](https://github.com/LautaroBlasco23/life-tracker/commit/a5c1937b0286472ab4810d32f65b260d37f6c270))
+
+
+### Bug Fixes
+
+* **backend:** bump klauspost/compress to v1.20.2 to address GO-2026-6865 ([#115](https://github.com/LautaroBlasco23/life-tracker/issues/115)) ([22c57df](https://github.com/LautaroBlasco23/life-tracker/commit/22c57df7ea6ba3b93f9bff25f37f3a38caa8b2e4))
+* **mobile:** stop routine form modals crashing on open; feat(templates): kind + category dropdowns ([#120](https://github.com/LautaroBlasco23/life-tracker/issues/120)) ([de90231](https://github.com/LautaroBlasco23/life-tracker/commit/de90231d5055d14ebe0a0da8e1cd8fb35d808b1d))
+
+
+### Miscellaneous Chores
+
+* **deps-dev:** bump @types/node from 22.18.6 to 26.6.5 in /frontend ([#103](https://github.com/LautaroBlasco23/life-tracker/issues/103)) ([35e3396](https://github.com/LautaroBlasco23/life-tracker/commit/35e3396ab6daf5bd626b1a131f801e91aac1eb81))
+* **deps-dev:** bump vitest ([#116](https://github.com/LautaroBlasco23/life-tracker/issues/116)) ([8675491](https://github.com/LautaroBlasco23/life-tracker/commit/8675491a0eea3db3288cb01b1bd5bb31f0bd7e0f))
+* **deps:** bump @hookform/resolvers from 6.0.0 to 7.0.0 in /frontend ([#110](https://github.com/LautaroBlasco23/life-tracker/issues/110)) ([5ae360b](https://github.com/LautaroBlasco23/life-tracker/commit/5ae360b81332ac91ad20cab443cdba474bc897a0))
+* **deps:** bump amannn/action-semantic-pull-request ([#122](https://github.com/LautaroBlasco23/life-tracker/issues/122)) ([d54bea1](https://github.com/LautaroBlasco23/life-tracker/commit/d54bea192dfb9e01752c84ce0d0d8afd46ea5ff2))
+* **deps:** bump docker/login-action from 4.6.0 to 4.7.0 ([#97](https://github.com/LautaroBlasco23/life-tracker/issues/97)) ([11ff9f2](https://github.com/LautaroBlasco23/life-tracker/commit/11ff9f2271664bde3f7712b7227ac0df14265a0a))
+* **deps:** bump docker/login-action from 4.7.0 to 4.8.0 ([#121](https://github.com/LautaroBlasco23/life-tracker/issues/121)) ([18d0d2b](https://github.com/LautaroBlasco23/life-tracker/commit/18d0d2bc52cc9a885ca980d6f6e9c8024f30fb01))
+* **deps:** bump github.com/xuri/excelize/v2 in /backend ([#125](https://github.com/LautaroBlasco23/life-tracker/issues/125)) ([cd030df](https://github.com/LautaroBlasco23/life-tracker/commit/cd030dfd1fa928de602ec16e33ab98e01bf4b68c))
+* **deps:** bump next from 15.5.28 to 16.4.3 in /frontend ([#101](https://github.com/LautaroBlasco23/life-tracker/issues/101)) ([610b082](https://github.com/LautaroBlasco23/life-tracker/commit/610b0824ac474b0d9f07cb6512cdf9ad5e5c14a2))
+* **deps:** bump react-native-gesture-handler from 2.32.0 to 3.4.0 ([#100](https://github.com/LautaroBlasco23/life-tracker/issues/100)) ([63e3372](https://github.com/LautaroBlasco23/life-tracker/commit/63e3372ffc4ef1593869ab55807a248870d7f756))
+* **deps:** bump react-resizable-panels in /frontend ([#102](https://github.com/LautaroBlasco23/life-tracker/issues/102)) ([f42d258](https://github.com/LautaroBlasco23/life-tracker/commit/f42d258d35a05ca1f7f63f1b79d0013f9e281644))
+* **deps:** bump the go-minor-patch group in /backend with 5 updates ([#104](https://github.com/LautaroBlasco23/life-tracker/issues/104)) ([649c4e1](https://github.com/LautaroBlasco23/life-tracker/commit/649c4e1397838ddb191c31557531cc11ad47b538))
+* **deps:** bump the go-minor-patch group in /backend with 5 updates ([#124](https://github.com/LautaroBlasco23/life-tracker/issues/124)) ([0b39e0d](https://github.com/LautaroBlasco23/life-tracker/commit/0b39e0d61d85893707e69b78773c04cbc0aa32b8))
+* **deps:** bump the go-minor-patch group in /backend with 6 updates ([#112](https://github.com/LautaroBlasco23/life-tracker/issues/112)) ([ba0cd1b](https://github.com/LautaroBlasco23/life-tracker/commit/ba0cd1b0ae97a95b55b87b9ce638ef1e06caca00))
+* **deps:** bump the npm-minor-patch group across 1 directory with 11 updates ([#123](https://github.com/LautaroBlasco23/life-tracker/issues/123)) ([8aca0ee](https://github.com/LautaroBlasco23/life-tracker/commit/8aca0eecd654ed8525da7a3f60cb03b9bcf875e2))
+* **deps:** bump the npm-minor-patch group across 1 directory with 3 updates ([#99](https://github.com/LautaroBlasco23/life-tracker/issues/99)) ([d1ad014](https://github.com/LautaroBlasco23/life-tracker/commit/d1ad0144061a9e4d7b7774b871deae6d19e7b841))
+
 ## [2.1.0](https://github.com/LautaroBlasco23/life-tracker/compare/v2.0.1...v2.1.0) (2026-10-28)
 
 
