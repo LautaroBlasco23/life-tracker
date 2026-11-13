@@ -4,9 +4,15 @@ A personal life-tracking platform covering **habits & activities**, **finances**
 
 ## Demo
 
-<video src="./videos/app-demo.mp4" controls poster="./videos/app-demo-poster.jpg" width="100%"></video>
+<p align="center">
+  <a href="./videos/app-demo.mp4">
+    <img src="./videos/app-demo-poster.jpg" alt="Life Tracker demo video" width="640">
+  </a>
+</p>
 
-*1:42 — a real day with the app: completing a daily habit, building a healthy routine, live time tracking, notes and sticky notes. Can't play it inline? [Watch the video](./videos/app-demo.mp4) — regenerated on demand, see [`videos/APP-DEMO-GUIDE.md`](./videos/APP-DEMO-GUIDE.md).*
+*1:42 — a real day with the app: completing a daily habit, building a healthy routine, live time tracking, notes and sticky notes. [Watch the video](./videos/app-demo.mp4) — regenerated on demand, see [`videos/APP-DEMO-GUIDE.md`](./videos/APP-DEMO-GUIDE.md).*
+
+> **Inline playback on github.com** (one-time): edit this README on github.com and drag `videos/app-demo.mp4` into the editor — GitHub uploads it and inserts a `https://github.com/user-attachments/assets/<id>` URL. Leave that bare URL on its own line here (not inside a `<video>` tag) and commit: GitHub renders it as a native inline player. A committed mp4 referenced by path does **not** play inline.
 
 ## Quick Start
 
@@ -58,32 +64,6 @@ All documentation lives in [`docs/`](./docs/). This root README covers only the 
 | [`docs/loadtest.md`](./docs/loadtest.md) | k6 load testing: test lanes, scenario matrix, live monitoring, cleanup |
 
 ---
-
-## App Images
-
-**Login**
-
-![Login](docs/images/login.png)
-
-**Activities**
-
-![Activities](docs/images/activities.png)
-
-**Notes**
-
-![Notes](docs/images/notes.png)
-
-**Finance**
-
-![Finance](docs/images/finance.png)
-
-**Time Tracker**
-
-![Time Tracker](docs/images/time.png)
-
-**Profile**
-
-![Profile](docs/images/profile.png)
 
 ---
 
