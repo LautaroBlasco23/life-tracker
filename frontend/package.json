@@ -14,6 +14,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "demo:video:capture": "playwright test --config demo/playwright.demo.config.ts",
+    "demo:video:render": "node scripts/render-demo-video.mjs",
+    "demo:video": "npm run demo:video:capture && npm run demo:video:render",
     "test:coverage": "vitest run --coverage"
   },
   "overrides": {

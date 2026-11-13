@@ -49,7 +49,8 @@ const API_ROOT = process.env.PLAYWRIGHT_API_URL || '/api';
  */
 export async function registerUser(
   request: APIRequestContext,
-  prefix = 'e2e'
+  prefix = 'e2e',
+  overrides: Partial<Pick<E2EUser, 'firstName' | 'lastName'>> = {}
 ): Promise<E2EUser> {
   const seq =
     Date.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36);
@@ -58,8 +59,8 @@ export async function registerUser(
     email: `${username}@e2e.local`,
     username,
     password: E2E_PASSWORD,
-    firstName: 'E2E',
-    lastName: 'Runner',
+    firstName: overrides.firstName ?? 'E2E',
+    lastName: overrides.lastName ?? 'Runner',
     accessToken: '',
     refreshToken: '',
   };

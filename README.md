@@ -2,6 +2,12 @@
 
 A personal life-tracking platform covering **habits & activities**, **finances**, **notes**, and **time tracking**. This repository is a monorepo that consolidates the previous separate projects (`life-tracker-backend`, `life-tracker-frontend`, `life-tracker-extension`) into a single codebase.
 
+## Demo
+
+<video src="./videos/app-demo.mp4" controls poster="./videos/app-demo-poster.jpg" width="100%"></video>
+
+*1:42 — a real day with the app: completing a daily habit, building a healthy routine, live time tracking, notes and sticky notes. Can't play it inline? [Watch the video](./videos/app-demo.mp4) — regenerated on demand, see [`videos/APP-DEMO-GUIDE.md`](./videos/APP-DEMO-GUIDE.md).*
+
 ## Quick Start
 
 ```bash
