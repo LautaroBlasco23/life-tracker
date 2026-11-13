@@ -169,18 +169,20 @@ fun TimeScreen(
     val colors = LocalAppColors.current
     val scope = rememberCoroutineScope()
 
-    // Screen-level modal state (RN `time.tsx` useState family).
-    var showFilterModal by remember { mutableStateOf(false) }
-    var showFormModal by remember { mutableStateOf(false) }
+    // Screen-level modal state (RN `time.tsx` useState family). Booleans are
+    // saveable across process death; nullable model refs stay `remember`
+    // (kotlinx-serializable models aren't Bundle-compatible).
+    var showFilterModal by rememberSaveable { mutableStateOf(false) }
+    var showFormModal by rememberSaveable { mutableStateOf(false) }
     var editingRecord by remember { mutableStateOf<TimeRecordResponse?>(null) }
     var deletingRecord by remember { mutableStateOf<TimeRecordResponse?>(null) }
     var actionsRecord by remember { mutableStateOf<TimeRecordResponse?>(null) }
 
     // Timer start inputs (RN keeps those at screen level, across tab switches).
     var timerCategory by remember { mutableStateOf<String?>(null) }
-    var timerDescription by remember { mutableStateOf("") }
+    var timerDescription by rememberSaveable { mutableStateOf("") }
     // Discard confirmation for an active session (it destroys tracked time).
-    var discardingSession by remember { mutableStateOf<String?>(null) }
+    var discardingSession by rememberSaveable { mutableStateOf<String?>(null) }
 
     // One-shot feedback from the async effects (load failures + sessions).
     LaunchedEffect(Unit) {

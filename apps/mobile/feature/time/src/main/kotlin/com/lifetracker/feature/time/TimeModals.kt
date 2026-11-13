@@ -18,8 +18,16 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Event
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -37,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lifetracker.core.designsystem.LbButton
 import com.lifetracker.core.designsystem.LbButtonVariant
+import com.lifetracker.core.designsystem.AppDimens
 import com.lifetracker.core.designsystem.LbModalSheet
 import com.lifetracker.core.designsystem.LbOptionSelect
 import com.lifetracker.core.designsystem.LbSelectOption
@@ -62,8 +71,10 @@ import com.lifetracker.domain.lib.calendarweek.toEndOfDayInstant
 import com.lifetracker.domain.lib.filters.categoryLabel
 import com.lifetracker.domain.lib.filters.monthYearOptions
 import com.lifetracker.domain.time.parseInstant
+import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.ZoneOffset
 import kotlinx.coroutines.launch
 
 
@@ -322,6 +333,76 @@ data class CalendarEventDefaults(
     val endMinutes: Int,
 )
 
+/**
+ * Date field backed by an M3 `DatePickerDialog` (replaces the raw
+ * "YYYY-MM-DD" Ascii text field). The value stays `yyyy-MM-dd` wire format;
+ * the selected date renders localized. Empty `initialValue` opens on today.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DateField(label: String, value: String, onChange: (String) -> Unit) {
+    val colors = LocalAppColors.current
+    var showPicker by remember { mutableStateOf(false) }
+    val initialMillis = remember(value) {
+        value.takeIf { it.isNotEmpty() }
+            ?.let { runCatching { LocalDate.parse(it).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli() }.getOrNull() }
+            ?: System.currentTimeMillis()
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(label, fontSize = 14.sp, color = colors.foreground)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(44.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .border(1.dp, colors.border, RoundedCornerShape(8.dp))
+                .clickable { showPicker = true }
+                .padding(horizontal = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(
+                text = value.ifEmpty { "—" },
+                fontSize = 16.sp,
+                color = if (value.isEmpty()) colors.textMuted else colors.foreground,
+            )
+            Icon(
+                imageVector = Icons.Outlined.Event,
+                contentDescription = I18n.t("calendar.date"),
+                tint = colors.textMuted,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+    }
+    if (showPicker) {
+        val pickerState = rememberDatePickerState(initialSelectedDateMillis = initialMillis)
+        DatePickerDialog(
+            onDismissRequest = { showPicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pickerState.selectedDateMillis?.let { millis ->
+                            onChange(
+                                Instant.ofEpochMilli(millis)
+                                    .atZone(ZoneOffset.UTC)
+                                    .toLocalDate()
+                                    .toString(),
+                            )
+                        }
+                        showPicker = false
+                    },
+                ) { Text(I18n.t("common.save")) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPicker = false }) { Text(I18n.t("common.cancel")) }
+            },
+        ) {
+            DatePicker(state = pickerState)
+        }
+    }
+}
+
 /** Two numeric inputs (hours + minutes) with a ":" separator + captions. */
 @Composable
 private fun TimeInput(
@@ -464,16 +545,16 @@ internal fun EventFormModal(
         )
         Spacer(Modifier.height(16.dp))
 
-        LbTextField(
-            value = dateValue,
-            onValueChange = { dateValue = it },
+        DateField(
             label = t("calendar.date"),
-            placeholder = "YYYY-MM-DD",
-            keyboardType = androidx.compose.ui.text.input.KeyboardType.Ascii,
+            value = dateValue,
+            onChange = { dateValue = it },
         )
         Spacer(Modifier.height(16.dp))
 
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
             TimeInput(
                 label = t("calendar.startTime"),
                 hours = startHours,
@@ -493,32 +574,23 @@ internal fun EventFormModal(
         }
         Spacer(Modifier.height(12.dp))
 
-        // Overnight toggle: same explicit pattern as the weekday chips of the
-        // activity form — the end time is never reinterpreted.
-        val toggleInk = if (endsNextDay) colors.primaryForeground else colors.foreground
+        // Overnight toggle: a labeled switch — the end time is never
+        // reinterpreted (web `endsNextDay` parity).
         Row(
             verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
             modifier = Modifier
-                .clip(RoundedCornerShape(8.dp))
-                .let { base ->
-                    if (endsNextDay) {
-                        base.background(colors.primary).border(1.dp, colors.primary, RoundedCornerShape(8.dp))
-                    } else {
-                        base.border(1.dp, colors.border, RoundedCornerShape(8.dp))
-                    }
-                }
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = { endsNextDay = !endsNextDay },
-                )
-                .padding(horizontal = 12.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(0.dp),
+                .fillMaxWidth()
+                .heightIn(min = AppDimens.MinTouchTarget),
         ) {
             Text(
                 t("calendar.endsNextDay"),
                 fontSize = 14.sp,
-                color = toggleInk,
+                color = colors.foreground,
+            )
+            Switch(
+                checked = endsNextDay,
+                onCheckedChange = { endsNextDay = it },
             )
         }
         Spacer(Modifier.height(16.dp))
@@ -542,12 +614,10 @@ internal fun EventFormModal(
             )
             Spacer(Modifier.height(16.dp))
             if (weeklyRepeat) {
-                LbTextField(
-                    value = untilDate,
-                    onValueChange = { untilDate = it },
+                DateField(
                     label = t("calendar.repeatUntil"),
-                    placeholder = "YYYY-MM-DD",
-                    keyboardType = androidx.compose.ui.text.input.KeyboardType.Ascii,
+                    value = untilDate,
+                    onChange = { untilDate = it },
                 )
                 Spacer(Modifier.height(16.dp))
             }

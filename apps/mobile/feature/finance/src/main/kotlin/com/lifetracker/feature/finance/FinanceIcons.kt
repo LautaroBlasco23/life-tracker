@@ -123,24 +123,6 @@ val FinanceIcons.DollarSign: ImageVector by lazy { strokeIcon("Finance.LbDollarS
 
 // ---- hamburger navigation glyphs (same datums as feature/time's set) ----
 
-/** lucide `activity`. */
-val FinanceIcons.Activity: ImageVector by lazy { strokeIcon("Finance.LbActivity", listOf(
-    "M22 12 L18 12 L15 21 L9 3 L6 12 L2 12",
-)) }
-
-/** lucide `timer`. */
-val FinanceIcons.Timer: ImageVector by lazy { strokeIcon("Finance.LbTimer", listOf(
-    "M10 2 L14 2",
-    "M12 14 L15 11",
-    "M20 14 A8 8 0 1 1 4 14 A8 8 0 1 1 20 14",
-)) }
-
-/** lucide `sticky-note`. */
-val FinanceIcons.StickyNote: ImageVector by lazy { strokeIcon("Finance.LbStickyNote", listOf(
-    "M15.5 3 L5 3 C3.9 3 3 3.9 3 5 L3 19 C3 20.1 3.9 21 5 21 L19 21 C20.1 21 21 20.1 21 19 L21 8.5 Z",
-    "M15 3 L15 8.5 L21 8.5",
-)) }
-
 /** lucide `wallet`. */
 val FinanceIcons.Wallet: ImageVector by lazy { strokeIcon("Finance.LbWallet", listOf(
     "M21 12 L21 7 L5 7 C3.9 7 3 6.1 3 5 C3 3.9 3.9 3 5 3 L19 3",
@@ -154,10 +136,3 @@ val FinanceIcons.ChartPie: ImageVector by lazy { strokeIcon("Finance.LbChartPie"
     "M21.21 15.89 A10 10 0 1 1 8 2.83",
 )) }
 
-/** lucide `users`. */
-val FinanceIcons.Users: ImageVector by lazy { strokeIcon("Finance.LbUsers", listOf(
-    "M16 21 L16 19 C16 16.8 14.2 15 12 15 L6 15 C3.8 15 2 16.8 2 19 L2 21",
-    "M13 7 A4 4 0 1 1 5 7 A4 4 0 1 1 13 7",
-    "M22 21 L22 19 C22 17.13 20.87 15.63 19 15.13",
-    "M16 3.13 A4 4 0 0 1 16 10.87",
-)) }

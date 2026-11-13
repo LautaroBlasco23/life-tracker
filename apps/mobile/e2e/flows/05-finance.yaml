@@ -30,12 +30,19 @@ name: mobile smoke — finance · dashboard · transaction
 
 # ---------------------------------------------------------------- dashboard
 # The Finance tab opens transactions; the header icon opens the dashboard.
+# The summary metrics are a swipeable carousel: one page visible at a time.
 - tapOn: "Finance"
 - assertVisible: "Transactions"
 - tapOn: "Finance Dashboard"
 - assertVisible: "Dashboard"
 - assertVisible: "Total income"
+- swipe:
+    direction: LEFT
+    duration: 300
 - assertVisible: "Total expenses"
+- swipe:
+    direction: LEFT
+    duration: 300
 - assertVisible: "Balance"
 
 # ---------------------------------------------------------------- transaction

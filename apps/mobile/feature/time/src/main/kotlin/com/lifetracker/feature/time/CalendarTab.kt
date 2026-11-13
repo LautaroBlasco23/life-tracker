@@ -30,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -93,6 +94,18 @@ internal fun CalendarTab(
     var selectedDay by remember { mutableStateOf(ZonedDateTime.now()) }
     val days = remember(weekStart) { getWeekDays(weekStart) }
 
+    // Per-day event counts for the strip dots (same overlap test as the agenda).
+    val eventCounts = remember(events, days) {
+        days.associateWith { day ->
+            val range = getDayRange(day)
+            events.count { event ->
+                val start = parseInstant(event.startAt, zone)?.toInstant() ?: return@count false
+                val end = parseInstant(event.endAt, zone)?.toInstant() ?: return@count false
+                start < range.end.toInstant() && end > range.start.toInstant()
+            }
+        }
+    }
+
     // RN `useFocusEffect`: reload on tab focus and on week / reloadKey change.
     LaunchedEffect(view, weekStart, eventsReloadKey) {
         if (view == TimeView.CALENDAR) {
@@ -113,11 +126,11 @@ internal fun CalendarTab(
             .sortedBy { event -> parseInstant(event.startAt, zone)?.toInstant() }
     }
 
-    var showFormModal by remember { mutableStateOf(false) }
+    var showFormModal by rememberSaveable { mutableStateOf(false) }
     var editingEvent by remember { mutableStateOf<CalendarEventResponse?>(null) }
     var formDefaults by remember { mutableStateOf<CalendarEventDefaults?>(null) }
     var deletingEvent by remember { mutableStateOf<CalendarEventResponse?>(null) }
-    var deleteScope by remember { mutableStateOf(EventScope.OCCURRENCE) }
+    var deleteScope by rememberSaveable { mutableStateOf(EventScope.OCCURRENCE) }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -188,7 +201,7 @@ internal fun CalendarTab(
                     modifier = Modifier.padding(bottom = 12.dp),
                 )
 
-                // ---- 7-day picker strip (web's small-screen fallback) ----
+                // ---- 7-day picker strip: 44dp+ cells with event dots ----
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     modifier = Modifier
@@ -197,6 +210,7 @@ internal fun CalendarTab(
                 ) {
                     days.forEach { day ->
                         val selected = isSameDay(day, selectedDay)
+                        val dayEventCount = eventCounts[day] ?: 0
                         Column(
                             modifier = Modifier
                                 .weight(1f)
@@ -217,7 +231,7 @@ internal fun CalendarTab(
                                     indication = null,
                                     onClick = { selectedDay = day },
                                 )
-                                .padding(horizontal = 4.dp, vertical = 8.dp),
+                                .padding(vertical = 10.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
                             Text(
@@ -236,6 +250,32 @@ internal fun CalendarTab(
                                     else -> colors.foreground
                                 },
                             )
+                            // Up to 3 event dots + a "+" overflow marker.
+                            if (dayEventCount > 0) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(3.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.padding(top = 3.dp),
+                                ) {
+                                    repeat(minOf(dayEventCount, 3)) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(4.dp)
+                                                .clip(CircleShape)
+                                                .background(
+                                                    if (selected) colors.primaryForeground else colors.primary,
+                                                ),
+                                        )
+                                    }
+                                    if (dayEventCount > 3) {
+                                        Text(
+                                            "+",
+                                            fontSize = 9.sp,
+                                            color = if (selected) colors.primaryForeground else colors.primary,
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
