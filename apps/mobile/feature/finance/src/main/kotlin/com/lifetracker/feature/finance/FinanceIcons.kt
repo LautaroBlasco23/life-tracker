@@ -115,6 +115,12 @@ val FinanceIcons.TrendingDown: ImageVector by lazy { strokeIcon("Finance.LbTrend
     "M16 17 L22 17 L22 11",
 )) }
 
+/** lucide `dollar-sign`. */
+val FinanceIcons.DollarSign: ImageVector by lazy { strokeIcon("Finance.LbDollarSign", listOf(
+    "M12 2 L12 22",
+    "M17 5 L9.5 5 C7.57 5 6 6.57 6 8.5 C6 10.43 7.57 12 9.5 12 L14.5 12 C16.43 12 18 13.57 18 15.5 C18 17.43 16.43 19 14.5 19 L6 19",
+)) }
+
 // ---- hamburger navigation glyphs (same datums as feature/time's set) ----
 
 /** lucide `activity`. */
