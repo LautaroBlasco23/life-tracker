@@ -50,6 +50,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.lifetracker.core.designsystem.LbButton
 import com.lifetracker.core.designsystem.LbButtonVariant
 import com.lifetracker.core.designsystem.LbDeleteConfirm
+import com.lifetracker.core.designsystem.LbFab
 import com.lifetracker.core.designsystem.LbModalSheet
 import com.lifetracker.core.designsystem.LbOptionSelect
 import com.lifetracker.core.designsystem.LbSelectOption
@@ -473,24 +474,12 @@ private fun RoutineDetailView(
 
 @Composable
 internal fun CreateFab(onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val colors = LocalAppColors.current
-    val shape = RoundedCornerShape(28.dp)
-    Box(
-        modifier = modifier
-            .size(56.dp)
-            .shadow(elevation = 6.dp, shape = shape, clip = false)
-            .clip(shape)
-            .background(colors.primary)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector = Icons.Outlined.Add,
-            contentDescription = I18n.t("activities.newActivity"),
-            tint = colors.primaryForeground,
-            modifier = Modifier.size(24.dp),
-        )
-    }
+    LbFab(
+        icon = Icons.Outlined.Add,
+        contentDescription = I18n.t("activities.newActivity"),
+        onClick = onClick,
+        modifier = modifier,
+    )
 }
 
 // ---- routine form ----

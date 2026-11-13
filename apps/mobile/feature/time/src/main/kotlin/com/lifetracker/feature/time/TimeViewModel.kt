@@ -121,6 +121,19 @@ class TimeViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Edits a not-yet-saved session's description: `Save` requires a non-blank
+     * description, so the card offers an inline field instead of the old
+     * `descriptionRequired` toast dead-end.
+     */
+    fun updateSessionDescription(id: String, description: String) {
+        mutateSessions { sessions ->
+            sessions.map { session ->
+                if (session.id == id) session.copy(description = description) else session
+            }
+        }
+    }
+
     /** RN `discard` — trash icon, immediate removal without confirmation. */
     fun discardSession(id: String) {
         mutateSessions { sessions -> sessions.filterNot { it.id == id } }

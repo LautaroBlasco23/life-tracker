@@ -1,5 +1,10 @@
 package com.lifetracker.feature.time
 
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -15,11 +20,13 @@ import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -27,6 +34,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material.icons.outlined.Celebration
 import androidx.compose.material.icons.outlined.Edit
@@ -52,6 +60,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -68,10 +77,13 @@ import com.lifetracker.core.designsystem.LbButton
 import com.lifetracker.core.designsystem.LbButtonVariant
 import com.lifetracker.core.designsystem.LbCard
 import com.lifetracker.core.designsystem.LbCategoryHeader
+import com.lifetracker.core.designsystem.LbDeleteConfirm
+import com.lifetracker.core.designsystem.LbFab
 import com.lifetracker.core.designsystem.LbFilterChipsRow
-import com.lifetracker.core.designsystem.LbHeaderAction
 import com.lifetracker.core.designsystem.LbMenuDialog
 import com.lifetracker.core.designsystem.LbMenuOption
+import com.lifetracker.core.designsystem.LbMetricCarousel
+import com.lifetracker.core.designsystem.LbMetricPage
 import com.lifetracker.core.designsystem.LbOptionSelect
 import com.lifetracker.core.designsystem.LbSegmentedTabs
 import com.lifetracker.core.designsystem.LbSelectOption
@@ -155,6 +167,7 @@ fun TimeScreen(
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val toast = LocalToast.current
     val colors = LocalAppColors.current
+    val scope = rememberCoroutineScope()
 
     // Screen-level modal state (RN `time.tsx` useState family).
     var showFilterModal by remember { mutableStateOf(false) }
@@ -166,6 +179,8 @@ fun TimeScreen(
     // Timer start inputs (RN keeps those at screen level, across tab switches).
     var timerCategory by remember { mutableStateOf<String?>(null) }
     var timerDescription by remember { mutableStateOf("") }
+    // Discard confirmation for an active session (it destroys tracked time).
+    var discardingSession by remember { mutableStateOf<String?>(null) }
 
     // One-shot feedback from the async effects (load failures + sessions).
     LaunchedEffect(Unit) {
@@ -201,7 +216,6 @@ fun TimeScreen(
             .background(colors.background),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // Hamburger navigation (RN `components/navigation.tsx` port).
             AppHeader(title = "LifeTracker", onProfile = { onNavigate("profile") })
             Text(
                 t("title"),
@@ -241,6 +255,7 @@ fun TimeScreen(
                     },
                     onPeriodChange = viewModel::setPeriod,
                     onRecordActions = { actionsRecord = it },
+                    onDiscardSession = { discardingSession = it },
                 )
                 TimeView.CALENDAR -> CalendarTab(
                     viewModel = viewModel,
@@ -251,6 +266,22 @@ fun TimeScreen(
                     toast = toast,
                 )
             }
+        }
+
+        // Log Time: the create FAB (records tab only; the calendar keeps its
+        // own New event button).
+        if (state.view == TimeView.RECORDS) {
+            LbFab(
+                icon = TimeIcons.Plus,
+                contentDescription = t("logTime"),
+                onClick = {
+                    editingRecord = null
+                    showFormModal = true
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(bottom = 24.dp, end = 20.dp),
+            )
         }
 
         // Toast overlay composes above everything (RN global toast port).
@@ -301,29 +332,56 @@ fun TimeScreen(
     )
 
     val deleteTarget = deletingRecord
-    DeleteModal(
+    var isDeletingRecord by remember { mutableStateOf(false) }
+    LbDeleteConfirm(
         visible = deleteTarget != null,
+        name = deleteTarget?.description ?: "",
         onDismiss = { deletingRecord = null },
+        onConfirm = {
+            val record = deleteTarget ?: return@LbDeleteConfirm
+            scope.launch {
+                isDeletingRecord = true
+                val error = viewModel.deleteRecord(record)
+                isDeletingRecord = false
+                if (error == null) {
+                    deletingRecord = null
+                    toast.show(
+                        toastText(I18n.t("time.recordDeleted"), I18n.t("time.recordDeletedDescription")),
+                    )
+                } else {
+                    toast.show(toastText(I18n.t("time.deleteFailed"), error), isError = true)
+                }
+            }
+        },
         title = I18n.t("time.deleteTimeEntry"),
-        itemName = deleteTarget?.description ?: "",
-        confirmLabel = I18n.t("time.deleteEntry"),
+        message = I18n.t("deleteModal.areYouSure", "name" to (deleteTarget?.description ?: "")),
+        deleteLabel = I18n.t("time.deleteEntry"),
         details = if (deleteTarget != null) {
             { RecordDeleteDetails(record = deleteTarget) }
         } else {
             null
         },
+        isBusy = isDeletingRecord,
+    )
+
+    // Discard-confirm for a running/paused session (destroys tracked time).
+    val discardingTarget = discardingSession?.let { id ->
+        state.sessions.firstOrNull { it.id == id }
+    }
+    LbDeleteConfirm(
+        visible = discardingTarget != null,
+        name = discardingTarget?.description?.ifEmpty { discardingTarget.category } ?: "",
+        onDismiss = { discardingSession = null },
         onConfirm = {
-            val record = deleteTarget ?: return@DeleteModal ""
-            val error = viewModel.deleteRecord(record)
-            if (error == null) {
-                toast.show(
-                    toastText(I18n.t("time.recordDeleted"), I18n.t("time.recordDeletedDescription")),
-                )
-            } else {
-                toast.show(toastText(I18n.t("time.deleteFailed"), error), isError = true)
-            }
-            error
+            discardingTarget?.let { viewModel.discardSession(it.id) }
+            discardingSession = null
         },
+        title = I18n.t("time.discard"),
+        message = I18n.t(
+            "deleteModal.areYouSure",
+            "name" to (discardingTarget?.description?.ifEmpty { discardingTarget.category } ?: ""),
+        ),
+        deleteLabel = I18n.t("time.discard"),
     )
 
     FilterModal(
@@ -353,6 +411,7 @@ private fun RecordsTab(
     onOpenCreateModal: () -> Unit,
     onPeriodChange: (TimePeriod) -> Unit,
     onRecordActions: (TimeRecordResponse) -> Unit,
+    onDiscardSession: (String) -> Unit,
 ) {
     val colors = LocalAppColors.current
     val now = LocalDate.now()
@@ -402,36 +461,26 @@ private fun RecordsTab(
         // ===================== RN ListHeaderComponent =====================
         item {
             Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                Text(
-                    text = if (state.period == TimePeriod.ALL_TIME) {
-                        I18n.t("time.allRecords")
-                    } else {
-                        t("viewing", "period" to periodLabel)
-                    },
-                    fontSize = 14.sp,
-                    color = colors.textMuted,
-                    modifier = Modifier.padding(top = 4.dp),
-                )
-                Spacer(Modifier.height(12.dp))
-
-                // ---- action tiles: Filters (badge) + Log Time ----
+                // ---- viewing line + inline Filters icon button (44dp) ----
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 4.dp),
                 ) {
-                    LbHeaderAction(
-                        text = I18n.t("common.filters"),
-                        icon = TimeIcons.Filter,
-                        badgeCount = state.filterCount.takeIf { it > 0 },
-                        highlighted = state.filterCount > 0,
-                        onClick = onOpenFilters,
+                    Text(
+                        text = if (state.period == TimePeriod.ALL_TIME) {
+                            I18n.t("time.allRecords")
+                        } else {
+                            t("viewing", "period" to periodLabel)
+                        },
+                        fontSize = 14.sp,
+                        color = colors.textMuted,
                         modifier = Modifier.weight(1f),
                     )
-                    LbHeaderAction(
-                        text = t("logTime"),
-                        icon = TimeIcons.Plus,
-                        onClick = onOpenCreateModal,
-                        modifier = Modifier.weight(1f),
+                    FilterIconButton(
+                        badgeCount = state.filterCount,
+                        onClick = onOpenFilters,
                     )
                 }
                 if (state.filterCount > 0) {
@@ -518,6 +567,7 @@ private fun RecordsTab(
                                 session = session,
                                 now = state.now,
                                 isSaving = state.savingSessionId == session.id,
+                                onDiscard = { onDiscardSession(session.id) },
                                 viewModel = viewModel,
                             )
                         }
@@ -534,35 +584,55 @@ private fun RecordsTab(
                     modifier = Modifier.padding(bottom = 24.dp),
                 )
 
-                // ---- stats cards ----
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 24.dp),
-                ) {
-                    StatCard(
-                        label = t("totalTime"),
-                        value = formatDuration(stats.totalMinutes),
-                        modifier = Modifier.weight(1f),
-                    )
-                    StatCard(
-                        label = t("entries"),
-                        value = stats.recordCount.toString(),
-                        modifier = Modifier.weight(1f),
-                    )
-                    StatCard(
-                        label = t("topCategory"),
-                        value = stats.topCategory ?: I18n.t("common.na"),
-                        subline = if (stats.topCategory == null) null else formatDuration(stats.topCategoryMinutes),
-                        singleLineValue = true,
-                        modifier = Modifier.weight(1f),
-                    )
-                }
+                // ---- stats: one full-width swipeable metric card ----
+                LbMetricCarousel(
+                    pages = buildList {
+                        add(
+                            LbMetricPage(
+                                label = t("totalTime"),
+                                value = formatDuration(stats.totalMinutes),
+                                icon = TimeIcons.Clock,
+                                ink = colors.primary,
+                            ),
+                        )
+                        add(
+                            LbMetricPage(
+                                label = t("entries"),
+                                value = stats.recordCount.toString(),
+                                icon = Icons.Outlined.CalendarMonth,
+                                ink = colors.primary,
+                            ),
+                        )
+                        add(
+                            LbMetricPage(
+                                label = t("topCategory"),
+                                value = stats.topCategory
+                                    ?.let { categoryLabel({ key -> I18n.t("timeCategories.$key") }, it) }
+                                    ?: I18n.t("common.na"),
+                                subline = if (stats.topCategory == null) {
+                                    null
+                                } else {
+                                    formatDuration(stats.topCategoryMinutes)
+                                },
+                                icon = stats.topCategory
+                                    ?.let { categoryVisual(it).icon }
+                                    ?: Icons.Outlined.Circle,
+                                ink = stats.topCategory
+                                    ?.let { accentColor(categoryVisual(it).accent) }
+                                    ?: colors.textMuted,
+                            ),
+                        )
+                    },
+                    modifier = Modifier.padding(bottom = 24.dp),
+                )
 
                 // ---- empty state (differentiated: filter vs period) ----
                 if (state.records.isEmpty() && !state.isLoadingRecords) {
                     EmptyRecords(
                         filtered = state.filterCount > 0,
                         periodLabel = periodLabel,
+                        onClearFilters = { viewModel.applyFilter(TimeFilter()) },
+                        onLogTime = onOpenCreateModal,
                     )
                 }
             }
@@ -618,6 +688,49 @@ private fun activeFilterLabels(filter: TimeFilter): List<String> = buildList {
     filter.month?.let { add(monthLabel({ key -> I18n.t("months.$key") }, it.toInt())) }
     filter.year?.let { add(it) }
     filter.category?.let { add(categoryLabel({ key -> I18n.t("timeCategories.$key") }, it)) }
+}
+
+/** 44dp inline Filters icon button with an amber count badge (the records
+ *  tab has no tile row — Log Time lives on the FAB). */
+@Composable
+private fun FilterIconButton(badgeCount: Int, onClick: () -> Unit) {
+    val colors = LocalAppColors.current
+    Box(
+        modifier = Modifier
+            .size(44.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .border(
+                1.dp,
+                if (badgeCount > 0) colors.secondary.copy(alpha = 0.4f) else colors.border,
+                RoundedCornerShape(8.dp),
+            )
+            .background(if (badgeCount > 0) colors.accent else colors.surface)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = TimeIcons.Filter,
+            contentDescription = I18n.t("common.filters"),
+            tint = colors.primary,
+            modifier = Modifier.size(20.dp),
+        )
+        if (badgeCount > 0) {
+            Text(
+                text = badgeCount.toString(),
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                color = colors.secondaryForeground,
+                textAlign = TextAlign.Center,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .offset(x = 8.dp, y = (-4).dp)
+                    .clip(CircleShape)
+                    .background(colors.secondary)
+                    .defaultMinSize(minWidth = 16.dp)
+                    .padding(horizontal = 4.dp, vertical = 1.dp),
+            )
+        }
+    }
 }
 
 /**
@@ -682,18 +795,31 @@ private fun RecordRow(record: TimeRecordResponse, onOpenActions: () -> Unit) {
     }
 }
 
-/** RN `components/time/active-session-card.tsx` port. */
+/** RN `components/time/active-session-card.tsx` port: running sessions pulse
+ *  their timer icon; a missing description gets an inline field (Save
+ *  requires one — the old toast dead-end). */
 @Composable
 private fun ActiveSessionCard(
     session: ActiveTimeSession,
     now: Long,
     isSaving: Boolean,
+    onDiscard: () -> Unit,
     viewModel: TimeViewModel,
 ) {
     val colors = LocalAppColors.current
     val scope = rememberCoroutineScope()
     val isRunning = session.startedAt != null
     val elapsed = elapsedSeconds(session, now)
+    val pulse: Float = if (isRunning) {
+        rememberInfiniteTransition(label = "sessionPulse").animateFloat(
+            initialValue = 0.55f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(tween(800), RepeatMode.Reverse),
+            label = "sessionPulseAlpha",
+        ).value
+    } else {
+        1f
+    }
 
     Column(
         modifier = Modifier
@@ -716,7 +842,9 @@ private fun ActiveSessionCard(
                 imageVector = TimeIcons.Timer,
                 contentDescription = null,
                 tint = colors.primary,
-                modifier = Modifier.size(18.dp),
+                modifier = Modifier
+                    .size(18.dp)
+                    .alpha(pulse),
             )
             Text(
                 session.description.ifEmpty { session.category },
@@ -735,6 +863,16 @@ private fun ActiveSessionCard(
             ) {
                 Text(session.category, fontSize = 12.sp, color = colors.primary)
             }
+        }
+
+        // Save requires a description — offer it inline instead of failing.
+        if (session.description.isEmpty()) {
+            LbTextField(
+                value = session.description,
+                onValueChange = { viewModel.updateSessionDescription(session.id, it) },
+                label = t("whatAreYouWorkingOn"),
+                modifier = Modifier.padding(bottom = 12.dp),
+            )
         }
 
         Row(
@@ -775,22 +913,23 @@ private fun ActiveSessionCard(
                         loading = isSaving,
                     )
                 }
-                // Discard: trash icon button, immediate (no confirmation).
+                // Discard: 44dp trash; confirms first (it destroys tracked
+                // time without saving).
                 Box(
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(44.dp)
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
-                            onClick = { viewModel.discardSession(session.id) },
+                            onClick = onDiscard,
                         ),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
                         imageVector = TimeIcons.Trash,
                         contentDescription = t("discard"),
-                        tint = colors.textMuted,
-                        modifier = Modifier.size(18.dp),
+                        tint = colors.danger,
+                        modifier = Modifier.size(20.dp),
                     )
                 }
             }
@@ -853,40 +992,15 @@ private fun StartRecordingCard(
     }
 }
 
-/** One "total time / entries / top category" stat card. */
+/** Empty-list state with CTAs (web parity): "clear filters" when filtered,
+ *  "log your first entry" otherwise — both keys existed but were unused. */
 @Composable
-private fun StatCard(
-    label: String,
-    value: String,
-    modifier: Modifier = Modifier,
-    subline: String? = null,
-    singleLineValue: Boolean = false,
+private fun EmptyRecords(
+    filtered: Boolean,
+    periodLabel: String,
+    onClearFilters: () -> Unit,
+    onLogTime: () -> Unit,
 ) {
-    val colors = LocalAppColors.current
-    LbCard(modifier = modifier) {
-        Text(label, fontSize = 14.sp, color = colors.textMuted)
-        Text(
-            value,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = colors.foreground,
-            maxLines = if (singleLineValue) 1 else Int.MAX_VALUE,
-            overflow = if (singleLineValue) TextOverflow.Ellipsis else TextOverflow.Clip,
-            modifier = Modifier.padding(top = 4.dp),
-        )
-        if (subline != null) {
-            Text(
-                subline,
-                fontSize = 12.sp,
-                color = colors.textMuted,
-            )
-        }
-    }
-}
-
-/** Empty-list state, RN filter vs period variants. */
-@Composable
-private fun EmptyRecords(filtered: Boolean, periodLabel: String) {
     val colors = LocalAppColors.current
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -922,6 +1036,12 @@ private fun EmptyRecords(filtered: Boolean, periodLabel: String) {
             color = colors.textMuted,
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(top = 8.dp),
+        )
+        LbButton(
+            text = if (filtered) I18n.t("common.clearFilters") else I18n.t("time.logFirstEntry"),
+            onClick = if (filtered) onClearFilters else onLogTime,
+            variant = LbButtonVariant.SECONDARY,
+            modifier = Modifier.padding(top = 16.dp),
         )
     }
 }

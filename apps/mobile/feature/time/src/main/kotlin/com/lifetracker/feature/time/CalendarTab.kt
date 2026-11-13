@@ -29,6 +29,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,6 +41,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.lifetracker.core.designsystem.LbButton
 import com.lifetracker.core.designsystem.LbButtonVariant
+import com.lifetracker.core.designsystem.LbDeleteConfirm
 import com.lifetracker.core.designsystem.LbOptionSelect
 import com.lifetracker.core.designsystem.LbSelectOption
 import com.lifetracker.core.designsystem.LocalAppColors
@@ -61,6 +63,7 @@ import com.lifetracker.domain.lib.filters.categoryLabel
 import com.lifetracker.domain.time.parseInstant
 import java.time.ZoneId
 import java.time.ZonedDateTime
+import kotlinx.coroutines.launch
 
 /** Defaults for a freshly opened create form (RN constants). */
 private const val DEFAULT_START_MINUTES = 9 * 60
@@ -84,6 +87,7 @@ internal fun CalendarTab(
 ) {
     val colors = LocalAppColors.current
     val zone = remember { ZoneId.systemDefault() }
+    val scope = rememberCoroutineScope()
 
     var weekStart by remember { mutableStateOf(getWeekStart(ZonedDateTime.now())) }
     var selectedDay by remember { mutableStateOf(ZonedDateTime.now()) }
@@ -299,12 +303,30 @@ internal fun CalendarTab(
     )
 
     val deleteTarget = deletingEvent
-    DeleteModal(
+    var isDeletingEvent by remember { mutableStateOf(false) }
+    LbDeleteConfirm(
         visible = deleteTarget != null,
+        name = deleteTarget?.title ?: "",
         onDismiss = { deletingEvent = null },
+        onConfirm = {
+            val target = deleteTarget ?: return@LbDeleteConfirm
+            scope.launch {
+                isDeletingEvent = true
+                val error = viewModel.deleteEvent(target.id, if (target.seriesId != null) deleteScope else null)
+                isDeletingEvent = false
+                if (error == null) {
+                    deletingEvent = null
+                    toast.show(
+                        toastText(I18n.t("calendar.eventDeleted"), I18n.t("calendar.eventDeletedDescription")),
+                    )
+                } else {
+                    toast.show(toastText(I18n.t("calendar.failedToDelete"), error), isError = true)
+                }
+            }
+        },
         title = I18n.t("calendar.deleteEvent"),
-        itemName = deleteTarget?.title ?: "",
-        confirmLabel = I18n.t("calendar.deleteEventConfirm"),
+        message = I18n.t("deleteModal.areYouSure", "name" to (deleteTarget?.title ?: "")),
+        deleteLabel = I18n.t("calendar.deleteEventConfirm"),
         details = if (deleteTarget != null) {
             {
                 DeleteEventDetails(event = deleteTarget, scope = deleteScope, onScopeChange = { deleteScope = it })
@@ -312,18 +334,7 @@ internal fun CalendarTab(
         } else {
             null
         },
-        onConfirm = {
-            val target = deleteTarget ?: return@DeleteModal ""
-            val error = viewModel.deleteEvent(target.id, if (target.seriesId != null) deleteScope else null)
-            if (error == null) {
-                toast.show(
-                    toastText(I18n.t("calendar.eventDeleted"), I18n.t("calendar.eventDeletedDescription")),
-                )
-            } else {
-                toast.show(toastText(I18n.t("calendar.failedToDelete"), error), isError = true)
-            }
-            error
-        },
+        isBusy = isDeletingEvent,
     )
 }
 
