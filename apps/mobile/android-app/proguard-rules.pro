@@ -14,3 +14,7 @@
 -dontwarn okhttp3.**
 -dontwarn okio.**
 -dontwarn retrofit2.**
+
+# Tink (via androidx.security:EncryptedSharedPreferences) references
+# errorprone annotations that are compile-only and absent at runtime
+-dontwarn com.google.errorprone.annotations.**

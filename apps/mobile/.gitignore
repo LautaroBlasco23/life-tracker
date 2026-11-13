@@ -44,3 +44,7 @@ yarn-error.*
 .gradle/
 local.properties
 build/
+
+# signed release artifacts (make generate-apk)
+app-release*.apk
+*.idsig
