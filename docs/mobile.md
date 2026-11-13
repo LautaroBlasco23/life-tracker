@@ -21,9 +21,12 @@ apps/mobile/
 │   │                     # SettingsRepository (apiUrl, language, theme)
 │   ├── designsystem/     # theme tokens (Warm Minimalism, ported from shared theme-colors)
 │   │                     # + primitives: LbButton/Card/TextField/OptionSelect/SegmentedTabs/
-│   │                     #   ModalSheet/DeleteConfirm, ToastHost (app-root hosted),
-│   │                     #   AppHeader (title + profile avatar), LbBottomNav (5 tabs),
-│   │                     #   LbCategoryHeader (day-time sections), LbHeaderAction
+│   │                     #   ModalSheet/DeleteConfirm (details + busy slots),
+│   │                     #   ToastHost (app-root hosted), AppHeader (title +
+│   │                     #   profile + actions), LbBottomNav (5 tabs),
+│   │                     #   LbCategoryHeader (day-time/section headers),
+│   │                     #   LbHeaderAction, LbMetricCarousel (swipeable
+│   │                     #   metric card), LbFab, LbMenuDialog, LbFilterChipsRow
 │   └── i18n/             # Translator over messages/{en,es}.json assets, runtime switch
 ├── domain/               # Repositories per feature (Retrofit-backed) + pure logic (domain/lib)
 └── feature/<feature>/    # Compose screens + Hilt ViewModels: auth, activities, time, notes,
