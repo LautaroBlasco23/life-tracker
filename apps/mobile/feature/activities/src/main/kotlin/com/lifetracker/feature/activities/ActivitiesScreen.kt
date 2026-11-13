@@ -22,6 +22,7 @@ import androidx.compose.material.icons.outlined.Dashboard
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.MonitorHeart
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.People
 import androidx.compose.material.icons.outlined.PieChart
 import androidx.compose.material.icons.outlined.Repeat
@@ -37,6 +38,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -53,6 +55,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.lifetracker.core.designsystem.AppHeader
 import com.lifetracker.core.designsystem.LbButton
 import com.lifetracker.core.designsystem.LbButtonVariant
+import com.lifetracker.core.designsystem.LbCategoryHeader
 import com.lifetracker.core.designsystem.LbDeleteConfirm
 import com.lifetracker.core.designsystem.LbStreakBadge
 import com.lifetracker.core.designsystem.LocalAppColors
@@ -108,6 +111,8 @@ fun ActivitiesScreen(onNavigate: (String) -> Unit = {}) {
     var showTemplates by rememberSaveable { mutableStateOf(false) }
     var showFilter by rememberSaveable { mutableStateOf(false) }
     var prefill by rememberSaveable { mutableStateOf<ActivityPrefill?>(null) }
+    // Collapsed day-time/reminder sections, keyed by wire value.
+    val collapsedSections = rememberSaveable { mutableStateMapOf<String, Boolean>() }
 
     // Focus-refetch (RN useFocusEffect): re-entering this destination refreshes.
     LaunchedEffect(viewModel) {
@@ -254,59 +259,70 @@ fun ActivitiesScreen(onNavigate: (String) -> Unit = {}) {
                 if (state.reminders.isNotEmpty()) {
                     item(key = "reminders") {
                         Column(Modifier.padding(horizontal = 16.dp)) {
-                            Text(
-                                text = I18n.t("reminders.title"),
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = colors.textMuted,
-                                modifier = Modifier
-                                    .padding(top = 16.dp)
-                                    .padding(bottom = 8.dp),
+                            val sortedReminders = sortReminders(state.reminders, now)
+                            val remindersDone = sortedReminders.count {
+                                reminderStatus(it, now) == ReminderStatus.COMPLETED
+                            }
+                            LbCategoryHeader(
+                                label = I18n.t("reminders.title"),
+                                icon = Icons.Outlined.Notifications,
+                                accent = LocalAppColors.current.sectionEvening,
+                                description = I18n.t("reminders.description"),
+                                summary = "$remindersDone/${sortedReminders.size}",
+                                summaryHint = reminderCountHint(sortedReminders.size),
+                                collapsed = collapsedSections["reminders"] == true,
+                                onToggle = {
+                                    collapsedSections["reminders"] =
+                                        !(collapsedSections["reminders"] ?: false)
+                                },
+                                modifier = Modifier.padding(top = 16.dp),
                             )
-                            sortReminders(state.reminders, now).forEach { reminder ->
-                                ReminderCard(
-                                    reminder = reminder,
-                                    now = now,
-                                    processing = reminder.id in state.reminderProcessingIds,
-                                    onComplete = {
-                                        scope.launch {
-                                            viewModel.completeReminder(reminder).fold(
-                                                onSuccess = {
-                                                    toast.show(
-                                                        I18n.t("reminders.reminderComplete") + "\n" +
-                                                            I18n.t(
-                                                                "reminders.reminderCompletedDescription",
-                                                                "title" to reminder.title,
-                                                            ),
-                                                    )
-                                                },
-                                                onFailure = {
-                                                    toast.show(I18n.t("common.error"), isError = true)
-                                                },
-                                            )
-                                        }
-                                    },
-                                    onRevert = {
-                                        scope.launch {
-                                            viewModel.revertReminderCompletion(reminder).fold(
-                                                onSuccess = {
-                                                    toast.show(
-                                                        I18n.t("reminders.completionReverted") + "\n" +
-                                                            I18n.t(
-                                                                "reminders.revertDescription",
-                                                                "title" to reminder.title,
-                                                            ),
-                                                    )
-                                                },
-                                                onFailure = {
-                                                    toast.show(I18n.t("common.error"), isError = true)
-                                                },
-                                            )
-                                        }
-                                    },
-                                    onLongPress = { longPressReminder = reminder },
-                                    modifier = Modifier.padding(bottom = 8.dp),
-                                )
+                            if (collapsedSections["reminders"] != true) {
+                                sortedReminders.forEach { reminder ->
+                                    ReminderCard(
+                                        reminder = reminder,
+                                        now = now,
+                                        processing = reminder.id in state.reminderProcessingIds,
+                                        onComplete = {
+                                            scope.launch {
+                                                viewModel.completeReminder(reminder).fold(
+                                                    onSuccess = {
+                                                        toast.show(
+                                                            I18n.t("reminders.reminderComplete") + "\n" +
+                                                                I18n.t(
+                                                                    "reminders.reminderCompletedDescription",
+                                                                    "title" to reminder.title,
+                                                                ),
+                                                        )
+                                                    },
+                                                    onFailure = {
+                                                        toast.show(I18n.t("common.error"), isError = true)
+                                                    },
+                                                )
+                                            }
+                                        },
+                                        onRevert = {
+                                            scope.launch {
+                                                viewModel.revertReminderCompletion(reminder).fold(
+                                                    onSuccess = {
+                                                        toast.show(
+                                                            I18n.t("reminders.completionReverted") + "\n" +
+                                                                I18n.t(
+                                                                    "reminders.revertDescription",
+                                                                    "title" to reminder.title,
+                                                                ),
+                                                        )
+                                                    },
+                                                    onFailure = {
+                                                        toast.show(I18n.t("common.error"), isError = true)
+                                                    },
+                                                )
+                                            }
+                                        },
+                                        onLongPress = { longPressReminder = reminder },
+                                        modifier = Modifier.padding(bottom = 8.dp),
+                                    )
+                                }
                             }
                         }
                     }
@@ -315,41 +331,57 @@ fun ActivitiesScreen(onNavigate: (String) -> Unit = {}) {
                 grouped.forEach { (cat, items) ->
                     item(key = cat) {
                         Column(Modifier.padding(horizontal = 16.dp)) {
-                            GroupHeader(label = activityLabel(cat))
-                            items.forEach { activity ->
-                                ActivityCard(
-                                    activity = activity,
-                                    isProcessing = activity.id in state.processingIds,
-                                    onPress = {
-                                        scope.launch {
-                                            if (activity.isCompletedToday) {
-                                                toast.show(
-                                                    I18n.t("activities.activityComplete") + "\n" +
-                                                        I18n.t(
-                                                            "activities.activityAlreadyCompleted",
-                                                            "date" to formatShortDate(now),
-                                                        ),
-                                                )
-                                                return@launch
-                                            }
-                                            viewModel.recordCompletion(activity).fold(
-                                                onSuccess = { },
-                                                onFailure = {
+                            val spec = sectionSpec(cat)
+                            val done = items.count { it.isCompletedToday }
+                            LbCategoryHeader(
+                                label = spec.label,
+                                icon = spec.icon,
+                                accent = spec.accent,
+                                description = spec.tagline,
+                                summary = "$done/${items.size}",
+                                summaryHint = activityCountHint(items.size),
+                                collapsed = collapsedSections[cat] == true,
+                                onToggle = {
+                                    collapsedSections[cat] = !(collapsedSections[cat] ?: false)
+                                },
+                                modifier = Modifier.padding(top = 16.dp),
+                            )
+                            if (collapsedSections[cat] != true) {
+                                items.forEach { activity ->
+                                    ActivityCard(
+                                        activity = activity,
+                                        isProcessing = activity.id in state.processingIds,
+                                        onPress = {
+                                            scope.launch {
+                                                if (activity.isCompletedToday) {
                                                     toast.show(
-                                                        I18n.t("common.error") + "\n" +
+                                                        I18n.t("activities.activityComplete") + "\n" +
                                                             I18n.t(
                                                                 "activities.activityAlreadyCompleted",
                                                                 "date" to formatShortDate(now),
                                                             ),
-                                                        isError = true,
                                                     )
-                                                },
-                                            )
-                                        }
-                                    },
-                                    onLongPress = { longPressActivity = activity },
-                                    modifier = Modifier.padding(bottom = 12.dp),
-                                )
+                                                    return@launch
+                                                }
+                                                viewModel.recordCompletion(activity).fold(
+                                                    onSuccess = { },
+                                                    onFailure = {
+                                                        toast.show(
+                                                            I18n.t("common.error") + "\n" +
+                                                                I18n.t(
+                                                                    "activities.activityAlreadyCompleted",
+                                                                    "date" to formatShortDate(now),
+                                                                ),
+                                                            isError = true,
+                                                        )
+                                                    },
+                                                )
+                                            }
+                                        },
+                                        onLongPress = { longPressActivity = activity },
+                                        modifier = Modifier.padding(top = 12.dp),
+                                    )
+                                }
                             }
                         }
                     }

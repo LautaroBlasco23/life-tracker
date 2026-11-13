@@ -2,6 +2,10 @@
   "common": {
     "cancel": "Cancelar",
     "close": "Cerrar",
+    "activityCount": "{count} actividades",
+    "activityCountOne": "1 actividad",
+    "reminderCount": "{count} recordatorios",
+    "reminderCountOne": "1 recordatorio",
     "save": "Guardar",
     "delete": "Eliminar",
     "edit": "Editar",

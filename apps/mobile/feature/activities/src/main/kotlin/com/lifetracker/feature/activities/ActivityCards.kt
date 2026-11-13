@@ -11,6 +11,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.DarkMode
+import androidx.compose.material.icons.outlined.LightMode
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.WbCloudy
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -30,9 +36,9 @@ import com.lifetracker.core.network.model.Frequency
 
 /**
  * Feature-local activities list visuals, mirroring RN
- * `components/ui/activity-card.tsx` and the plain per-category group headers
- * rendered by `app/(app)/activities.tsx` (not the web CategoryHeader, which
- * the RN screen does not use).
+ * `components/ui/activity-card.tsx`. Section identity (icons + accent colors)
+ * ports the web `CATEGORY_CONFIG` from `app/activities/page.tsx` and renders
+ * through the shared design-system [LbCategoryHeader].
  */
 
 /** Wire/raw value of a [Frequency] (`DAILY` → "daily", matches enums.kt). */
@@ -66,18 +72,65 @@ internal fun parseDayFrequency(dayFrequency: String?): List<String>? {
     return runCatching { json.decodeFromString<List<String>>(dayFrequency) }.getOrNull()
 }
 
-/** Group header: `text-sm font-medium text-muted` above each non-empty category. */
+/** Identity of one day-time section: icon + accent token + localized copy. */
+internal data class SectionSpec(
+    val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val accent: androidx.compose.ui.graphics.Color,
+    val label: String,
+    val tagline: String,
+)
+
+/**
+ * Day-time section identity (web `CATEGORY_CONFIG` parity): icon + accent
+ * token + localized label and tagline. `raw` is the wire day-time value;
+ * the reminders section passes "reminders".
+ */
 @Composable
-internal fun GroupHeader(label: String) {
+internal fun sectionSpec(raw: String): SectionSpec {
     val colors = LocalAppColors.current
-    Text(
-        text = label,
-        fontSize = 14.sp,
-        fontWeight = FontWeight.Medium,
-        color = colors.textMuted,
-        modifier = Modifier.padding(bottom = 8.dp),
-    )
+    return when (raw) {
+        "morning" -> SectionSpec(
+            icon = Icons.Outlined.LightMode,
+            accent = colors.sectionMorning,
+            label = activityLabel("morning"),
+            tagline = I18n.t("activities.startYourDay"),
+        )
+        "afternoon" -> SectionSpec(
+            icon = Icons.Outlined.WbCloudy,
+            accent = colors.sectionAfternoon,
+            label = activityLabel("afternoon"),
+            tagline = I18n.t("activities.keepMomentum"),
+        )
+        "evening" -> SectionSpec(
+            icon = Icons.Outlined.DarkMode,
+            accent = colors.sectionEvening,
+            label = activityLabel("evening"),
+            tagline = I18n.t("activities.windDown"),
+        )
+        "reminders" -> SectionSpec(
+            icon = Icons.Outlined.Notifications,
+            accent = colors.sectionEvening,
+            label = I18n.t("reminders.title"),
+            tagline = I18n.t("reminders.description"),
+        )
+        else -> SectionSpec(
+            icon = Icons.Outlined.Schedule,
+            accent = colors.sectionAnytime,
+            label = I18n.t("activities.anyMoment"),
+            tagline = I18n.t("activities.flexibleTiming"),
+        )
+    }
 }
+
+/** "5 activities" / "1 activity" hint for a section header. */
+internal fun activityCountHint(count: Int): String =
+    if (count == 1) I18n.t("common.activityCountOne")
+    else I18n.t("common.activityCount", "count" to count)
+
+/** "5 reminders" / "1 reminder" hint for the reminders section header. */
+internal fun reminderCountHint(count: Int): String =
+    if (count == 1) I18n.t("common.reminderCountOne")
+    else I18n.t("common.reminderCount", "count" to count)
 
 /**
  * One activity card: title/description, frequency + weekly-days chips,

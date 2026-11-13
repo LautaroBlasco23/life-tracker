@@ -23,6 +23,11 @@ data class AppColors(
     val warning: Color,
     val border: Color,
     val sticky: Color,
+    /** Day-time section accents (activities page). Mirrors theme-colors.ts. */
+    val sectionAnytime: Color,
+    val sectionMorning: Color,
+    val sectionAfternoon: Color,
+    val sectionEvening: Color,
     /** True for the dark palette — inks on tinted surfaces are role-adapted. */
     val isDark: Boolean,
 )
@@ -43,6 +48,10 @@ val LightAppColors = AppColors(
     warning = Color(0xFF96642A),
     border = Color(0xFFE8E3D8),
     sticky = Color(0xFFF4E8D4),
+    sectionAnytime = Color(0xFF6A6C61),
+    sectionMorning = Color(0xFF96642A),
+    sectionAfternoon = Color(0xFF4A7183),
+    sectionEvening = Color(0xFF6B5B8E),
     isDark = false,
 )
 
@@ -62,5 +71,9 @@ val DarkAppColors = AppColors(
     warning = Color(0xFFD8B58A),
     border = Color(0xFF3A3C33),
     sticky = Color(0xFF3E3524),
+    sectionAnytime = Color(0xFFAAA99F),
+    sectionMorning = Color(0xFFD8B58A),
+    sectionAfternoon = Color(0xFF93BCCB),
+    sectionEvening = Color(0xFFB3A6CF),
     isDark = true,
 )

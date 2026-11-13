@@ -83,6 +83,19 @@ class AppColorsContrastTest {
         }
         // On-fire tier: dark ink on solid amber.
         assertRatio(palette, palette.secondaryForeground, palette.secondary, textFloor, "secondaryForeground on secondary")
+        // Day-time section accents: icons, accent bars and section-count
+        // numerals ink against background/surface (mobile mirror of the
+        // theme-colors.test.ts section pair checks).
+        for ((name, section) in listOf(
+            "sectionAnytime" to palette.sectionAnytime,
+            "sectionMorning" to palette.sectionMorning,
+            "sectionAfternoon" to palette.sectionAfternoon,
+            "sectionEvening" to palette.sectionEvening,
+        )) {
+            for ((bgName, bg) in surfaces) {
+                assertRatio(palette, section, bg, textFloor, "$name on $bgName")
+            }
+        }
     }
 
     @Test
