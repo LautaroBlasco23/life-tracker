@@ -63,7 +63,6 @@ import com.lifetracker.core.designsystem.LbStreakBadge
 import com.lifetracker.core.designsystem.LocalAppColors
 import com.lifetracker.core.designsystem.LocalToast
 import com.lifetracker.core.designsystem.NavEntry
-import com.lifetracker.core.designsystem.ToastHost
 import com.lifetracker.domain.activities.ActivityFilter
 import com.lifetracker.core.network.model.ActivityResponse
 import com.lifetracker.core.network.model.ReminderResponse
@@ -632,9 +631,7 @@ fun ActivitiesScreen(onNavigate: (String) -> Unit = {}) {
             )
         }
 
-        // Toast overlay (the DS intends one host per app root; render it here
-        // until the phase-3 AppHost hosts it globally for every screen).
-        ToastHost(state = toast)
+        // Toast overlay lives in AppHost (one host per app root).
     }
 }
 

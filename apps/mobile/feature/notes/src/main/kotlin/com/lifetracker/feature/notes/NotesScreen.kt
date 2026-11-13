@@ -75,8 +75,7 @@ import com.lifetracker.core.designsystem.LbModalSheet
 import com.lifetracker.core.designsystem.LbTextField
 import com.lifetracker.core.designsystem.LocalAppColors
 import com.lifetracker.core.designsystem.NavEntry
-import com.lifetracker.core.designsystem.ToastHost
-import com.lifetracker.core.designsystem.rememberToastState
+import com.lifetracker.core.designsystem.LocalToast
 import com.lifetracker.core.i18n.I18n
 import com.lifetracker.core.network.model.NoteGroupResponse
 import com.lifetracker.core.network.model.NoteResponse
@@ -101,7 +100,7 @@ fun NotesScreen(
     viewModel: NotesViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val toast = rememberToastState()
+    val toast = LocalToast.current
     val scope = rememberCoroutineScope()
     val colors = LocalAppColors.current
 
@@ -430,7 +429,6 @@ fun NotesScreen(
         }
 
         // Toast overlay above everything (RN global toast port).
-        ToastHost(state = toast)
     }
 
     // ---- note editor modal (RN slide-up modal → LbModalSheet) ----

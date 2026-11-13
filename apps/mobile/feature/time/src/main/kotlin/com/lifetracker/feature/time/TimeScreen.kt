@@ -58,8 +58,7 @@ import com.lifetracker.core.designsystem.LbSelectOption
 import com.lifetracker.core.designsystem.LbTextField
 import com.lifetracker.core.designsystem.LocalAppColors
 import com.lifetracker.core.designsystem.NavEntry
-import com.lifetracker.core.designsystem.ToastHost
-import com.lifetracker.core.designsystem.rememberToastState
+import com.lifetracker.core.designsystem.LocalToast
 import com.lifetracker.core.i18n.I18n
 import com.lifetracker.core.network.model.TimeRecordResponse
 import com.lifetracker.domain.lib.filters.monthLabel
@@ -115,7 +114,7 @@ fun TimeScreen(
     viewModel: TimeViewModel = hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val toast = rememberToastState()
+    val toast = LocalToast.current
     val colors = LocalAppColors.current
 
     // Screen-level modal state (RN `time.tsx` useState family).
@@ -221,7 +220,6 @@ fun TimeScreen(
         }
 
         // Toast overlay composes above everything (RN global toast port).
-        ToastHost(state = toast)
     }
 
     // ---- screen modals (RN renders these at the screen root) ----

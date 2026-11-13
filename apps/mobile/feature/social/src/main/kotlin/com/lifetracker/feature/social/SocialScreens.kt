@@ -60,7 +60,6 @@ import com.lifetracker.core.designsystem.LbTextField
 import com.lifetracker.core.designsystem.LocalAppColors
 import com.lifetracker.core.designsystem.LocalToast
 import com.lifetracker.core.designsystem.NavEntry
-import com.lifetracker.core.designsystem.ToastHost
 import com.lifetracker.core.i18n.I18n
 import com.lifetracker.core.network.model.FollowStatus
 import com.lifetracker.core.network.model.FollowerItem
@@ -224,7 +223,6 @@ fun SocialScreen(
         }
 
         // Toast overlay (per-screen until the AppHost hosts it globally).
-        ToastHost(state = toast)
     }
 }
 
@@ -471,7 +469,6 @@ fun PublicProfileScreen(
             .fillMaxSize()
             .background(colors.background),
     ) {
-        ToastHost(state = toast)
         when {
             state.isLoading -> Box(
                 modifier = Modifier.fillMaxSize(),

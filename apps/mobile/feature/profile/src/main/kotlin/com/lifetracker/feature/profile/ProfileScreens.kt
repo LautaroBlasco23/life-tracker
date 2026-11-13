@@ -55,8 +55,7 @@ import com.lifetracker.core.designsystem.LocalAppColors
 import com.lifetracker.core.designsystem.NavEntry
 import com.lifetracker.core.designsystem.ThemeController
 import com.lifetracker.core.designsystem.ThemePreference
-import com.lifetracker.core.designsystem.ToastHost
-import com.lifetracker.core.designsystem.rememberToastState
+import com.lifetracker.core.designsystem.LocalToast
 import com.lifetracker.core.i18n.I18n
 import com.lifetracker.domain.profile.DEFAULT_BACKUP_FILENAME
 import kotlinx.coroutines.delay
@@ -81,7 +80,7 @@ private val profileNavItems = listOf(
 fun ProfileScreen(onLogout: () -> Unit, onNavigate: (String) -> Unit) {
     val viewModel: ProfileViewModel = hiltViewModel()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val toast = rememberToastState()
+    val toast = LocalToast.current
     val colors = LocalAppColors.current
 
     LaunchedEffect(Unit) { viewModel.refreshProfile() }
@@ -254,8 +253,6 @@ fun ProfileScreen(onLogout: () -> Unit, onNavigate: (String) -> Unit) {
                 )
             }
         }
-
-        ToastHost(toast)
     }
 
     // --- modals ---
@@ -281,7 +278,7 @@ fun ProfileScreen(onLogout: () -> Unit, onNavigate: (String) -> Unit) {
 fun BackupScreen(onBack: () -> Unit) {
     val viewModel: ProfileViewModel = hiltViewModel()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val toast = rememberToastState()
+    val toast = LocalToast.current
     val colors = LocalAppColors.current
     val actions = rememberProfileActivityResultActions(viewModel)
 
@@ -317,7 +314,6 @@ fun BackupScreen(onBack: () -> Unit) {
             Spacer(Modifier.height(16.dp))
             Text(I18n.t("dataBackup.backupHint"), fontSize = 11.sp, color = colors.textMuted)
         }
-        ToastHost(toast)
     }
 
     state.pendingImport?.let { pending ->
@@ -394,7 +390,7 @@ internal fun UpdatePasswordModal(
     viewModel: ProfileViewModel,
     onDismiss: () -> Unit,
 ) {
-    val toast = rememberToastState()
+    val toast = LocalToast.current
     val colors = LocalAppColors.current
     var currentPassword by rememberSaveable { mutableStateOf("") }
     var newPassword by rememberSaveable { mutableStateOf("") }
@@ -450,7 +446,7 @@ internal fun UpdateEmailModal(
     viewModel: ProfileViewModel,
     onDismiss: () -> Unit,
 ) {
-    val toast = rememberToastState()
+    val toast = LocalToast.current
     val colors = LocalAppColors.current
     var newEmail by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }

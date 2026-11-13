@@ -52,8 +52,7 @@ import com.lifetracker.core.designsystem.LbOptionSelect
 import com.lifetracker.core.designsystem.LbProgressBar
 import com.lifetracker.core.designsystem.LbSelectOption
 import com.lifetracker.core.designsystem.LocalAppColors
-import com.lifetracker.core.designsystem.ToastHost
-import com.lifetracker.core.designsystem.rememberToastState
+import com.lifetracker.core.designsystem.LocalToast
 import com.lifetracker.core.i18n.I18n
 import com.lifetracker.core.network.model.CategoryResponse
 import com.lifetracker.core.network.model.CategorySummary
@@ -82,7 +81,7 @@ fun FinanceDashboardScreen(
     viewModel: DashboardViewModel = hiltViewModel(),
 ) {
     val colors = LocalAppColors.current
-    val toast = rememberToastState()
+    val toast = LocalToast.current
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     var paymentFor by remember { mutableStateOf<FixedTransactionResponse?>(null) }
 
@@ -120,7 +119,6 @@ fun FinanceDashboardScreen(
                 )
             }
         }
-        ToastHost(state = toast)
     }
 
     PaymentModal(
@@ -449,7 +447,7 @@ fun FinanceTransactionsScreen(
     viewModel: TransactionsViewModel = hiltViewModel(),
 ) {
     val colors = LocalAppColors.current
-    val toast = rememberToastState()
+    val toast = LocalToast.current
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
     // Screen-level modal state (RN useState family).
@@ -628,8 +626,6 @@ fun FinanceTransactionsScreen(
                 modifier = Modifier.size(26.dp),
             )
         }
-
-        ToastHost(state = toast)
     }
 
     // ---- screen modals (RN renders these at the screen root) ----

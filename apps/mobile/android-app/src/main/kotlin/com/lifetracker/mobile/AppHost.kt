@@ -1,13 +1,20 @@
 package com.lifetracker.mobile
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.lifetracker.core.designsystem.LocalToast
+import com.lifetracker.core.designsystem.ToastHost
+import com.lifetracker.core.designsystem.rememberToastState
 import com.lifetracker.core.network.SessionEvents
 import com.lifetracker.domain.auth.AuthRepository
 import com.lifetracker.feature.activities.ActivitiesScreen
@@ -56,6 +63,9 @@ private fun mapNavKey(key: String): String = when (key) {
 @Composable
 fun AppHost(auth: AuthRepository, sessionEvents: SessionEvents) {
     val navController = rememberNavController()
+    // One app-root toast host (design-system intent): features show via
+    // `LocalToast.current.show(...)`; no per-screen hosting or state.
+    val toast = rememberToastState()
 
     LaunchedEffect(Unit) {
         sessionEvents.loggedOut.collect {
@@ -65,64 +75,69 @@ fun AppHost(auth: AuthRepository, sessionEvents: SessionEvents) {
         }
     }
 
-    NavHost(
-        navController = navController,
-        startDestination = if (auth.isAuthenticated) Routes.ACTIVITIES else Routes.LOGIN,
-    ) {
-        composable(Routes.LOGIN) {
-            LoginScreen(
-                onLoginSuccess = { navigateMain(navController) },
-                onNavigateToRegister = { navController.navigate(Routes.REGISTER) },
-            )
+    Box(Modifier.fillMaxSize()) {
+        CompositionLocalProvider(LocalToast provides toast) {
+            NavHost(
+                navController = navController,
+                startDestination = if (auth.isAuthenticated) Routes.ACTIVITIES else Routes.LOGIN,
+            ) {
+                composable(Routes.LOGIN) {
+                    LoginScreen(
+                        onLoginSuccess = { navigateMain(navController) },
+                        onNavigateToRegister = { navController.navigate(Routes.REGISTER) },
+                    )
+                }
+                composable(Routes.REGISTER) {
+                    RegisterScreen(
+                        onRegisterSuccess = { navigateMain(navController) },
+                        onBack = { navController.popBackStack() },
+                    )
+                }
+                composable(Routes.ACTIVITIES) {
+                    ActivitiesScreen(onNavigate = { navController.navigate(mapNavKey(it)) })
+                }
+                composable(Routes.TIME) {
+                    TimeScreen(onNavigate = { navController.navigate(mapNavKey(it)) })
+                }
+                composable(Routes.NOTES) {
+                    NotesScreen(onNavigate = { navController.navigate(mapNavKey(it)) })
+                }
+                composable(Routes.FINANCE_DASHBOARD) {
+                    FinanceDashboardScreen(onNavigate = { navController.navigate(mapNavKey(it)) })
+                }
+                composable(Routes.FINANCE_TRANSACTIONS) {
+                    FinanceTransactionsScreen(onNavigate = { navController.navigate(mapNavKey(it)) })
+                }
+                composable(Routes.SOCIAL) {
+                    SocialScreen(
+                        onNavigate = { navController.navigate(mapNavKey(it)) },
+                        onOpenProfile = { username ->
+                            navController.navigate("user/$username")
+                        },
+                    )
+                }
+                composable(Routes.PROFILE) {
+                    ProfileScreen(
+                        onLogout = { navController.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } } },
+                        onNavigate = { navController.navigate(mapNavKey(it)) },
+                    )
+                }
+                composable(Routes.BACKUP) {
+                    BackupScreen(onBack = { navController.popBackStack() })
+                }
+                composable(
+                    route = Routes.PUBLIC_PROFILE,
+                    arguments = listOf(navArgument("username") { type = NavType.StringType }),
+                ) { entry ->
+                    PublicProfileScreen(
+                        username = entry.arguments?.getString("username").orEmpty(),
+                        onBack = { navController.popBackStack() },
+                        onNavigate = { navController.navigate(mapNavKey(it)) },
+                    )
+                }
+            }
         }
-        composable(Routes.REGISTER) {
-            RegisterScreen(
-                onRegisterSuccess = { navigateMain(navController) },
-                onBack = { navController.popBackStack() },
-            )
-        }
-        composable(Routes.ACTIVITIES) {
-            ActivitiesScreen(onNavigate = { navController.navigate(mapNavKey(it)) })
-        }
-        composable(Routes.TIME) {
-            TimeScreen(onNavigate = { navController.navigate(mapNavKey(it)) })
-        }
-        composable(Routes.NOTES) {
-            NotesScreen(onNavigate = { navController.navigate(mapNavKey(it)) })
-        }
-        composable(Routes.FINANCE_DASHBOARD) {
-            FinanceDashboardScreen(onNavigate = { navController.navigate(mapNavKey(it)) })
-        }
-        composable(Routes.FINANCE_TRANSACTIONS) {
-            FinanceTransactionsScreen(onNavigate = { navController.navigate(mapNavKey(it)) })
-        }
-        composable(Routes.SOCIAL) {
-            SocialScreen(
-                onNavigate = { navController.navigate(mapNavKey(it)) },
-                onOpenProfile = { username ->
-                    navController.navigate("user/$username")
-                },
-            )
-        }
-        composable(Routes.PROFILE) {
-            ProfileScreen(
-                onLogout = { navController.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } } },
-                onNavigate = { navController.navigate(mapNavKey(it)) },
-            )
-        }
-        composable(Routes.BACKUP) {
-            BackupScreen(onBack = { navController.popBackStack() })
-        }
-        composable(
-            route = Routes.PUBLIC_PROFILE,
-            arguments = listOf(navArgument("username") { type = NavType.StringType }),
-        ) { entry ->
-            PublicProfileScreen(
-                username = entry.arguments?.getString("username").orEmpty(),
-                onBack = { navController.popBackStack() },
-                onNavigate = { navController.navigate(mapNavKey(it)) },
-            )
-        }
+        ToastHost(state = toast)
     }
 }
 
