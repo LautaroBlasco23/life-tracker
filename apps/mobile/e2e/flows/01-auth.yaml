@@ -58,19 +58,15 @@ name: "mobile smoke — register · nav · login"
 - tapOn: "Sign up"
 - assertVisible: "Today's Activities"
 
-# ---------------------------------------------------------------- step 3: hamburger nav
-# AppHeader carries a hamburger (contentDescription "Open menu"); the drawer
-# lists the feature nav entries. Cross one screen and come back.
-- assertVisible: "Open menu"
-- tapOn: "Open menu"
+# ---------------------------------------------------------------- step 3: bottom nav
+# LbBottomNav shows the five primary destinations as tabs. Cross one screen
+# and come back.
 - tapOn: "Notes"
 - assertVisible: "Notes"
 
-- tapOn: "Open menu"
 - tapOn: "Social"
 - assertVisible: "Social"
 
-- tapOn: "Open menu"
 - tapOn: "Activities"
 - assertVisible: "Today's Activities"
 

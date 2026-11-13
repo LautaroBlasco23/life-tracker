@@ -3,7 +3,8 @@
 # empty activity list (the empty-state button is the create entry point).
 #
 # Env: MAESTRO_E2E_USER / MAESTRO_E2E_PASS (set by the Makefile). Conventions:
-# tapOn "Open menu" opens the hamburger drawer; text selectors match FULL text.
+# The bottom-nav tab labels and the FAB contentDescription ("New Activity")
+# are tap targets; text selectors match FULL text.
 
 appId: com.lifetracker.mobile
 name: mobile smoke — activities · create · delete
@@ -44,7 +45,7 @@ name: mobile smoke — activities · create · delete
       notVisible: "Create Activity"
       notVisible: "Create your first activity"
     commands:
-      - tapOn: "+"
+      - tapOn: "New Activity"
 - assertVisible: "Create Activity"
 - tapOn: "e.g., Morning Workout"
 - inputText: "E2e Morning Run"
@@ -70,6 +71,5 @@ name: mobile smoke — activities · create · delete
 - assertNotVisible: "E2e Morning Run"
 
 # Back on the home screen for the next flow.
-- tapOn: "Open menu"
 - tapOn: "Activities"
 - assertVisible: "Today's Activities"

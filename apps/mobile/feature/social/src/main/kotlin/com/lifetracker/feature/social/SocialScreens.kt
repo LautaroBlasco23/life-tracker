@@ -22,12 +22,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.HowToReg
 import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material.icons.outlined.MonitorHeart
-import androidx.compose.material.icons.outlined.PieChart
-import androidx.compose.material.icons.outlined.StickyNote2
-import androidx.compose.material.icons.outlined.Timer
-import androidx.compose.material.icons.outlined.Wallet
-import androidx.compose.material.icons.outlined.People
 import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.CircularProgressIndicator
@@ -59,7 +53,6 @@ import com.lifetracker.core.designsystem.LbStreakBadge
 import com.lifetracker.core.designsystem.LbTextField
 import com.lifetracker.core.designsystem.LocalAppColors
 import com.lifetracker.core.designsystem.LocalToast
-import com.lifetracker.core.designsystem.NavEntry
 import com.lifetracker.core.i18n.I18n
 import com.lifetracker.core.network.model.FollowStatus
 import com.lifetracker.core.network.model.FollowerItem
@@ -75,16 +68,6 @@ import kotlinx.coroutines.launch
 /*
  * Port of `app/(app)/social.tsx` and `app/user/[username].tsx`.
  */
-
-/** The six drawer destinations of RN `components/navigation.tsx`. */
-private val socialNavItems = listOf(
-    NavEntry("activities", I18n.t("nav.activities"), Icons.Outlined.MonitorHeart),
-    NavEntry("time", I18n.t("nav.timeTracker"), Icons.Outlined.Timer),
-    NavEntry("notes", I18n.t("nav.notes"), Icons.Outlined.StickyNote2),
-    NavEntry("finance/transactions", I18n.t("nav.financeTransactions"), Icons.Outlined.Wallet),
-    NavEntry("finance/dashboard", I18n.t("nav.financeDashboard"), Icons.Outlined.PieChart),
-    NavEntry("social", I18n.t("nav.social"), Icons.Outlined.People),
-)
 
 @Composable
 fun SocialScreen(
@@ -115,12 +98,7 @@ fun SocialScreen(
             .background(colors.background),
     ) {
         Column(Modifier.fillMaxSize()) {
-            AppHeader(
-            title = "LifeTracker",
-            items = socialNavItems,
-            currentKey = "social",
-            onNavigate = onNavigate,
-        )
+        AppHeader(title = "LifeTracker", onProfile = { onNavigate("profile") })
 
         LazyColumn(
             modifier = Modifier

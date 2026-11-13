@@ -70,10 +70,39 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZonedDateTime
 
+/** 44dp header icon action (the finance dashboard/transactions cross-links). */
+@Composable
+private fun HeaderNavIconButton(
+    icon: ImageVector,
+    contentDescription: String,
+    onClick: () -> Unit,
+) {
+    val colors = LocalAppColors.current
+    Box(
+        modifier = Modifier
+            .size(44.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = contentDescription,
+            tint = colors.primary,
+            modifier = Modifier.size(24.dp),
+        )
+    }
+}
+
 /**
  * `/finance/dashboard` — summary, monthly stats and fixed payments (web
- * parity). Mobile keeps TWO real finance routes (checklist correction): each
- * renders its own `AppHeader`, and the hamburger navigates between them.
+ * parity). Mobile keeps TWO real finance routes (checklist correction): the
+ * bottom-nav Finance tab opens transactions; the header icon action navigates
+ * between the two.
  */
 @Composable
 fun FinanceDashboardScreen(
@@ -101,9 +130,15 @@ fun FinanceDashboardScreen(
             // Full-screen spinner until the fixed list settles (web parity).
             AppHeader(
                 title = "LifeTracker",
-                items = financeNavItems(),
-                currentKey = "finance/dashboard",
-                onNavigate = onNavigate,
+                onProfile = { onNavigate("profile") },
+                actions = {
+                    // The finance tab opens transactions; dashboard stays one tap away.
+                    HeaderNavIconButton(
+                        icon = FinanceIcons.Wallet,
+                        contentDescription = I18n.t("nav.financeTransactions"),
+                        onClick = { onNavigate("finance/transactions") },
+                    )
+                },
             )
             if (state.isLoading) {
                 Box(
@@ -134,8 +169,7 @@ fun FinanceDashboardScreen(
 private fun DashboardContent(
     state: DashboardUiState,
     onRecordPayment: (FixedTransactionResponse) -> Unit,
-) {
-    val colors = LocalAppColors.current
+) {    val colors = LocalAppColors.current
     val now = LocalDate.now()
 
     Column(
@@ -497,9 +531,14 @@ fun FinanceTransactionsScreen(
         Column(modifier = Modifier.fillMaxSize()) {
             AppHeader(
                 title = "LifeTracker",
-                items = financeNavItems(),
-                currentKey = "finance/transactions",
-                onNavigate = onNavigate,
+                onProfile = { onNavigate("profile") },
+                actions = {
+                    HeaderNavIconButton(
+                        icon = FinanceIcons.ChartPie,
+                        contentDescription = I18n.t("nav.financeDashboard"),
+                        onClick = { onNavigate("finance/dashboard") },
+                    )
+                },
             )
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),

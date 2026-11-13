@@ -3,7 +3,7 @@
 # the button flips "Follow" → "Following" → "Follow".
 #
 # Env: MAESTRO_E2E_USER / MAESTRO_E2E_PASS / MAESTRO_E2E_TARGET_USER. Text
-# selectors match FULL text; "Open menu" opens the hamburger drawer.
+# selectors match FULL text; the bottom-nav tabs are the tap targets.
 
 appId: com.lifetracker.mobile
 name: mobile smoke — social · search · follow · unfollow
@@ -29,7 +29,6 @@ name: mobile smoke — social · search · follow · unfollow
       - assertVisible: "Today's Activities"
 
 - assertVisible: "Today's Activities"
-- tapOn: "Open menu"
 - tapOn: "Social"
 - assertVisible: "Find Friends"
 
@@ -47,6 +46,5 @@ name: mobile smoke — social · search · follow · unfollow
 - assertVisible: "Follow"
 
 # Back on the home screen for the next flow.
-- tapOn: "Open menu"
 - tapOn: "Activities"
 - assertVisible: "Today's Activities"

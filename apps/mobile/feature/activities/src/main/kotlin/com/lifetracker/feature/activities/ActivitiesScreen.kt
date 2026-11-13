@@ -22,16 +22,10 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Dashboard
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
-import androidx.compose.material.icons.outlined.MonitorHeart
 import androidx.compose.material.icons.outlined.Notifications
-import androidx.compose.material.icons.outlined.People
-import androidx.compose.material.icons.outlined.PieChart
 import androidx.compose.material.icons.outlined.Repeat
 import androidx.compose.material.icons.outlined.Replay
-import androidx.compose.material.icons.outlined.StickyNote2
-import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material.icons.outlined.Tune
-import androidx.compose.material.icons.outlined.Wallet
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -62,7 +56,6 @@ import com.lifetracker.core.designsystem.LbHeaderAction
 import com.lifetracker.core.designsystem.LbStreakBadge
 import com.lifetracker.core.designsystem.LocalAppColors
 import com.lifetracker.core.designsystem.LocalToast
-import com.lifetracker.core.designsystem.NavEntry
 import com.lifetracker.domain.activities.ActivityFilter
 import com.lifetracker.core.network.model.ActivityResponse
 import com.lifetracker.core.network.model.ReminderResponse
@@ -82,16 +75,6 @@ import kotlinx.coroutines.launch
 
 /** RN `CATEGORY_ORDER`: notSpecified → morning → afternoon → evening. */
 private val CATEGORY_ORDER = listOf("notSpecified", "morning", "afternoon", "evening")
-
-/** The six drawer destinations of RN `components/navigation.tsx`. */
-private val activitiesNavItems = listOf(
-    NavEntry("activities", I18n.t("nav.activities"), Icons.Outlined.MonitorHeart),
-    NavEntry("time", I18n.t("nav.timeTracker"), Icons.Outlined.Timer),
-    NavEntry("notes", I18n.t("nav.notes"), Icons.Outlined.StickyNote2),
-    NavEntry("finance/transactions", I18n.t("nav.financeTransactions"), Icons.Outlined.Wallet),
-    NavEntry("finance/dashboard", I18n.t("nav.financeDashboard"), Icons.Outlined.PieChart),
-    NavEntry("social", I18n.t("nav.social"), Icons.Outlined.People),
-)
 
 @Composable
 fun ActivitiesScreen(onNavigate: (String) -> Unit = {}) {
@@ -134,12 +117,7 @@ fun ActivitiesScreen(onNavigate: (String) -> Unit = {}) {
             .background(colors.background),
     ) {
         Column(Modifier.fillMaxSize()) {
-            AppHeader(
-                title = "LifeTracker",
-                items = activitiesNavItems,
-                currentKey = "activities",
-                onNavigate = onNavigate,
-            )
+            AppHeader(title = "LifeTracker", onProfile = { onNavigate("profile") })
 
             if (state.isLoading) {
                 Box(

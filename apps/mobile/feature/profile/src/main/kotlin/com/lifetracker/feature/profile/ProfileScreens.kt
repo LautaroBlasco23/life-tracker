@@ -21,12 +21,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material.icons.outlined.MonitorHeart
-import androidx.compose.material.icons.outlined.People
-import androidx.compose.material.icons.outlined.PieChart
-import androidx.compose.material.icons.outlined.StickyNote2
-import androidx.compose.material.icons.outlined.Timer
-import androidx.compose.material.icons.outlined.Wallet
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -52,7 +46,6 @@ import com.lifetracker.core.designsystem.LbButtonVariant
 import com.lifetracker.core.designsystem.LbModalSheet
 import com.lifetracker.core.designsystem.LbTextField
 import com.lifetracker.core.designsystem.LocalAppColors
-import com.lifetracker.core.designsystem.NavEntry
 import com.lifetracker.core.designsystem.ThemeController
 import com.lifetracker.core.designsystem.ThemePreference
 import com.lifetracker.core.designsystem.LocalToast
@@ -65,16 +58,6 @@ import kotlinx.coroutines.delay
  * ProfileCommon provides `t`/`toastText`, ScreenActions the ActivityResult
  * wiring + [AvatarImage], ProfileViewModel owns the state machine.
  */
-
-/** The six drawer destinations of RN `components/navigation.tsx`. */
-private val profileNavItems = listOf(
-    NavEntry("activities", I18n.t("nav.activities"), Icons.Outlined.MonitorHeart),
-    NavEntry("time", I18n.t("nav.timeTracker"), Icons.Outlined.Timer),
-    NavEntry("notes", I18n.t("nav.notes"), Icons.Outlined.StickyNote2),
-    NavEntry("finance/transactions", I18n.t("nav.financeTransactions"), Icons.Outlined.Wallet),
-    NavEntry("finance/dashboard", I18n.t("nav.financeDashboard"), Icons.Outlined.PieChart),
-    NavEntry("social", I18n.t("nav.social"), Icons.Outlined.People),
-)
 
 @Composable
 fun ProfileScreen(onLogout: () -> Unit, onNavigate: (String) -> Unit) {
@@ -98,12 +81,7 @@ fun ProfileScreen(onLogout: () -> Unit, onNavigate: (String) -> Unit) {
 
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Column(Modifier.fillMaxSize()) {
-            AppHeader(
-                title = "LifeTracker",
-                items = profileNavItems,
-                currentKey = "profile",
-                onNavigate = onNavigate,
-            )
+            AppHeader(title = "LifeTracker", onProfile = { onNavigate("profile") })
             Column(
                 modifier = Modifier
                     .fillMaxSize()

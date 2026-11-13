@@ -57,7 +57,6 @@ import com.lifetracker.core.designsystem.LbSegmentedTabs
 import com.lifetracker.core.designsystem.LbSelectOption
 import com.lifetracker.core.designsystem.LbTextField
 import com.lifetracker.core.designsystem.LocalAppColors
-import com.lifetracker.core.designsystem.NavEntry
 import com.lifetracker.core.designsystem.LocalToast
 import com.lifetracker.core.i18n.I18n
 import com.lifetracker.core.network.model.TimeRecordResponse
@@ -163,12 +162,7 @@ fun TimeScreen(
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             // Hamburger navigation (RN `components/navigation.tsx` port).
-            AppHeader(
-                title = "LifeTracker",
-                items = navItems(),
-                currentKey = "time",
-                onNavigate = onNavigate,
-            )
+            AppHeader(title = "LifeTracker", onProfile = { onNavigate("profile") })
             Text(
                 t("title"),
                 fontSize = 24.sp,
@@ -280,16 +274,6 @@ fun TimeScreen(
         onDismiss = { showFilterModal = false },
     )
 }
-
-/** Hamburger drawer entries, per RN `components/navigation.tsx` NAV_ITEMS. */
-private fun navItems(): List<NavEntry> = listOf(
-    NavEntry("activities", I18n.t("nav.activities"), TimeIcons.Activity),
-    NavEntry("time", I18n.t("nav.timeTracker"), TimeIcons.Timer),
-    NavEntry("notes", I18n.t("nav.notes"), TimeIcons.StickyNote),
-    NavEntry("finance/transactions", I18n.t("nav.financeTransactions"), TimeIcons.Wallet),
-    NavEntry("finance/dashboard", I18n.t("nav.financeDashboard"), TimeIcons.ChartPie),
-    NavEntry("social", I18n.t("nav.social"), TimeIcons.Users),
-)
 
 /// ---------------------------------------------------------------------
 /// Records tab

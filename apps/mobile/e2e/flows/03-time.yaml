@@ -3,7 +3,7 @@
 # to 1 minute (TimeViewModel.saveActiveSession), so a 1–2 s session saves fine.
 #
 # Env: MAESTRO_E2E_USER / MAESTRO_E2E_PASS. Conventions: text selectors match
-# FULL text; "Open menu" opens the hamburger drawer.
+# FULL text; the bottom-nav tabs are the tap targets.
 
 appId: com.lifetracker.mobile
 name: mobile smoke — time · start · stop · save
@@ -29,8 +29,7 @@ name: mobile smoke — time · start · stop · save
       - assertVisible: "Today's Activities"
 
 - assertVisible: "Today's Activities"
-- tapOn: "Open menu"
-- tapOn: "Time tracker"
+- tapOn: "Time"
 - assertVisible: "Time Tracking"
 - assertVisible: "Start Recording"
 
@@ -56,6 +55,5 @@ name: mobile smoke — time · start · stop · save
 - assertVisible: "E2e time session"
 
 # Back on the home screen for the next flow.
-- tapOn: "Open menu"
 - tapOn: "Activities"
 - assertVisible: "Today's Activities"
