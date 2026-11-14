@@ -124,9 +124,9 @@ Conventions: JUnit4, MockWebServer for transport-level tests, kotlinx-coroutines
 `runTest` for suspend flows. The AuthRepository refresh path mirrors the OkHttp
 `SessionAuthenticator` (single-flight refresh, retry-once, force-logout events).
 
-Compose UI instrumentation tests and on-device Maestro E2E are deferred
-(see `plan.md` Phase 6 gate); behavior parity is verified against the
-per-screen QA checklist ported from the RN app.
+Compose UI instrumentation tests and on-device Maestro E2E are deferred;
+behavior parity was verified against the per-screen QA checklist ported
+from the RN app (kept in git history).
 
 ## CI
 
