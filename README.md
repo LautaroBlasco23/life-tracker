@@ -5,14 +5,14 @@ A personal life-tracking platform covering **habits & activities**, **finances**
 ## Demo
 
 <p align="center">
-  <a href="./videos/app-demo.mp4">
+  <a href="https://github.com/LautaroBlasco23/life-tracker/releases/download/demo-video/app-demo.mp4">
     <img src="./videos/app-demo-poster.jpg" alt="Life Tracker demo video" width="640">
   </a>
 </p>
 
-*1:42 — a real day with the app: completing a daily habit, building a healthy routine, live time tracking, notes and sticky notes. [Watch the video](./videos/app-demo.mp4) — regenerated on demand, see [`videos/APP-DEMO-GUIDE.md`](./videos/APP-DEMO-GUIDE.md).*
+*1:42 — a real day with the app: completing a daily habit, building a healthy routine, live time tracking, notes and sticky notes. [Watch the video](https://github.com/LautaroBlasco23/life-tracker/releases/download/demo-video/app-demo.mp4) — regenerated on demand, see [`videos/APP-DEMO-GUIDE.md`](./videos/APP-DEMO-GUIDE.md).*
 
-> **Inline playback on github.com** (one-time): edit this README on github.com and drag `videos/app-demo.mp4` into the editor — GitHub uploads it and inserts a `https://github.com/user-attachments/assets/<id>` URL. Leave that bare URL on its own line here (not inside a `<video>` tag) and commit: GitHub renders it as a native inline player. A committed mp4 referenced by path does **not** play inline.
+> GitHub only renders **inline video players** from `user-attachments` URLs (not `<video>` tags, repo paths, or release links). One-time to get inline playback: edit this README on github.com and drag `videos/app-demo.mp4` into the editor — GitHub inserts a `https://github.com/user-attachments/assets/<id>` URL; leave it bare on its own line here and commit. Until then the links above serve the mp4 (download or open in a browser tab that plays it).
 
 ## Quick Start
 
