@@ -4,15 +4,9 @@ A personal life-tracking platform covering **habits & activities**, **finances**
 
 ## Demo
 
-<p align="center">
-  <a href="https://github.com/LautaroBlasco23/life-tracker/releases/download/demo-video/app-demo.mp4">
-    <img src="./videos/app-demo-poster.jpg" alt="Life Tracker demo video" width="640">
-  </a>
-</p>
+https://github.com/user-attachments/assets/f26960d8-7539-4ff3-ba43-c3cc7da115de
 
-*1:42 — a real day with the app: completing a daily habit, building a healthy routine, live time tracking, notes and sticky notes. [Watch the video](https://github.com/LautaroBlasco23/life-tracker/releases/download/demo-video/app-demo.mp4) — regenerated on demand, see [`videos/APP-DEMO-GUIDE.md`](./videos/APP-DEMO-GUIDE.md).*
-
-> GitHub only renders **inline video players** from `user-attachments` URLs (not `<video>` tags, repo paths, or release links). One-time to get inline playback: edit this README on github.com and drag `videos/app-demo.mp4` into the editor — GitHub inserts a `https://github.com/user-attachments/assets/<id>` URL; leave it bare on its own line here and commit. Until then the links above serve the mp4 (download or open in a browser tab that plays it).
+*1:42 — a real day with the app: completing a daily habit, building a healthy routine, live time tracking, notes and sticky notes. Regenerated on demand, see [`videos/APP-DEMO-GUIDE.md`](./videos/APP-DEMO-GUIDE.md).*
 
 ## Quick Start
 
