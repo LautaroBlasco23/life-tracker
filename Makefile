@@ -75,6 +75,7 @@ help:
 	@printf "    make dev-full       container mode + observability: Prometheus :9090 · Grafana :3001\n"
 	@printf "    make %-18s %s\n" "mobile" "mobile dev loop: emulator + API + gradle install · [R] rebuild app"
 	@printf "    make %-18s %s\n" "e2e-mobile" "Maestro smoke e2e: boots emulator + API + app, runs the flow"
+	@printf "    make %-18s %s\n" "generate-apk" "signed release APK → ~/Desktop (assemble + zipalign + sign)"
 	@printf "\n"
 	@printf "$(GREEN)  STOP$(RST)\n"
 	@printf "    make stop           stops EVERYTHING, whichever mode is running\n"
