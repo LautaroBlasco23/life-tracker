@@ -159,3 +159,24 @@ func (c *NoteController) DeleteNote(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, gin.H{"message": "Note deleted successfully"})
 }
+
+func (c *NoteController) UploadNoteImage(ctx *gin.Context) {
+	userID := ctx.GetUint("userID")
+
+	file, err := ctx.FormFile("image")
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"message": "No image file provided"})
+		return
+	}
+
+	url, err := c.service.UploadNoteImage(ctx.Request.Context(), userID, file)
+	if err != nil {
+		ctx.JSON(http.StatusBadRequest, gin.H{"message": err.Error()})
+		return
+	}
+
+	ctx.JSON(http.StatusOK, gin.H{
+		"message": "Note image uploaded successfully",
+		"data":    gin.H{"url": url},
+	})
+}

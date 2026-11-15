@@ -114,7 +114,7 @@ func NewRouter(cfg *config.Config, dbs *database.Connections, imageClient *image
 			financeRoutes.RegisterFinanceRoutes(protected, dbs.MongoDB)
 			timeRoutes.RegisterTimeRoutes(protected, dbs.PostgreSQL)
 			calendarRoutes.RegisterCalendarRoutes(protected, dbs.PostgreSQL)
-			noteRoutes.RegisterNoteRoutes(protected, dbs.PostgreSQL)
+			noteRoutes.RegisterNoteRoutes(protected, dbs.PostgreSQL, imageClient)
 			noteGroupRoutes.RegisterNoteGroupRoutes(protected, dbs.PostgreSQL)
 			stickyNoteRoutes.RegisterStickyNoteRoutes(protected, dbs.PostgreSQL)
 			routineRoutes.RegisterRoutineRoutes(protected, dbs.PostgreSQL, dbs.MongoDB)

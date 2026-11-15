@@ -12,6 +12,9 @@
 #                  and explicit service names (loadtest-*), so it works
 #                  regardless of .env and never touches dev DB data
 #                  (make -C loadtest stack-up enables it)
+#   localstack     S3 emulator for local image-upload development; the api
+#                  service targets it via AWS_ENDPOINT_URL when it is set in
+#                  .env (e.g. AWS_ENDPOINT_URL=http://localstack:4566)
 #
 # Test databases reuse the same postgres/mongodb definitions: their names,
 # ports, volumes and network are env-parameterized, so
@@ -36,6 +39,17 @@ services:
       DB_HOST: postgres
       MONGO_URI: "" # empty -> config falls back to building from MONGO_HOST
       MONGO_HOST: mongodb
+      # S3 image storage. Unset values fall back to the same defaults the
+      # backend config applies (empty endpoint -> real AWS; region us-east-1;
+      # bucket lifetracker-images). To use the opt-in `localstack` profile,
+      # set AWS_ENDPOINT_URL=http://localstack:4566 in .env — S3_PUBLIC_URL
+      # then defaults to http://localhost:4566 in the backend config.
+      AWS_ENDPOINT_URL: ${AWS_ENDPOINT_URL:-}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      S3_BUCKET: ${S3_BUCKET:-lifetracker-images}
+      S3_PUBLIC_URL: ${S3_PUBLIC_URL:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -223,6 +237,29 @@ services:
     networks:
       - golang_api_network
 
+  # --- localstack profile (opt-in S3 emulator for image uploads) ---
+
+  localstack:
+    profiles: ["localstack"]
+    # 3.8.1: the last plain-community release. Newer images gate on a
+    # pro license (exit 55) and the `s3`/`s3-latest` tags do not exist.
+    image: localstack/localstack:3.8.1
+    container_name: golang_api_localstack
+    restart: unless-stopped
+    ports:
+      # Loopback only: the emulator accepts any credentials, so it must not
+      # be reachable from other hosts.
+      - "127.0.0.1:4566:4566"
+    environment:
+      AWS_DEFAULT_REGION: ${AWS_REGION:-us-east-1}
+      S3_BUCKET: ${S3_BUCKET:-lifetracker-images}
+    volumes:
+      # Ready hook: create the app's image bucket once S3 is up.
+      - ./docker/localstack/init-s3.py:/etc/localstack/init/ready.d/init-s3.py:ro
+      - localstack_data:/var/lib/localstack
+    networks:
+      - golang_api_network
+
   # --- loadtest profile (pinned credentials, own volumes, explicit names) ---
 
   loadtest-api:
@@ -306,6 +343,8 @@ services:
 
 volumes:
   postgres_data:
+    driver: local
+  localstack_data:
     driver: local
   postgres_test_data:
     driver: local

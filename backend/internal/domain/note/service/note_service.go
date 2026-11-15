@@ -1,7 +1,14 @@
 package service
 
 import (
+	"context"
 	"errors"
+	"fmt"
+	"io"
+	"log/slog"
+	"mime/multipart"
+	"path/filepath"
+	"strings"
 
 	"life-tracker-backend/internal/domain/note/dto"
 	"life-tracker-backend/internal/domain/note/model"
@@ -16,13 +23,21 @@ var (
 	ErrGroupNotFound = repository.ErrGroupNotFound
 )
 
-type NoteService struct {
-	repo *repository.NoteRepository
+// noteImageStore is the subset of the imagestore client the note domain needs.
+// Defined as an interface so tests can fake uploads without S3.
+type noteImageStore interface {
+	UploadNoteImage(ctx context.Context, userID uint, imageData []byte, filename string) (string, error)
 }
 
-func NewNoteService(db *gorm.DB) *NoteService {
+type NoteService struct {
+	repo   *repository.NoteRepository
+	images noteImageStore
+}
+
+func NewNoteService(db *gorm.DB, images noteImageStore) *NoteService {
 	return &NoteService{
-		repo: repository.NewNoteRepository(db),
+		repo:   repository.NewNoteRepository(db),
+		images: images,
 	}
 }
 
@@ -128,4 +143,59 @@ func (s *NoteService) ReorderNotes(userID uint, req *dto.ReorderNotesRequest) er
 	}
 
 	return s.repo.Reorder(userID, req.Items)
+}
+
+// UploadNoteImage stores a pasted screenshot for embedding in note markdown
+// and returns its public URL. It mirrors the avatar upload flow (same size /
+// type validation) but does not touch the database: the URL is referenced
+// from the note content itself.
+func (s *NoteService) UploadNoteImage(ctx context.Context, userID uint, file *multipart.FileHeader) (string, error) {
+	if err := validateNoteImageFile(file); err != nil {
+		return "", err
+	}
+
+	src, err := file.Open()
+	if err != nil {
+		return "", errors.New("failed to open uploaded file")
+	}
+	defer func() {
+		if closeErr := src.Close(); closeErr != nil {
+			slog.Warn("failed to close uploaded file", "error", closeErr)
+		}
+	}()
+
+	imageData, err := io.ReadAll(src)
+	if err != nil {
+		return "", errors.New("failed to read file data")
+	}
+
+	url, err := s.images.UploadNoteImage(ctx, userID, imageData, file.Filename)
+	if err != nil {
+		return "", fmt.Errorf("failed to upload image: %w", err)
+	}
+
+	monitoring.NoteImageUploads.Inc()
+
+	return url, nil
+}
+
+func validateNoteImageFile(file *multipart.FileHeader) error {
+	const maxSize = 10 * 1024 * 1024
+	if file.Size > maxSize {
+		return errors.New("file size exceeds 10MB limit")
+	}
+
+	ext := strings.ToLower(filepath.Ext(file.Filename))
+	allowedExts := map[string]bool{
+		".jpg":  true,
+		".jpeg": true,
+		".png":  true,
+		".webp": true,
+	}
+
+	if !allowedExts[ext] {
+		return errors.New("invalid file type, only JPG, PNG, and WebP are allowed")
+	}
+
+	return nil
 }

@@ -174,6 +174,11 @@ var (
 		Buckets: []float64{100, 500, 1000, 2500, 5000, 10000, 25000},
 	})
 
+	NoteImageUploads = promauto.NewCounter(prometheus.CounterOpts{
+		Name: "lifetracker_note_image_uploads_total",
+		Help: "Total number of note images uploaded",
+	})
+
 	// Sticky Note metrics
 	StickyNotesCreated = promauto.NewCounter(prometheus.CounterOpts{
 		Name: "lifetracker_sticky_notes_created_total",

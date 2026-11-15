@@ -71,7 +71,7 @@ func getTestService(t *testing.T) *NoteService {
 	t.Helper()
 	setupTestDatabase(t)
 	cleanDatabase(t)
-	return NewNoteService(testDB)
+	return NewNoteService(testDB, nil)
 }
 
 // TestCreateNote verifies that valid notes are persisted with correct field values
