@@ -60,7 +60,6 @@ interface NotesSidebarProps {
   searchQuery: string;
   isLoading: boolean;
   onSelectNote: (note: Note) => void;
-  onEditNote: (note: Note) => void;
   onDeleteNote: (note: Note) => void;
   /** Applies optimistic note updates; sections are the ones to persist (groupId or null = ungrouped). */
   onUpdateNotes: (
@@ -164,7 +163,6 @@ export function NotesSidebar({
   searchQuery,
   isLoading,
   onSelectNote,
-  onEditNote,
   onDeleteNote,
   onUpdateNotes,
   onUpdateGroups,
@@ -392,7 +390,6 @@ export function NotesSidebar({
               notes={ungroupedNotes}
               selectedNote={selectedNote}
               onSelectNote={onSelectNote}
-              onEditNote={onEditNote}
               onDeleteNote={onDeleteNote}
               t={t}
             />
@@ -408,7 +405,6 @@ export function NotesSidebar({
                 renameValue={renameValue}
                 selectedNote={selectedNote}
                 onSelectNote={onSelectNote}
-                onEditNote={onEditNote}
                 onDeleteNote={onDeleteNote}
                 onToggleGroup={() => toggleGroup(group.id)}
                 onRenameValueChange={setRenameValue}
@@ -434,7 +430,6 @@ interface NoteItemProps {
   note: Note;
   selected: boolean;
   onSelectNote: (note: Note) => void;
-  onEditNote: (note: Note) => void;
   onDeleteNote: (note: Note) => void;
   t: SidebarT;
 }
@@ -443,7 +438,6 @@ function SortableNoteItem({
   note,
   selected,
   onSelectNote,
-  onEditNote,
   onDeleteNote,
   t,
 }: NoteItemProps) {
@@ -489,15 +483,6 @@ function SortableNoteItem({
           <button
             onClick={(e) => {
               e.stopPropagation();
-              onEditNote(note);
-            }}
-            className="p-1 text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <Pencil className="h-3.5 w-3.5" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
               onDeleteNote(note);
             }}
             className="p-1 text-muted-foreground transition-colors hover:text-destructive"
@@ -514,7 +499,6 @@ interface UngroupedSectionProps {
   notes: Note[];
   selectedNote: Note | null;
   onSelectNote: (note: Note) => void;
-  onEditNote: (note: Note) => void;
   onDeleteNote: (note: Note) => void;
   t: SidebarT;
 }
@@ -523,7 +507,6 @@ function UngroupedSection({
   notes,
   selectedNote,
   onSelectNote,
-  onEditNote,
   onDeleteNote,
   t,
 }: UngroupedSectionProps) {
@@ -548,7 +531,6 @@ function UngroupedSection({
               note={note}
               selected={selectedNote?.id === note.id}
               onSelectNote={onSelectNote}
-              onEditNote={onEditNote}
               onDeleteNote={onDeleteNote}
               t={t}
             />
@@ -567,7 +549,6 @@ interface GroupSectionProps {
   renameValue: string;
   selectedNote: Note | null;
   onSelectNote: (note: Note) => void;
-  onEditNote: (note: Note) => void;
   onDeleteNote: (note: Note) => void;
   onToggleGroup: () => void;
   onRenameValueChange: (value: string) => void;
@@ -586,7 +567,6 @@ function GroupSection({
   renameValue,
   selectedNote,
   onSelectNote,
-  onEditNote,
   onDeleteNote,
   onToggleGroup,
   onRenameValueChange,
@@ -630,7 +610,6 @@ function GroupSection({
                   note={note}
                   selected={selectedNote?.id === note.id}
                   onSelectNote={onSelectNote}
-                  onEditNote={onEditNote}
                   onDeleteNote={onDeleteNote}
                   t={t}
                 />

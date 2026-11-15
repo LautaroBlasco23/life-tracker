@@ -4,13 +4,14 @@ import { registerUser, seedAuth } from './helpers';
 /**
  * Notes: minimal real CRUD through the UI using a seeded session.
  *
- * Facts from app/notes/page.tsx + messages/en.json:
- * - "New Note" button creates an "Untitled" note, selects it and enters
- *   edit mode (no dialog — the editor is inline in the page).
- * - Title input placeholder "Note title"; content "Start writing...";
- *   Save button label "Save" (disabled until something changed).
+ * Facts from app/notes/views/notesView.tsx + messages/en.json:
+ * - "New Note" button creates an "Untitled" note and opens it in the
+ *   inline CodeMirror editor (single state — no edit/preview toggle).
+ * - Title input placeholder "Note title"; content editor is `.cm-content`.
+ * - No Save button: notes autosave (debounced PUT after ~1.5s idle);
+ *   the "Unsaved changes" indicator clears once the save succeeds.
  */
-test('create + edit a note via the UI and see it in the list', async ({
+test('create + edit a note via the UI, autosave persists it', async ({
   page,
   request,
 }) => {
@@ -20,23 +21,23 @@ test('create + edit a note via the UI and see it in the list', async ({
   await page.goto('/notes/');
   await expect(page.getByRole('heading', { name: 'Notes' })).toBeVisible();
 
-  // Create: becomes "Untitled", selected, editor in edit mode.
+  // Create: becomes "Untitled", selected, live editor open.
   await page.getByRole('button', { name: 'New Note' }).click();
-  const editorVisible = page.getByPlaceholder('Start writing...');
-  await expect(editorVisible).toBeVisible();
+  const editor = page.locator('.cm-content');
+  await expect(editor).toBeVisible();
 
   // Give it real content through the editor.
   const uniqueTitle = `e2e note ${Date.now().toString(36)}`;
   await page.getByPlaceholder('Note title').fill(uniqueTitle);
-  await page
-    .getByPlaceholder('Start writing...')
-    .fill('created by notes-crud.spec.ts');
-  await page.getByRole('button', { name: 'Save' }).click();
+  await editor.click();
+  await page.keyboard.type('created by notes-crud.spec.ts', { delay: 25 });
 
-  // Back to the list and assert the saved title. NOTE: do NOT click the
-  // editor's Back button — it's `md:hidden` at the desktop viewport, and
-  // Playwright's click auto-wait blocks 30s waiting for visibility (swallowed
-  // by a catch, but it eats the whole test timeout). On desktop the list is
-  // always visible next to the editor.
+  // Autosave: the unsaved indicator appears while typing, then clears once
+  // the debounced save succeeds.
+  await expect(page.getByText('Unsaved changes').first()).toBeVisible();
+  await expect(page.getByText('Unsaved changes').first()).toBeHidden();
+
+  // The note must survive a reload — saved on the server, not just locally.
+  await page.reload();
   await expect(page.getByText(uniqueTitle).first()).toBeVisible();
 });
