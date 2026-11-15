@@ -1,8 +1,8 @@
 # Mobile App (Android)
 
 > **Rewritten in Kotlin (Jetpack Compose)** — the React Native/Expo app was replaced by a
-> native Android app. See `plan.md` in the `mobile-app-refactor` worktree history for the
-> migration design; the `rn-final` git tag preserves the last RN release for rollback.
+> native Android app. The migration design (`plan.md`) lives in git history; the `rn-final`
+> git tag preserves the last RN release for rollback.
 
 The Android app lives in [`apps/mobile/`](../apps/mobile/) — a **Gradle multi-module Kotlin
 project** (AGP 8.10 / Kotlin 2.2 / Compose) that talks to the Go backend through a generated
@@ -34,8 +34,8 @@ apps/mobile/
 ```
 
 Shared business logic STAYS TypeScript in [`packages/shared/`](../packages/shared/) for the
-web app only; the mobile Kotlin copies exist inside this project (DTo shapes documented in
-the migration's `kotlin-refactor/api-contract.md` — the Go DTOs are the real contract).
+web app only; the mobile Kotlin copies exist inside this project (the Go DTOs under
+`backend/internal/domain/*/dto/` are the real contract).
 
 
 ```bash
