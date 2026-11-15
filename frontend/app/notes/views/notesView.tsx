@@ -202,6 +202,7 @@ export function NotesView() {
     const note = selectedNoteRef.current;
     if (!note) return;
     const { title, content } = editValuesRef.current;
+    const attempted = { title, content };
     if (title === note.title && content === note.content) return;
 
     if (savingRef.current) {
@@ -224,20 +225,23 @@ export function NotesView() {
       removeDraft(updatedNote.id);
       setSaveStatus('saved');
     } catch (error) {
-      // The draft (written on every keystroke) is the offline fallback;
-      // the next keystroke or flush retries. No toast per failure.
+      // The draft (written on every keystroke) is the offline fallback.
+      // No automatic retry: the next keystroke or flush trigger retries;
+      // auto-retrying here would loop forever on permanent failures
+      // (validation caps, expired sessions). The indicator stays truthful.
       console.error('Autosave failed:', error);
       setSaveStatus('error');
     } finally {
       savingRef.current = false;
     }
-    // Edits made while the PUT was in flight need another pass.
-    const latestNote = selectedNoteRef.current;
+    // Edits made while the PUT was in flight need another pass. Compare
+    // against what was just attempted — NOT the note state: a failed PUT
+    // leaves it stale (pre-save values), which always differs from the
+    // edit values and used to arm an endless self-rescheduling loop.
     const latestValues = editValuesRef.current;
     if (
-      latestNote &&
-      (latestValues.title !== latestNote.title ||
-        latestValues.content !== latestNote.content)
+      latestValues.title !== attempted.title ||
+      latestValues.content !== attempted.content
     ) {
       scheduleAutosave(300);
     }
@@ -564,12 +568,28 @@ export function NotesView() {
                   <ArrowLeft className="h-4 w-4 mr-1" />
                   {t('back')}
                 </Button>
-                <Input
+                <input
                   type="text"
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
                   placeholder={t('titlePlaceholder')}
-                  className="flex-1 text-xl font-semibold border-none shadow-none focus-visible:ring-0 px-0 h-auto"
+                  aria-label={t('titlePlaceholder')}
+                  className={cn(
+                    // Document-title presentation, not a form field: the
+                    // shadcn Input defaults (dark:bg-input/30, border,
+                    // focus ring) read as a boxed input in dark mode and
+                    // can't be cleanly overridden through cn().
+                    'min-w-0 flex-1 bg-transparent text-3xl font-semibold',
+                    'text-foreground placeholder:text-muted-foreground/70',
+                    'border-none shadow-none outline-none',
+                    // focus:shadow-none beats the global input focus ring
+                    // in globals.css (non-important component rule).
+                    'focus:shadow-none',
+                    // Quiet affordance: soft pill on hover/focus; the
+                    // negative margin keeps the text flush with the edge.
+                    'rounded-md px-2 py-0.5 -mx-2 h-auto',
+                    'transition-colors hover:bg-muted/50 focus:bg-muted/50'
+                  )}
                 />
                 <span
                   className="text-xs text-muted-foreground"
