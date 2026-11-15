@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type {
   DragEndEvent,
   DragOverEvent,
@@ -11,6 +11,7 @@ import {
   DragOverlay,
   PointerSensor,
   closestCenter,
+  pointerWithin,
   useDroppable,
   useSensor,
   useSensors,
@@ -123,15 +124,19 @@ function computeNotesMove(
     });
   });
 
-  return notes.map((note) =>
-    positionById.has(note.id)
-      ? {
-          ...note,
-          groupId: groupIdById.get(note.id) ?? note.groupId,
-          position: positionById.get(note.id) ?? note.position,
-        }
-      : note
-  );
+  const result = notes.map((note) => {
+    if (!positionById.has(note.id)) return note;
+    // NOTE: groupIdById legitimately stores null (ungrouped) — `??` would
+    // silently fall back to the original group and break ungrouping.
+    const groupId = groupIdById.get(note.id);
+    const position = positionById.get(note.id);
+    return {
+      ...note,
+      groupId: groupId === undefined ? note.groupId : groupId,
+      position: position ?? note.position,
+    };
+  });
+  return result;
 }
 
 /** Display index (position-asc then editedAt-desc) of a note inside its
@@ -179,6 +184,13 @@ export function NotesSidebar({
   const [renameValue, setRenameValue] = useState('');
   const cancelRenameRef = useRef(false);
   const touchedSectionsRef = useRef<Set<number | null>>(new Set());
+  // Current notes for the drag handlers: dnd-kit captures the handlers at
+  // drag start, so live drag-over moves (which update the parent state)
+  // are invisible in the handler closures. See handleDragOver.
+  const notesStateRef = useRef(notes);
+  useEffect(() => {
+    notesStateRef.current = notes;
+  }, [notes]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
@@ -257,21 +269,22 @@ export function NotesSidebar({
   };
 
   const applyMove = (noteId: number, target: DropTarget) => {
+    const currentNotes = notesStateRef.current;
     const index =
       target.overNoteId !== null
-        ? sectionIndexOf(notes, target.groupId, target.overNoteId)
+        ? sectionIndexOf(currentNotes, target.groupId, target.overNoteId)
         : target.type === 'group-header'
           ? 0
           : -1;
-    const next = computeNotesMove(notes, noteId, target.groupId, index);
-    if (next !== notes) onUpdateNotes(next, []);
+    const next = computeNotesMove(currentNotes, noteId, target.groupId, index);
+    if (next !== currentNotes) onUpdateNotes(next, []);
   };
 
   const handleDragStart = (event: DragStartEvent) => {
     const type = (event.active.data.current as DraggableData | undefined)?.type;
     if (type !== 'note') return;
     const noteId = Number(String(event.active.id).slice('note-'.length));
-    const moving = notes.find((note) => note.id === noteId);
+    const moving = notesStateRef.current.find((note) => note.id === noteId);
     touchedSectionsRef.current.add(moving ? moving.groupId : null);
     // The overlay renders a clean ghost chip; the in-place transform
     // (full-width pill overflowing the sidebar) is gone.
@@ -290,8 +303,12 @@ export function NotesSidebar({
       expandGroup(target.groupId);
     }
 
+    // dnd-kit invokes drag handlers from the render captured at drag
+    // START — state updates made during the drag (live reparenting) are
+    // invisible in the closure. Read the current notes from the ref.
+    const currentNotes = notesStateRef.current;
     const noteId = Number(String(active.id).slice('note-'.length));
-    const moving = notes.find((note) => note.id === noteId);
+    const moving = currentNotes.find((note) => note.id === noteId);
     if (!moving || moving.groupId === target.groupId) return;
 
     touchedSectionsRef.current.add(moving.groupId);
@@ -301,15 +318,15 @@ export function NotesSidebar({
 
   const handleNoteDragEnd = (activeId: string, over: DragEndEvent['over']) => {
     const noteId = Number(activeId.slice('note-'.length));
+    // Read from the ref: dnd-kit captures handlers at drag start, so the
+    // closure's `notes` is stale after live drag-over moves.
+    const notes = notesStateRef.current;
     const moving = notes.find((note) => note.id === noteId);
     if (moving) touchedSectionsRef.current.add(moving.groupId);
 
-    // Compute the final layout exactly once, from the pre-drag `notes`,
-    // and hand BOTH the result and the touched sections to the single
-    // persist call below. Previously the move was applied via
-    // onUpdateNotes(next, []) first and then overwritten by a second
-    // onUpdateNotes(notes, sections) call with the stale pre-drag `notes`
-    // — so intra-group reorders were reverted and never persisted.
+    // Compute the final layout exactly once from the CURRENT notes (the
+    // ref — see the stale-closure note above) and hand BOTH the result
+    // and the touched sections to the single persist call below.
     let next = notes;
     if (over && moving) {
       const target = resolveDropTarget(over);
@@ -386,7 +403,11 @@ export function NotesSidebar({
       ) : (
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCenter}
+          // pointerWithin: with a DragOverlay, closestCenter collides from
+          // the source placeholder's rect, so drops never registered where
+          // the cursor actually was (e.g. dropping onto the ungrouped
+          // zone). Collide by pointer position instead.
+          collisionDetection={pointerWithin}
           onDragStart={handleDragStart}
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
@@ -533,16 +554,13 @@ function UngroupedSection({
   onDeleteNote,
   t,
 }: UngroupedSectionProps) {
-  const { setNodeRef } = useDroppable({
+  const { setNodeRef, isOver } = useDroppable({
     id: UNGROUPED_CONTAINER_ID,
     data: { type: 'container', groupId: null } satisfies DraggableData,
   });
 
   return (
-    <div
-      ref={setNodeRef}
-      className={cn(notes.length === 0 && 'min-h-12 rounded-md')}
-    >
+    <div ref={setNodeRef} className={cn(notes.length === 0 && 'px-2 pt-2')}>
       <SortableContext
         items={notes.map((note) => noteSortableId(note.id))}
         strategy={verticalListSortingStrategy}
@@ -560,6 +578,21 @@ function UngroupedSection({
           ))}
         </ul>
       </SortableContext>
+      {/* Visible drop target when there are no ungrouped notes: without it
+      the empty container is an invisible gap and "drop to ungroup" is
+      undiscoverable (you can only move notes between groups). */}
+      {notes.length === 0 && (
+        <div
+          className={cn(
+            'mt-2 flex min-h-9 items-center justify-center rounded-md border border-dashed px-2 text-center text-xs transition-colors',
+            isOver
+              ? 'border-primary/60 bg-primary/10 text-foreground'
+              : 'border-border text-muted-foreground'
+          )}
+        >
+          {t('dropToUngroup')}
+        </div>
+      )}
     </div>
   );
 }

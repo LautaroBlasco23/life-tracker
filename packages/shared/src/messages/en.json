@@ -547,6 +547,7 @@
     "draftRestoredDescription": "Your unsaved changes have been restored.",
     "back": "Back",
     "titleRequired": "Add a title so you can find this note",
+    "dropToUngroup": "Drop here to ungroup notes",
     "imageUploadingAlt": "Uploading image...",
     "imageAlt": "Pasted image",
     "imageUploadFailed": "Failed to upload image",

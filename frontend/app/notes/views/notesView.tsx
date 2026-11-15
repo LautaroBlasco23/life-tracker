@@ -90,6 +90,29 @@ function loadDraft(noteId: number): { title: string; content: string } | null {
   return drafts[noteId] ?? null;
 }
 
+/**
+ * Canonical key of a notes layout: [id, group, position] for every note,
+ * grouped by section. Used to compare local layout vs the last layout
+ * persisted on the server.
+ */
+function layoutKey(source: Note[]): string {
+  const byGroup = new Map<number | null, Note[]>();
+  for (const note of source) {
+    const list = byGroup.get(note.groupId) ?? [];
+    list.push(note);
+    byGroup.set(note.groupId, list);
+  }
+  return JSON.stringify(
+    Array.from(byGroup.entries()).flatMap(([, list]) =>
+      sortSectionNotes(list).map((note) => [
+        note.id,
+        note.groupId,
+        note.position,
+      ])
+    )
+  );
+}
+
 export function NotesView() {
   const t = useTranslations('notes');
   const tCommon = useTranslations('common');
@@ -112,6 +135,10 @@ export function NotesView() {
   const notesRef = useRef<Note[]>([]);
   const groupsRef = useRef<NoteGroup[]>([]);
   const initializedRef = useRef(false);
+  // Canonical [id, group, position] key of the layout as it exists on the
+  // server — the reorder persist compares against this, not against local
+  // state (live drag-over moves already changed the local state).
+  const lastPersistedLayoutRef = useRef<string>('');
   // Autosave: latest values as refs so timers/flushes see current data.
   const selectedNoteRef = useRef<Note | null>(null);
   const editValuesRef = useRef({ title: '', content: '' });
@@ -144,6 +171,7 @@ export function NotesView() {
         if (query) {
           const userNotes = await noteService.searchNotes(query);
           setNotes(userNotes);
+          lastPersistedLayoutRef.current = layoutKey(userNotes);
           return userNotes;
         }
         const [userNotes, userGroups] = await Promise.all([
@@ -151,6 +179,7 @@ export function NotesView() {
           noteGroupService.getNoteGroups(),
         ]);
         setNotes(userNotes);
+        lastPersistedLayoutRef.current = layoutKey(userNotes);
         setGroups(userGroups);
         return userNotes;
       } catch (error) {
@@ -374,19 +403,10 @@ export function NotesView() {
       setNotes(nextNotes);
       if (sections.length === 0) return;
 
-      const describeSection = (source: Note[], groupId: number | null) =>
-        JSON.stringify(
-          sortSectionNotes(
-            source.filter((note) => note.groupId === groupId)
-          ).map((note) => [note.id, note.groupId, note.position])
-        );
+      const nextKey = layoutKey(nextNotes);
+      const persistedKey = lastPersistedLayoutRef.current;
 
-      const changed = sections.some(
-        (groupId) =>
-          describeSection(snapshot, groupId) !==
-          describeSection(nextNotes, groupId)
-      );
-      if (!changed) return;
+      if (nextKey === persistedKey) return;
 
       const items = sections.flatMap((groupId) =>
         sortSectionNotes(
@@ -396,6 +416,7 @@ export function NotesView() {
 
       try {
         await noteService.reorderNotes(items);
+        lastPersistedLayoutRef.current = nextKey;
       } catch (error) {
         setNotes(snapshot);
         showToast({
@@ -477,6 +498,7 @@ export function NotesView() {
         noteGroupService.getNoteGroups(),
       ]);
       setNotes(userNotes);
+      lastPersistedLayoutRef.current = layoutKey(userNotes);
       setGroups(userGroups);
       showToast({ title: t('groupDeleted') });
     } catch (error) {
