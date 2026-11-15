@@ -10,12 +10,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -31,6 +30,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -53,6 +53,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -64,6 +65,8 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -399,7 +402,6 @@ fun TimeScreen(
 /// Records tab
 /// ---------------------------------------------------------------------
 
-@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun RecordsTab(
     state: TimeUiState,
@@ -463,27 +465,69 @@ private fun RecordsTab(
         // ===================== RN ListHeaderComponent =====================
         item {
             Column(modifier = Modifier.padding(horizontal = 16.dp)) {
-                // ---- viewing line + inline Filters icon button (44dp) ----
+                // ---- period chips (single scrollable line) + Filters icon button ----
+                val periodScroll = rememberScrollState()
+                val chipOffsets = remember { mutableStateMapOf<TimePeriod, Float>() }
+                var chipsRowX by remember { mutableStateOf(0f) }
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 4.dp),
                 ) {
-                    Text(
-                        text = if (state.period == TimePeriod.ALL_TIME) {
-                            I18n.t("time.allRecords")
-                        } else {
-                            t("viewing", "period" to periodLabel)
-                        },
-                        fontSize = 14.sp,
-                        color = colors.textMuted,
-                        modifier = Modifier.weight(1f),
-                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier
+                            .weight(1f)
+                            .onGloballyPositioned { chipsRowX = it.positionInRoot().x }
+                            .horizontalScroll(periodScroll),
+                    ) {
+                        TimePeriod.entries.forEach { period ->
+                            val selected = state.period == period
+                            Text(
+                                text = I18n.t("time.${period.key}"),
+                                fontSize = 14.sp,
+                                color = if (selected) colors.primaryForeground else colors.textMuted,
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .then(
+                                        if (selected) {
+                                            Modifier
+                                                .background(colors.primary)
+                                                .border(1.dp, colors.primary, RoundedCornerShape(8.dp))
+                                        } else {
+                                            Modifier
+                                                .background(colors.surface)
+                                                .border(1.dp, colors.border, RoundedCornerShape(8.dp))
+                                        }
+                                    )
+                                    .onGloballyPositioned {
+                                        chipOffsets[period] = it.positionInRoot().x - chipsRowX
+                                    }
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null,
+                                        onClick = { onPeriodChange(period) },
+                                    )
+                                    .padding(horizontal = 12.dp)
+                                    // 44dp touch-target token (labels are long in es).
+                                    .heightIn(min = 44.dp),
+                            )
+                        }
+                    }
                     FilterIconButton(
                         badgeCount = state.filterCount,
                         onClick = onOpenFilters,
                     )
+                }
+                // Keep the selected chip in view (e.g. restored "Last Month" off-screen).
+                LaunchedEffect(state.period, periodScroll.viewportSize) {
+                    val x = chipOffsets[state.period] ?: return@LaunchedEffect
+                    val viewport = periodScroll.viewportSize
+                    if (viewport > 0 && (x < periodScroll.value || x > periodScroll.value + viewport)) {
+                        periodScroll.animateScrollTo(x.toInt().coerceAtLeast(0))
+                    }
                 }
                 if (state.filterCount > 0) {
                     LbFilterChipsRow(
@@ -493,41 +537,7 @@ private fun RecordsTab(
                         modifier = Modifier.padding(top = 8.dp),
                     )
                 }
-                Spacer(Modifier.height(12.dp))
-
-                // ---- period chips ----
-                FlowRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    modifier = Modifier.padding(bottom = 16.dp),
-                ) {
-                    TimePeriod.entries.forEach { period ->
-                        val selected = state.period == period
-                        Text(
-                            text = I18n.t("time.${period.key}"),
-                            fontSize = 14.sp,
-                            color = if (selected) colors.primaryForeground else colors.textMuted,
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .then(
-                                    if (selected) {
-                                        Modifier
-                                            .background(colors.primary)
-                                            .border(1.dp, colors.primary, RoundedCornerShape(8.dp))
-                                    } else {
-                                        Modifier.border(1.dp, colors.border, RoundedCornerShape(8.dp))
-                                    }
-                                )
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null,
-                                    onClick = { onPeriodChange(period) },
-                                )
-                                .padding(horizontal = 12.dp)
-                                // 44dp touch-target token (labels are long in es).
-                                .heightIn(min = 44.dp),
-                        )
-                    }
-                }
+                Spacer(Modifier.height(16.dp))
 
                 // ---- active sessions (persisted across restarts) ----
                 if (state.sessions.isNotEmpty()) {
