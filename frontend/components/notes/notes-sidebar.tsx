@@ -8,6 +8,7 @@ import type {
 } from '@dnd-kit/core';
 import {
   DndContext,
+  DragOverlay,
   PointerSensor,
   closestCenter,
   useDroppable,
@@ -173,6 +174,7 @@ export function NotesSidebar({
   const [collapsedGroups, setCollapsedGroups] = useState<Set<number>>(
     new Set()
   );
+  const [draggingNote, setDraggingNote] = useState<Note | null>(null);
   const [renamingGroupId, setRenamingGroupId] = useState<number | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const cancelRenameRef = useRef(false);
@@ -271,6 +273,9 @@ export function NotesSidebar({
     const noteId = Number(String(event.active.id).slice('note-'.length));
     const moving = notes.find((note) => note.id === noteId);
     touchedSectionsRef.current.add(moving ? moving.groupId : null);
+    // The overlay renders a clean ghost chip; the in-place transform
+    // (full-width pill overflowing the sidebar) is gone.
+    setDraggingNote(moving ?? null);
   };
 
   const handleDragOver = (event: DragOverEvent) => {
@@ -358,10 +363,12 @@ export function NotesSidebar({
     else if (type === 'group-header')
       handleGroupDragEnd(String(active.id), over);
     touchedSectionsRef.current.clear();
+    setDraggingNote(null);
   };
 
   const handleDragCancel = () => {
     touchedSectionsRef.current.clear();
+    setDraggingNote(null);
   };
 
   const showUngrouped = !(searching && ungroupedNotes.length === 0);
@@ -416,6 +423,20 @@ export function NotesSidebar({
               />
             ))}
           </div>
+          {/* Floating ghost for the dragged note: a compact chip that
+          follows the cursor instead of the full-width in-place pill. */}
+          <DragOverlay
+            dropAnimation={{ duration: 150, easing: 'ease' }}
+            className="w-64"
+          >
+            {draggingNote ? (
+              <div className="rounded-md border border-border bg-surface px-2 py-2 shadow-md">
+                <span className="block truncate text-sm font-medium text-foreground">
+                  {draggingNote.title || t('untitled')}
+                </span>
+              </div>
+            ) : null}
+          </DragOverlay>
         </DndContext>
       )}
     </div>
@@ -466,7 +487,9 @@ function SortableNoteItem({
         className={cn(
           'group/note flex items-center justify-between gap-2 rounded-md p-2 transition-colors',
           selected ? 'bg-primary/10' : 'hover:bg-muted/50',
-          isDragging && 'z-10 bg-background shadow-sm ring-1 ring-primary/40'
+          // While dragging, the item itself is just a drop placeholder;
+          // the visible ghost is the DragOverlay chip.
+          isDragging && 'opacity-40'
         )}
       >
         <div

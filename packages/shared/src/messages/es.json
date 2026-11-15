@@ -546,6 +546,7 @@
     "draftRestored": "Borrador restaurado",
     "draftRestoredDescription": "Tus cambios sin guardar fueron restaurados.",
     "back": "Volver",
+    "titleRequired": "Agregá un título para poder encontrar esta nota",
     "imageUploadingAlt": "Subiendo imagen...",
     "imageAlt": "Imagen pegada",
     "imageUploadFailed": "Error al subir la imagen",

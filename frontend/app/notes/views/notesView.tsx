@@ -6,7 +6,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { noteService } from '@shared/services/note-service';
 import { noteGroupService } from '@shared/services/note-group-service';
-import type { Note, NoteGroup } from '@shared/types/note';
+import type { Note, NoteGroup, UpdateNoteRequest } from '@shared/types/note';
+
+/**
+ * An empty client-side title means "keep the server title": the backend
+ * requires one (min=1), the note shows as "Untitled", and the editor shows
+ * a hint. Without this, an untitled note could never save (the PUT sends
+ * both fields and 400s on the empty title).
+ */
+const titleDirty = (clientTitle: string, serverTitle: string) =>
+  clientTitle.trim().length > 0 && clientTitle !== serverTitle;
 import { Plus, Search, FileText, ArrowLeft, FolderPlus } from 'lucide-react';
 import { showToast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
@@ -203,7 +212,13 @@ export function NotesView() {
     if (!note) return;
     const { title, content } = editValuesRef.current;
     const attempted = { title, content };
-    if (title === note.title && content === note.content) return;
+    const hasTitle = title.trim().length > 0;
+    // Empty title = "keep the server title": the backend rejects empty
+    // titles, so send content only and let the hint nudge the user.
+    const payload: UpdateNoteRequest = hasTitle
+      ? { title, content }
+      : { content };
+    if (!titleDirty(title, note.title) && content === note.content) return;
 
     if (savingRef.current) {
       scheduleAutosave(500);
@@ -212,10 +227,7 @@ export function NotesView() {
     savingRef.current = true;
     setSaveStatus('saving');
     try {
-      const updatedNote = await noteService.updateNote(note.id, {
-        title,
-        content,
-      });
+      const updatedNote = await noteService.updateNote(note.id, payload);
       setSelectedNote((prev) =>
         prev && prev.id === updatedNote.id ? updatedNote : prev
       );
@@ -257,7 +269,8 @@ export function NotesView() {
   useEffect(() => {
     if (!selectedNote) return;
     const dirty =
-      editTitle !== selectedNote.title || editContent !== selectedNote.content;
+      titleDirty(editTitle, selectedNote.title) ||
+      editContent !== selectedNote.content;
     if (!dirty) return;
     saveDraft(selectedNote.id, editTitle, editContent);
     setSaveStatus('unsaved');
@@ -599,6 +612,11 @@ export function NotesView() {
                   {(saveStatus === 'unsaved' || saveStatus === 'error') &&
                     t('unsavedChanges')}
                 </span>
+                {!editTitle.trim() && (
+                  <span className="text-xs text-warning" aria-live="polite">
+                    {t('titleRequired')}
+                  </span>
+                )}
               </div>
               <div className="flex-1 min-h-0 p-4">
                 <LiveMarkdownEditor
