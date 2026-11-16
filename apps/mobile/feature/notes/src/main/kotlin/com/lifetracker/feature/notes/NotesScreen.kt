@@ -984,6 +984,15 @@ private fun NoteEditor(
 @Composable
 private fun NotesContentField(value: String, onValueChange: (String) -> Unit, placeholder: String) {
     val colors = LocalAppColors.current
+    // Live markdown styling while typing (markers dim, never removed).
+    val markdownTransformation = remember(colors.foreground, colors.textMuted, colors.primary, colors.border) {
+        NoteMarkdownTransformation(
+            ink = colors.foreground,
+            muted = colors.textMuted,
+            primary = colors.primary,
+            codeBackground = colors.border,
+        )
+    }
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -1005,6 +1014,7 @@ private fun NotesContentField(value: String, onValueChange: (String) -> Unit, pl
             enabled = true,
             singleLine = false,
             textStyle = TextStyle(fontSize = 16.sp, color = colors.foreground),
+            visualTransformation = markdownTransformation,
             cursorBrush = SolidColor(colors.primary),
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None),
         )
