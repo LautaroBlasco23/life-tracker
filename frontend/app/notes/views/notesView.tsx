@@ -1,12 +1,21 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
 import { noteService } from '@shared/services/note-service';
 import { noteGroupService } from '@shared/services/note-group-service';
-import type { Note, NoteGroup } from '@shared/types/note';
+import type { Note, NoteGroup, UpdateNoteRequest } from '@shared/types/note';
+
+/**
+ * An empty client-side title means "keep the server title": the backend
+ * requires one (min=1), the note shows as "Untitled", and the editor shows
+ * a hint. Without this, an untitled note could never save (the PUT sends
+ * both fields and 400s on the empty title).
+ */
+const titleDirty = (clientTitle: string, serverTitle: string) =>
+  clientTitle.trim().length > 0 && clientTitle !== serverTitle;
 import { Plus, Search, FileText, ArrowLeft, FolderPlus } from 'lucide-react';
 import { showToast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
@@ -20,8 +29,6 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { useTranslations } from '@shared/contexts/language-context';
-import { MarkdownView } from '@/components/notes/markdown-view';
-import { NoteToolbar } from '@/components/notes/note-toolbar';
 import {
   NotesSidebar,
   sortGroups,
@@ -29,7 +36,22 @@ import {
 } from '@/components/notes/notes-sidebar';
 import { CreateGroupModal } from '@/components/notes/create-group-modal';
 
+/* CodeMirror live-markdown editor — lazy-loaded so its bundle stays out of
+ * the initial page load. `ssr: false` because CM needs a DOM. */
+const LiveMarkdownEditor = dynamic(
+  () =>
+    import('@/components/notes/live-markdown-editor').then((m) => ({
+      default: m.LiveMarkdownEditor,
+    })),
+  { ssr: false, loading: () => <div className="w-full h-full" /> }
+);
+
 const DRAFT_STORAGE_KEY = 'notes_drafts';
+
+/** Idle time after the last keystroke before an autosave fires. */
+const AUTOSAVE_DEBOUNCE_MS = 1500;
+
+type SaveStatus = 'idle' | 'unsaved' | 'saving' | 'saved' | 'error';
 
 interface NoteDrafts {
   [noteId: number]: { title: string; content: string };
@@ -68,6 +90,29 @@ function loadDraft(noteId: number): { title: string; content: string } | null {
   return drafts[noteId] ?? null;
 }
 
+/**
+ * Canonical key of a notes layout: [id, group, position] for every note,
+ * grouped by section. Used to compare local layout vs the last layout
+ * persisted on the server.
+ */
+function layoutKey(source: Note[]): string {
+  const byGroup = new Map<number | null, Note[]>();
+  for (const note of source) {
+    const list = byGroup.get(note.groupId) ?? [];
+    list.push(note);
+    byGroup.set(note.groupId, list);
+  }
+  return JSON.stringify(
+    Array.from(byGroup.entries()).flatMap(([, list]) =>
+      sortSectionNotes(list).map((note) => [
+        note.id,
+        note.groupId,
+        note.position,
+      ])
+    )
+  );
+}
+
 export function NotesView() {
   const t = useTranslations('notes');
   const tCommon = useTranslations('common');
@@ -79,11 +124,9 @@ export function NotesView() {
   const [selectedNote, setSelectedNote] = useState<Note | null>(null);
   const [editTitle, setEditTitle] = useState('');
   const [editContent, setEditContent] = useState('');
-  const [isSaving, setIsSaving] = useState(false);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>('idle');
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [noteToDelete, setNoteToDelete] = useState<Note | null>(null);
-  const [isEditing, setIsEditing] = useState(false);
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [deleteGroupModalOpen, setDeleteGroupModalOpen] = useState(false);
   const [groupToDelete, setGroupToDelete] = useState<NoteGroup | null>(null);
@@ -92,6 +135,15 @@ export function NotesView() {
   const notesRef = useRef<Note[]>([]);
   const groupsRef = useRef<NoteGroup[]>([]);
   const initializedRef = useRef(false);
+  // Canonical [id, group, position] key of the layout as it exists on the
+  // server — the reorder persist compares against this, not against local
+  // state (live drag-over moves already changed the local state).
+  const lastPersistedLayoutRef = useRef<string>('');
+  // Autosave: latest values as refs so timers/flushes see current data.
+  const selectedNoteRef = useRef<Note | null>(null);
+  const editValuesRef = useRef({ title: '', content: '' });
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const savingRef = useRef(false);
 
   const setNotes = useCallback((value: Note[] | ((prev: Note[]) => Note[])) => {
     setNotesState((prev) => {
@@ -119,6 +171,7 @@ export function NotesView() {
         if (query) {
           const userNotes = await noteService.searchNotes(query);
           setNotes(userNotes);
+          lastPersistedLayoutRef.current = layoutKey(userNotes);
           return userNotes;
         }
         const [userNotes, userGroups] = await Promise.all([
@@ -126,6 +179,7 @@ export function NotesView() {
           noteGroupService.getNoteGroups(),
         ]);
         setNotes(userNotes);
+        lastPersistedLayoutRef.current = layoutKey(userNotes);
         setGroups(userGroups);
         return userNotes;
       } catch (error) {
@@ -161,47 +215,139 @@ export function NotesView() {
     loadNotes(searchQuery);
   }, [searchQuery, loadNotes]);
 
-  useEffect(() => {
-    if (selectedNote) {
-      const titleChanged = editTitle !== selectedNote.title;
-      const contentChanged = editContent !== selectedNote.content;
-      const unsaved = titleChanged || contentChanged;
-      setHasUnsavedChanges(unsaved);
+  /* ---------- Autosave ----------
+   * Notes save themselves: debounced PUT after typing stops, an immediate
+   * flush on note switch / tab hide, and localStorage drafts as the offline
+   * fallback. Never two concurrent PUTs for the same note (savingRef). */
 
-      if (unsaved) {
-        saveDraft(selectedNote.id, editTitle, editContent);
-      } else {
-        removeDraft(selectedNote.id);
-      }
+  const cancelAutosave = useCallback(() => {
+    if (saveTimerRef.current) {
+      clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = null;
     }
-  }, [editTitle, editContent, selectedNote]);
+  }, []);
+
+  const scheduleAutosave = useCallback(
+    (delay: number = AUTOSAVE_DEBOUNCE_MS) => {
+      cancelAutosave();
+      saveTimerRef.current = setTimeout(() => void flushSave(), delay);
+    },
+    [cancelAutosave]
+  );
+
+  const flushSave = useCallback(async (): Promise<void> => {
+    cancelAutosave();
+    const note = selectedNoteRef.current;
+    if (!note) return;
+    const { title, content } = editValuesRef.current;
+    const attempted = { title, content };
+    const hasTitle = title.trim().length > 0;
+    // Empty title = "keep the server title": the backend rejects empty
+    // titles, so send content only and let the hint nudge the user.
+    const payload: UpdateNoteRequest = hasTitle
+      ? { title, content }
+      : { content };
+    if (!titleDirty(title, note.title) && content === note.content) return;
+
+    if (savingRef.current) {
+      scheduleAutosave(500);
+      return;
+    }
+    savingRef.current = true;
+    setSaveStatus('saving');
+    try {
+      const updatedNote = await noteService.updateNote(note.id, payload);
+      setSelectedNote((prev) =>
+        prev && prev.id === updatedNote.id ? updatedNote : prev
+      );
+      setNotes((prev) =>
+        prev.map((n) => (n.id === updatedNote.id ? updatedNote : n))
+      );
+      removeDraft(updatedNote.id);
+      setSaveStatus('saved');
+    } catch (error) {
+      // The draft (written on every keystroke) is the offline fallback.
+      // No automatic retry: the next keystroke or flush trigger retries;
+      // auto-retrying here would loop forever on permanent failures
+      // (validation caps, expired sessions). The indicator stays truthful.
+      console.error('Autosave failed:', error);
+      setSaveStatus('error');
+    } finally {
+      savingRef.current = false;
+    }
+    // Edits made while the PUT was in flight need another pass. Compare
+    // against what was just attempted — NOT the note state: a failed PUT
+    // leaves it stale (pre-save values), which always differs from the
+    // edit values and used to arm an endless self-rescheduling loop.
+    const latestValues = editValuesRef.current;
+    if (
+      latestValues.title !== attempted.title ||
+      latestValues.content !== attempted.content
+    ) {
+      scheduleAutosave(300);
+    }
+  }, [cancelAutosave, scheduleAutosave, setNotes]);
+
+  // Keep the refs the timers read in sync with the latest state.
+  useEffect(() => {
+    selectedNoteRef.current = selectedNote;
+    editValuesRef.current = { title: editTitle, content: editContent };
+  }, [selectedNote, editTitle, editContent]);
+
+  // Debounced autosave on every edit.
+  useEffect(() => {
+    if (!selectedNote) return;
+    const dirty =
+      titleDirty(editTitle, selectedNote.title) ||
+      editContent !== selectedNote.content;
+    if (!dirty) return;
+    saveDraft(selectedNote.id, editTitle, editContent);
+    setSaveStatus('unsaved');
+    scheduleAutosave();
+  }, [editTitle, editContent, selectedNote, scheduleAutosave]);
+
+  // Flush when the tab is hidden or closed (draft covers what slips through).
+  useEffect(() => {
+    const flush = () => void flushSave();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') flush();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    window.addEventListener('beforeunload', flush);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+      window.removeEventListener('beforeunload', flush);
+      cancelAutosave();
+    };
+  }, [flushSave, cancelAutosave]);
 
   const handleSelectNote = (note: Note) => {
+    void flushSave(); // persist the previously open note before switching
+    cancelAutosave();
     const draft = loadDraft(note.id);
     if (draft) {
       setEditTitle(draft.title);
       setEditContent(draft.content);
-      setHasUnsavedChanges(
-        draft.title !== note.title || draft.content !== note.content
-      );
     } else {
       setEditTitle(note.title);
       setEditContent(note.content);
-      setHasUnsavedChanges(false);
     }
     setSelectedNote(note);
-    setIsEditing(false);
+    setSaveStatus('idle');
   };
 
   const handleBackToList = () => {
+    void flushSave();
+    cancelAutosave();
     setSelectedNote(null);
     setEditTitle('');
     setEditContent('');
-    setHasUnsavedChanges(false);
-    setIsEditing(false);
+    setSaveStatus('idle');
   };
 
   const handleCreateNote = async () => {
+    void flushSave(); // persist any pending edits first
+    cancelAutosave();
     try {
       const newNote = await noteService.createNote({
         title: t('untitled'),
@@ -211,8 +357,7 @@ export function NotesView() {
       setSelectedNote(newNote);
       setEditTitle(newNote.title);
       setEditContent(newNote.content);
-      setHasUnsavedChanges(false);
-      setIsEditing(true);
+      setSaveStatus('idle');
       showToast({
         title: t('noteCreated'),
         description: t('startWriting'),
@@ -227,67 +372,23 @@ export function NotesView() {
     }
   };
 
-  const handleSaveNote = async () => {
-    if (!selectedNote) return;
-
-    try {
-      setIsSaving(true);
-      const updatedNote = await noteService.updateNote(selectedNote.id, {
-        title: editTitle,
-        content: editContent,
-      });
-      setSelectedNote(updatedNote);
-      setNotes((prev) =>
-        prev.map((note) => (note.id === updatedNote.id ? updatedNote : note))
-      );
-      setHasUnsavedChanges(false);
-      setIsEditing(false);
-      removeDraft(selectedNote.id);
-      showToast({
-        title: t('noteSaved'),
-        description: t('noteSavedDescription'),
-      });
-    } catch (error) {
-      showToast({
-        title: t('failedToSave'),
-        description:
-          error instanceof Error ? error.message : 'An error occurred',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   const openDeleteModal = (note: Note) => {
     setNoteToDelete(note);
     setDeleteModalOpen(true);
-  };
-
-  const handleToggleMode = () => {
-    setIsEditing(!isEditing);
-  };
-
-  const handleDiscard = () => {
-    if (!selectedNote) return;
-    removeDraft(selectedNote.id);
-    setEditTitle(selectedNote.title);
-    setEditContent(selectedNote.content);
-    setHasUnsavedChanges(false);
   };
 
   const handleDeleteNote = async () => {
     if (!noteToDelete) return;
 
     await noteService.deleteNote(noteToDelete.id);
+    cancelAutosave();
     removeDraft(noteToDelete.id);
     setNotes((prev) => prev.filter((note) => note.id !== noteToDelete.id));
     if (selectedNote?.id === noteToDelete.id) {
       setSelectedNote(null);
       setEditTitle('');
       setEditContent('');
-      setHasUnsavedChanges(false);
-      setIsEditing(false);
+      setSaveStatus('idle');
     }
     showToast({
       title: t('noteDeleted'),
@@ -302,19 +403,10 @@ export function NotesView() {
       setNotes(nextNotes);
       if (sections.length === 0) return;
 
-      const describeSection = (source: Note[], groupId: number | null) =>
-        JSON.stringify(
-          sortSectionNotes(
-            source.filter((note) => note.groupId === groupId)
-          ).map((note) => [note.id, note.groupId, note.position])
-        );
+      const nextKey = layoutKey(nextNotes);
+      const persistedKey = lastPersistedLayoutRef.current;
 
-      const changed = sections.some(
-        (groupId) =>
-          describeSection(snapshot, groupId) !==
-          describeSection(nextNotes, groupId)
-      );
-      if (!changed) return;
+      if (nextKey === persistedKey) return;
 
       const items = sections.flatMap((groupId) =>
         sortSectionNotes(
@@ -324,6 +416,7 @@ export function NotesView() {
 
       try {
         await noteService.reorderNotes(items);
+        lastPersistedLayoutRef.current = nextKey;
       } catch (error) {
         setNotes(snapshot);
         showToast({
@@ -405,6 +498,7 @@ export function NotesView() {
         noteGroupService.getNoteGroups(),
       ]);
       setNotes(userNotes);
+      lastPersistedLayoutRef.current = layoutKey(userNotes);
       setGroups(userGroups);
       showToast({ title: t('groupDeleted') });
     } catch (error) {
@@ -482,10 +576,6 @@ export function NotesView() {
               searchQuery={searchQuery}
               isLoading={isLoading}
               onSelectNote={handleSelectNote}
-              onEditNote={(note) => {
-                handleSelectNote(note);
-                setIsEditing(true);
-              }}
               onDeleteNote={openDeleteModal}
               onUpdateNotes={handleUpdateNotes}
               onUpdateGroups={handleUpdateGroups}
@@ -513,42 +603,61 @@ export function NotesView() {
                   <ArrowLeft className="h-4 w-4 mr-1" />
                   {t('back')}
                 </Button>
-                <Input
+                <input
                   type="text"
                   value={editTitle}
                   onChange={(e) => setEditTitle(e.target.value)}
                   placeholder={t('titlePlaceholder')}
-                  className="flex-1 text-xl font-semibold border-none shadow-none focus-visible:ring-0 px-0 h-auto"
+                  aria-label={t('titlePlaceholder')}
+                  className={cn(
+                    // Document-title presentation, not a form field: the
+                    // shadcn Input defaults (dark:bg-input/30, border,
+                    // focus ring) read as a boxed input in dark mode and
+                    // can't be cleanly overridden through cn().
+                    'min-w-0 flex-1 bg-transparent text-3xl font-semibold',
+                    'text-foreground placeholder:text-muted-foreground/70',
+                    'border-none shadow-none outline-none',
+                    // focus:shadow-none beats the global input focus ring
+                    // in globals.css (non-important component rule).
+                    'focus:shadow-none',
+                    // Quiet affordance: soft pill on hover/focus; the
+                    // negative margin keeps the text flush with the edge.
+                    'rounded-md px-2 py-0.5 -mx-2 h-auto',
+                    'transition-colors hover:bg-muted/50 focus:bg-muted/50'
+                  )}
                 />
-                <NoteToolbar
-                  isEditing={isEditing}
-                  onToggleMode={handleToggleMode}
-                  onSave={handleSaveNote}
-                  onDiscard={handleDiscard}
-                  canSave={hasUnsavedChanges}
-                  isSaving={isSaving}
-                />
+                <span
+                  className="text-xs text-muted-foreground"
+                  aria-live="polite"
+                >
+                  {saveStatus === 'saving' && t('saving')}
+                  {(saveStatus === 'unsaved' || saveStatus === 'error') &&
+                    t('unsavedChanges')}
+                </span>
+                {!editTitle.trim() && (
+                  <span className="text-xs text-warning" aria-live="polite">
+                    {t('titleRequired')}
+                  </span>
+                )}
               </div>
               <div className="flex-1 min-h-0 p-4">
-                {isEditing ? (
-                  <Textarea
-                    value={editContent}
-                    onChange={(e) => setEditContent(e.target.value)}
-                    placeholder={t('contentPlaceholder')}
-                    className="w-full h-full resize-none border-none shadow-none focus-visible:ring-0 text-base leading-relaxed"
-                  />
-                ) : (
-                  <MarkdownView
-                    content={editContent}
-                    className="h-full overflow-y-auto"
-                  />
-                )}
+                <LiveMarkdownEditor
+                  value={editContent}
+                  onChange={setEditContent}
+                  placeholder={t('contentPlaceholder')}
+                  ariaLabel={t('contentPlaceholder')}
+                  uploadImage={(file) => noteService.uploadImage(file)}
+                  imageUploadingAlt={t('imageUploadingAlt')}
+                  imageAlt={t('imageAlt')}
+                  imageUploadFailedLabel={t('imageUploadFailed')}
+                  className="w-full h-full"
+                />
               </div>
               <div className="px-4 py-2 border-t border-border text-xs text-muted-foreground">
                 {t('lastEdited', {
                   date: formatDate(selectedNote.editedAt),
                 })}
-                {hasUnsavedChanges && (
+                {(saveStatus === 'unsaved' || saveStatus === 'error') && (
                   <span className="ml-2 text-secondary">
                     {'• ' + t('unsavedChanges')}
                   </span>

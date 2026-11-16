@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type {
   DragEndEvent,
   DragOverEvent,
@@ -8,8 +8,10 @@ import type {
 } from '@dnd-kit/core';
 import {
   DndContext,
+  DragOverlay,
   PointerSensor,
   closestCenter,
+  pointerWithin,
   useDroppable,
   useSensor,
   useSensors,
@@ -60,7 +62,6 @@ interface NotesSidebarProps {
   searchQuery: string;
   isLoading: boolean;
   onSelectNote: (note: Note) => void;
-  onEditNote: (note: Note) => void;
   onDeleteNote: (note: Note) => void;
   /** Applies optimistic note updates; sections are the ones to persist (groupId or null = ungrouped). */
   onUpdateNotes: (
@@ -123,15 +124,19 @@ function computeNotesMove(
     });
   });
 
-  return notes.map((note) =>
-    positionById.has(note.id)
-      ? {
-          ...note,
-          groupId: groupIdById.get(note.id) ?? note.groupId,
-          position: positionById.get(note.id) ?? note.position,
-        }
-      : note
-  );
+  const result = notes.map((note) => {
+    if (!positionById.has(note.id)) return note;
+    // NOTE: groupIdById legitimately stores null (ungrouped) — `??` would
+    // silently fall back to the original group and break ungrouping.
+    const groupId = groupIdById.get(note.id);
+    const position = positionById.get(note.id);
+    return {
+      ...note,
+      groupId: groupId === undefined ? note.groupId : groupId,
+      position: position ?? note.position,
+    };
+  });
+  return result;
 }
 
 /** Display index (position-asc then editedAt-desc) of a note inside its
@@ -164,7 +169,6 @@ export function NotesSidebar({
   searchQuery,
   isLoading,
   onSelectNote,
-  onEditNote,
   onDeleteNote,
   onUpdateNotes,
   onUpdateGroups,
@@ -175,10 +179,18 @@ export function NotesSidebar({
   const [collapsedGroups, setCollapsedGroups] = useState<Set<number>>(
     new Set()
   );
+  const [draggingNote, setDraggingNote] = useState<Note | null>(null);
   const [renamingGroupId, setRenamingGroupId] = useState<number | null>(null);
   const [renameValue, setRenameValue] = useState('');
   const cancelRenameRef = useRef(false);
   const touchedSectionsRef = useRef<Set<number | null>>(new Set());
+  // Current notes for the drag handlers: dnd-kit captures the handlers at
+  // drag start, so live drag-over moves (which update the parent state)
+  // are invisible in the handler closures. See handleDragOver.
+  const notesStateRef = useRef(notes);
+  useEffect(() => {
+    notesStateRef.current = notes;
+  }, [notes]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
@@ -257,22 +269,26 @@ export function NotesSidebar({
   };
 
   const applyMove = (noteId: number, target: DropTarget) => {
+    const currentNotes = notesStateRef.current;
     const index =
       target.overNoteId !== null
-        ? sectionIndexOf(notes, target.groupId, target.overNoteId)
+        ? sectionIndexOf(currentNotes, target.groupId, target.overNoteId)
         : target.type === 'group-header'
           ? 0
           : -1;
-    const next = computeNotesMove(notes, noteId, target.groupId, index);
-    if (next !== notes) onUpdateNotes(next, []);
+    const next = computeNotesMove(currentNotes, noteId, target.groupId, index);
+    if (next !== currentNotes) onUpdateNotes(next, []);
   };
 
   const handleDragStart = (event: DragStartEvent) => {
     const type = (event.active.data.current as DraggableData | undefined)?.type;
     if (type !== 'note') return;
     const noteId = Number(String(event.active.id).slice('note-'.length));
-    const moving = notes.find((note) => note.id === noteId);
+    const moving = notesStateRef.current.find((note) => note.id === noteId);
     touchedSectionsRef.current.add(moving ? moving.groupId : null);
+    // The overlay renders a clean ghost chip; the in-place transform
+    // (full-width pill overflowing the sidebar) is gone.
+    setDraggingNote(moving ?? null);
   };
 
   const handleDragOver = (event: DragOverEvent) => {
@@ -287,8 +303,12 @@ export function NotesSidebar({
       expandGroup(target.groupId);
     }
 
+    // dnd-kit invokes drag handlers from the render captured at drag
+    // START — state updates made during the drag (live reparenting) are
+    // invisible in the closure. Read the current notes from the ref.
+    const currentNotes = notesStateRef.current;
     const noteId = Number(String(active.id).slice('note-'.length));
-    const moving = notes.find((note) => note.id === noteId);
+    const moving = currentNotes.find((note) => note.id === noteId);
     if (!moving || moving.groupId === target.groupId) return;
 
     touchedSectionsRef.current.add(moving.groupId);
@@ -298,15 +318,15 @@ export function NotesSidebar({
 
   const handleNoteDragEnd = (activeId: string, over: DragEndEvent['over']) => {
     const noteId = Number(activeId.slice('note-'.length));
+    // Read from the ref: dnd-kit captures handlers at drag start, so the
+    // closure's `notes` is stale after live drag-over moves.
+    const notes = notesStateRef.current;
     const moving = notes.find((note) => note.id === noteId);
     if (moving) touchedSectionsRef.current.add(moving.groupId);
 
-    // Compute the final layout exactly once, from the pre-drag `notes`,
-    // and hand BOTH the result and the touched sections to the single
-    // persist call below. Previously the move was applied via
-    // onUpdateNotes(next, []) first and then overwritten by a second
-    // onUpdateNotes(notes, sections) call with the stale pre-drag `notes`
-    // — so intra-group reorders were reverted and never persisted.
+    // Compute the final layout exactly once from the CURRENT notes (the
+    // ref — see the stale-closure note above) and hand BOTH the result
+    // and the touched sections to the single persist call below.
     let next = notes;
     if (over && moving) {
       const target = resolveDropTarget(over);
@@ -360,10 +380,12 @@ export function NotesSidebar({
     else if (type === 'group-header')
       handleGroupDragEnd(String(active.id), over);
     touchedSectionsRef.current.clear();
+    setDraggingNote(null);
   };
 
   const handleDragCancel = () => {
     touchedSectionsRef.current.clear();
+    setDraggingNote(null);
   };
 
   const showUngrouped = !(searching && ungroupedNotes.length === 0);
@@ -381,7 +403,11 @@ export function NotesSidebar({
       ) : (
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCenter}
+          // pointerWithin: with a DragOverlay, closestCenter collides from
+          // the source placeholder's rect, so drops never registered where
+          // the cursor actually was (e.g. dropping onto the ungrouped
+          // zone). Collide by pointer position instead.
+          collisionDetection={pointerWithin}
           onDragStart={handleDragStart}
           onDragOver={handleDragOver}
           onDragEnd={handleDragEnd}
@@ -392,7 +418,6 @@ export function NotesSidebar({
               notes={ungroupedNotes}
               selectedNote={selectedNote}
               onSelectNote={onSelectNote}
-              onEditNote={onEditNote}
               onDeleteNote={onDeleteNote}
               t={t}
             />
@@ -408,7 +433,6 @@ export function NotesSidebar({
                 renameValue={renameValue}
                 selectedNote={selectedNote}
                 onSelectNote={onSelectNote}
-                onEditNote={onEditNote}
                 onDeleteNote={onDeleteNote}
                 onToggleGroup={() => toggleGroup(group.id)}
                 onRenameValueChange={setRenameValue}
@@ -420,6 +444,20 @@ export function NotesSidebar({
               />
             ))}
           </div>
+          {/* Floating ghost for the dragged note: a compact chip that
+          follows the cursor instead of the full-width in-place pill. */}
+          <DragOverlay
+            dropAnimation={{ duration: 150, easing: 'ease' }}
+            className="w-64"
+          >
+            {draggingNote ? (
+              <div className="rounded-md border border-border bg-surface px-2 py-2 shadow-md">
+                <span className="block truncate text-sm font-medium text-foreground">
+                  {draggingNote.title || t('untitled')}
+                </span>
+              </div>
+            ) : null}
+          </DragOverlay>
         </DndContext>
       )}
     </div>
@@ -434,7 +472,6 @@ interface NoteItemProps {
   note: Note;
   selected: boolean;
   onSelectNote: (note: Note) => void;
-  onEditNote: (note: Note) => void;
   onDeleteNote: (note: Note) => void;
   t: SidebarT;
 }
@@ -443,7 +480,6 @@ function SortableNoteItem({
   note,
   selected,
   onSelectNote,
-  onEditNote,
   onDeleteNote,
   t,
 }: NoteItemProps) {
@@ -472,7 +508,9 @@ function SortableNoteItem({
         className={cn(
           'group/note flex items-center justify-between gap-2 rounded-md p-2 transition-colors',
           selected ? 'bg-primary/10' : 'hover:bg-muted/50',
-          isDragging && 'z-10 bg-background shadow-sm ring-1 ring-primary/40'
+          // While dragging, the item itself is just a drop placeholder;
+          // the visible ghost is the DragOverlay chip.
+          isDragging && 'opacity-40'
         )}
       >
         <div
@@ -486,15 +524,6 @@ function SortableNoteItem({
           </span>
         </div>
         <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover/note:opacity-100 focus-within:opacity-100 md:group-focus-within/note:opacity-100">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onEditNote(note);
-            }}
-            className="p-1 text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <Pencil className="h-3.5 w-3.5" />
-          </button>
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -514,7 +543,6 @@ interface UngroupedSectionProps {
   notes: Note[];
   selectedNote: Note | null;
   onSelectNote: (note: Note) => void;
-  onEditNote: (note: Note) => void;
   onDeleteNote: (note: Note) => void;
   t: SidebarT;
 }
@@ -523,20 +551,16 @@ function UngroupedSection({
   notes,
   selectedNote,
   onSelectNote,
-  onEditNote,
   onDeleteNote,
   t,
 }: UngroupedSectionProps) {
-  const { setNodeRef } = useDroppable({
+  const { setNodeRef, isOver } = useDroppable({
     id: UNGROUPED_CONTAINER_ID,
     data: { type: 'container', groupId: null } satisfies DraggableData,
   });
 
   return (
-    <div
-      ref={setNodeRef}
-      className={cn(notes.length === 0 && 'min-h-12 rounded-md')}
-    >
+    <div ref={setNodeRef} className={cn(notes.length === 0 && 'px-2 pt-2')}>
       <SortableContext
         items={notes.map((note) => noteSortableId(note.id))}
         strategy={verticalListSortingStrategy}
@@ -548,13 +572,27 @@ function UngroupedSection({
               note={note}
               selected={selectedNote?.id === note.id}
               onSelectNote={onSelectNote}
-              onEditNote={onEditNote}
               onDeleteNote={onDeleteNote}
               t={t}
             />
           ))}
         </ul>
       </SortableContext>
+      {/* Visible drop target when there are no ungrouped notes: without it
+      the empty container is an invisible gap and "drop to ungroup" is
+      undiscoverable (you can only move notes between groups). */}
+      {notes.length === 0 && (
+        <div
+          className={cn(
+            'mt-2 flex min-h-9 items-center justify-center rounded-md border border-dashed px-2 text-center text-xs transition-colors',
+            isOver
+              ? 'border-primary/60 bg-primary/10 text-foreground'
+              : 'border-border text-muted-foreground'
+          )}
+        >
+          {t('dropToUngroup')}
+        </div>
+      )}
     </div>
   );
 }
@@ -567,7 +605,6 @@ interface GroupSectionProps {
   renameValue: string;
   selectedNote: Note | null;
   onSelectNote: (note: Note) => void;
-  onEditNote: (note: Note) => void;
   onDeleteNote: (note: Note) => void;
   onToggleGroup: () => void;
   onRenameValueChange: (value: string) => void;
@@ -586,7 +623,6 @@ function GroupSection({
   renameValue,
   selectedNote,
   onSelectNote,
-  onEditNote,
   onDeleteNote,
   onToggleGroup,
   onRenameValueChange,
@@ -630,7 +666,6 @@ function GroupSection({
                   note={note}
                   selected={selectedNote?.id === note.id}
                   onSelectNote={onSelectNote}
-                  onEditNote={onEditNote}
                   onDeleteNote={onDeleteNote}
                   t={t}
                 />

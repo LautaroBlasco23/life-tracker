@@ -62,7 +62,7 @@ func setupTestRouter(t *testing.T) (*gin.Engine, *service.NoteService, func()) {
 	db.Exec("DROP TABLE IF EXISTS notes CASCADE")
 	require.NoError(t, db.AutoMigrate(&model.Note{}, &ngmodel.NoteGroup{}))
 
-	noteService := service.NewNoteService(db)
+	noteService := service.NewNoteService(db, nil)
 	noteController := NewNoteController(noteService)
 
 	router := gin.New()

@@ -4,9 +4,9 @@ import type {
   UpdateNoteRequest,
   NoteFilter,
   ReorderNotesRequestItem,
-} from '../types/note';
-import { authService } from './auth-service';
-import { getConfig } from '../lib/config';
+} from "../types/note";
+import { authService } from "./auth-service";
+import { getConfig } from "../lib/config";
 
 interface BackendListResponse<T> {
   count: number;
@@ -25,24 +25,24 @@ class NoteService {
   }
 
   private buildQueryString(filter?: NoteFilter): string {
-    if (!filter) return '';
+    if (!filter) return "";
 
     const params = new URLSearchParams();
 
-    if (filter.q) params.set('q', filter.q);
+    if (filter.q) params.set("q", filter.q);
 
     const queryString = params.toString();
-    return queryString ? `?${queryString}` : '';
+    return queryString ? `?${queryString}` : "";
   }
 
   async getNotes(filter?: NoteFilter): Promise<Note[]> {
     const queryString = this.buildQueryString(filter);
     const response = await authService.makeAuthenticatedRequest(
-      `${this.baseUrl}/notes${queryString}`
+      `${this.baseUrl}/notes${queryString}`,
     );
 
     if (!response.ok) {
-      throw new Error('Failed to fetch notes');
+      throw new Error("Failed to fetch notes");
     }
 
     const result: BackendListResponse<Note> = await response.json();
@@ -55,11 +55,11 @@ class NoteService {
 
   async getNote(id: number): Promise<Note> {
     const response = await authService.makeAuthenticatedRequest(
-      `${this.baseUrl}/notes/${id}`
+      `${this.baseUrl}/notes/${id}`,
     );
 
     if (!response.ok) {
-      throw new Error('Note not found');
+      throw new Error("Note not found");
     }
 
     const result: BackendSingleResponse<Note> = await response.json();
@@ -70,13 +70,13 @@ class NoteService {
     const response = await authService.makeAuthenticatedRequest(
       `${this.baseUrl}/notes`,
       {
-        method: 'POST',
+        method: "POST",
         body: JSON.stringify(data),
-      }
+      },
     );
 
     if (!response.ok) {
-      throw new Error('Failed to create note');
+      throw new Error("Failed to create note");
     }
 
     const result: BackendSingleResponse<Note> = await response.json();
@@ -87,29 +87,50 @@ class NoteService {
     const response = await authService.makeAuthenticatedRequest(
       `${this.baseUrl}/notes/${id}`,
       {
-        method: 'PUT',
+        method: "PUT",
         body: JSON.stringify(data),
-      }
+      },
     );
 
     if (!response.ok) {
-      throw new Error('Failed to update note');
+      throw new Error("Failed to update note");
     }
 
     const result: BackendSingleResponse<Note> = await response.json();
     return result.data;
   }
 
+  /** Uploads an image to embed in note content; resolves to its public URL. */
+  async uploadImage(file: File): Promise<string> {
+    const formData = new FormData();
+    formData.append("image", file);
+    const response = await authService.makeAuthenticatedRequest(
+      `${this.baseUrl}/notes/images`,
+      {
+        method: "POST",
+        body: formData,
+      },
+    );
+
+    if (!response.ok) {
+      throw new Error("Failed to upload image");
+    }
+
+    const result: BackendSingleResponse<{ url: string }> =
+      await response.json();
+    return result.data.url;
+  }
+
   async deleteNote(id: number): Promise<void> {
     const response = await authService.makeAuthenticatedRequest(
       `${this.baseUrl}/notes/${id}`,
       {
-        method: 'DELETE',
-      }
+        method: "DELETE",
+      },
     );
 
     if (!response.ok) {
-      throw new Error('Failed to delete note');
+      throw new Error("Failed to delete note");
     }
   }
 
@@ -117,13 +138,13 @@ class NoteService {
     const response = await authService.makeAuthenticatedRequest(
       `${this.baseUrl}/notes/reorder`,
       {
-        method: 'POST',
+        method: "POST",
         body: JSON.stringify({ items }),
-      }
+      },
     );
 
     if (!response.ok) {
-      throw new Error('Failed to reorder notes');
+      throw new Error("Failed to reorder notes");
     }
   }
 }
