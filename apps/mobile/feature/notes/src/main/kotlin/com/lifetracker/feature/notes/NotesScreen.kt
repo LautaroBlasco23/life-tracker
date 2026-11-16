@@ -156,7 +156,10 @@ fun NotesScreen(
         if (draft != null) {
             title = draft.title
             content = draft.content
-            hasUnsavedChanges = draft.title != note.title || draft.content != note.content
+            // Blank title never counts as dirty (blank = keep the server title).
+            hasUnsavedChanges =
+                (draft.title.isNotBlank() && draft.title != note.title) ||
+                    draft.content != note.content
             toast.show(toastText(t("draftRestored"), t("draftRestoredDescription")))
         } else {
             title = note.title
@@ -180,7 +183,10 @@ fun NotesScreen(
         val note = editing ?: return
         title = newTitle
         content = newContent
-        hasUnsavedChanges = newTitle != note.title || newContent != note.content
+        // Blank title never counts as dirty (blank = keep the server title).
+        hasUnsavedChanges =
+            (newTitle.isNotBlank() && newTitle != note.title) ||
+                newContent != note.content
         viewModel.syncEditorDraft(note.id, note.title, note.content, newTitle, newContent)
     }
 
@@ -861,6 +867,16 @@ private fun NoteEditor(
             label = t("titlePlaceholder"),
             placeholder = t("titlePlaceholder"),
         )
+
+        // Persistent hint while the title is blank: an untitled note can
+        // save (content-only PUT) but stays unfindable in the list (web parity).
+        if (title.isBlank()) {
+            Text(
+                text = t("addTitleHint"),
+                fontSize = 12.sp,
+                color = colors.textMuted,
+            )
+        }
 
         Row(
             verticalAlignment = Alignment.CenterVertically,

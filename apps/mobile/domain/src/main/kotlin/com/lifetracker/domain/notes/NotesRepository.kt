@@ -47,9 +47,14 @@ class NotesRepository @Inject constructor(
             .successOrThrow().data
             ?: throw ApiError("Failed to create note")
 
-    /** PUT /notes/:id — the screen always sends title + content (same as the RN page). */
+    /**
+     * PUT /notes/:id — always sends content, but a blank title is omitted
+     * (`null` is dropped from the wire) meaning "keep the server title". The
+     * backend rejects `title=""` (`min=1`), so a blank-title PUT is the only
+     * way an untitled note's content can save — mirrors the web fix.
+     */
     suspend fun updateNote(id: Int, title: String, content: String): NoteResponse =
-        api.updateNote(id, UpdateNoteRequest(title = title, content = content))
+        api.updateNote(id, UpdateNoteRequest(title = title.takeIf { it.isNotBlank() }, content = content))
             .successOrThrow().data
             ?: throw ApiError("Failed to save note")
 

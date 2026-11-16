@@ -491,6 +491,7 @@
     "failedToCreate": "Failed to create note",
     "titlePlaceholder": "Note title",
     "contentPlaceholder": "Start writing...",
+    "addTitleHint": "Add a title so you can find this note",
     "saving": "Saving...",
     "save": "Save",
     "discard": "Discard",

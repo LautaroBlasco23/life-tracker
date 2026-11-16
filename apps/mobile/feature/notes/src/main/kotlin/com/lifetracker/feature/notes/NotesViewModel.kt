@@ -114,9 +114,13 @@ class NotesViewModel @Inject constructor(
      * The RN editor effect: while the editor is open with unsaved changes the
      * current title/content persist as the note's draft; matching the saved
      * state again removes it.
+     *
+     * Title dirtiness mirrors the repository's omit rule: a blank title means
+     * "keep the server title" (the backend rejects `title=""`), so it never
+     * counts as a change by itself.
      */
     fun syncEditorDraft(noteId: Int, savedTitle: String, savedContent: String, title: String, content: String) {
-        val unsaved = title != savedTitle || content != savedContent
+        val unsaved = (title.isNotBlank() && title != savedTitle) || content != savedContent
         if (unsaved) drafts.save(noteId, title, content) else drafts.remove(noteId)
         refreshDraftIds()
     }

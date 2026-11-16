@@ -491,6 +491,7 @@
     "failedToCreate": "Error al crear la nota",
     "titlePlaceholder": "Título de la nota",
     "contentPlaceholder": "Empezá a escribir...",
+    "addTitleHint": "Agregá un título para que puedas encontrar esta nota",
     "saving": "Guardando...",
     "save": "Guardar",
     "discard": "Descartar",
