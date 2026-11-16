@@ -42,6 +42,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -55,6 +56,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.TextStyle
@@ -63,6 +65,8 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.halilibo.richtext.markdown.Markdown
 import com.halilibo.richtext.ui.BasicRichText
@@ -113,9 +117,11 @@ fun NotesScreen(
     var title by remember { mutableStateOf("") }
     var content by remember { mutableStateOf("") }
     var isSaving by remember { mutableStateOf(false) }
-    var hasUnsavedChanges by remember { mutableStateOf(false) }
     var showPreview by rememberSaveable { mutableStateOf(false) }
     var noteToDelete by remember { mutableStateOf<NoteResponse?>(null) }
+
+    // Autosave status of the open editor (debounced PUT drives it).
+    val editorStatus by viewModel.editorStatus.collectAsStateWithLifecycle()
 
     // Group form (create/rename) + delete confirmation state.
     var showGroupForm by rememberSaveable { mutableStateOf(false) }
@@ -139,15 +145,35 @@ fun NotesScreen(
         }
     }
 
+    // App backgrounding is the mobile `beforeunload` analog: flush any
+    // pending autosave so a backgrounded process never sits on unsaved
+    // values (the debounce alone would wait for a keystroke).
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) viewModel.flushNow()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    // Keep the editor's "Last edited" timestamp fresh after an autosave.
+    LaunchedEffect(editorStatus) {
+        if (editorStatus == NoteSaveStatus.SAVED) {
+            val id = editing?.id ?: return@LaunchedEffect
+            editing = state.notes.find { it.id == id }
+        }
+    }
+
     // ---- editor helpers (RN openCreate / openEdit / handleDiscard / effect) ----
 
     fun openCreate() {
         editing = null
         title = ""
         content = ""
-        hasUnsavedChanges = false
         showPreview = false
         showForm = true
+        viewModel.resetEditor()
     }
 
     fun openEdit(note: NoteResponse) {
@@ -156,56 +182,44 @@ fun NotesScreen(
         if (draft != null) {
             title = draft.title
             content = draft.content
-            // Blank title never counts as dirty (blank = keep the server title).
-            hasUnsavedChanges =
-                (draft.title.isNotBlank() && draft.title != note.title) ||
-                    draft.content != note.content
             toast.show(toastText(t("draftRestored"), t("draftRestoredDescription")))
         } else {
             title = note.title
             content = note.content
-            hasUnsavedChanges = false
         }
         showPreview = false
         showForm = true
+        // A restored draft starts out "Unsaved changes"; a flush (dismiss or
+        // background) persists it without requiring a keystroke.
+        viewModel.beginEdit(note, title, content)
     }
 
+    /** Discard: revert to the server values and drop the draft. */
     fun handleDiscard() {
         val note = editing ?: return
         viewModel.discardDraft(note.id)
         title = note.title
         content = note.content
-        hasUnsavedChanges = false
+        // Re-opens the autosave session on the server values → status IDLE.
+        viewModel.beginEdit(note, note.title, note.content)
     }
 
     /** The RN persist-while-typing effect lives here (title/content setters). */
     fun onEditorChange(newTitle: String, newContent: String) {
-        val note = editing ?: return
         title = newTitle
         content = newContent
-        // Blank title never counts as dirty (blank = keep the server title).
-        hasUnsavedChanges =
-            (newTitle.isNotBlank() && newTitle != note.title) ||
-                newContent != note.content
-        viewModel.syncEditorDraft(note.id, note.title, note.content, newTitle, newContent)
+        viewModel.onEditorChange(newTitle, newContent)
     }
 
+    /** Create-only manual save (the create flow has no autosave session). */
     fun handleSubmit() {
-        val target = editing
         scope.launch {
             isSaving = true
-            val error = viewModel.saveNote(target?.id, title, content)
+            val error = viewModel.saveNote(null, title, content)
             isSaving = false
             if (error == null) {
                 showForm = false
-                editing = null
-                hasUnsavedChanges = false
-                toast.show(
-                    toastText(
-                        if (target != null) t("noteSaved") else t("noteCreated"),
-                        if (target != null) t("noteSavedDescription") else t("startWriting"),
-                    ),
-                )
+                toast.show(toastText(t("noteCreated"), t("startWriting")))
             } else {
                 // The RN handler leaves the modal open on a failed save.
                 toast.show(toastText(t("failedToSave"), error), isError = true)
@@ -425,7 +439,12 @@ fun NotesScreen(
     // ---- note editor modal (RN slide-up modal → LbModalSheet) ----
     LbModalSheet(
         visible = showForm,
-        onDismiss = { showForm = false },
+        // Closing flushes first (web: navigating away saves) — the PUT rides
+        // on the app scope, so it outlives this screen.
+        onDismiss = {
+            viewModel.flushNow()
+            showForm = false
+        },
         title = if (editing != null) t("editNote") else t("newNote"),
     ) {
         NoteEditor(
@@ -433,14 +452,17 @@ fun NotesScreen(
             title = title,
             content = content,
             isSaving = isSaving,
-            hasUnsavedChanges = hasUnsavedChanges,
+            saveStatus = editorStatus,
             showPreview = showPreview,
             onTitleChange = { onEditorChange(it, content) },
             onContentChange = { onEditorChange(title, it) },
             onTogglePreview = { showPreview = !showPreview },
             onDiscard = ::handleDiscard,
             onSave = ::handleSubmit,
-            onCancel = { showForm = false },
+            onCancel = {
+                viewModel.flushNow()
+                showForm = false
+            },
         )
     }
 
@@ -824,7 +846,8 @@ private fun ReorderableCollectionItemScope.GroupListing(
 
 /// ---------------------------------------------------------------------
 /// Editor modal content: title + content (+ markdown preview swap), the
-/// "last edited" line, Discard link, Cancel/Save buttons.
+/// "last edited" line with the autosave status, Discard link, and a
+/// Save button for the create flow only (edits autosave).
 /// ---------------------------------------------------------------------
 
 @Composable
@@ -833,7 +856,7 @@ private fun NoteEditor(
     title: String,
     content: String,
     isSaving: Boolean,
-    hasUnsavedChanges: Boolean,
+    saveStatus: NoteSaveStatus,
     showPreview: Boolean,
     onTitleChange: (String) -> Unit,
     onContentChange: (String) -> Unit,
@@ -844,8 +867,8 @@ private fun NoteEditor(
 ) {
     val colors = LocalAppColors.current
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        // Discard link when editing a note with unsaved changes.
-        if (editing != null && hasUnsavedChanges) {
+        // Discard link while editing a note whose autosave has pending values.
+        if (editing != null && saveStatus == NoteSaveStatus.UNSAVED) {
             Text(
                 text = t("discard"),
                 fontSize = 14.sp,
@@ -913,7 +936,12 @@ private fun NoteEditor(
         }
 
         if (editing != null) {
-            val suffix = if (hasUnsavedChanges) " • ${t("unsavedChanges")}" else ""
+            val suffix = when (saveStatus) {
+                NoteSaveStatus.UNSAVED -> " • ${t("unsavedChanges")}"
+                NoteSaveStatus.SAVING -> " • ${t("saving")}"
+                NoteSaveStatus.SAVED -> " • ${t("saved")}"
+                NoteSaveStatus.IDLE -> ""
+            }
             Text(
                 text = t("lastEdited", "date" to formatEditedAt(editing.editedAt)) + suffix,
                 fontSize = 12.sp,
@@ -921,22 +949,33 @@ private fun NoteEditor(
             )
         }
 
+        // Edits save themselves (autosave): only Close. Creates still need
+        // the manual Save (POST requires a title).
         Row(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
         ) {
-            LbButton(
-                text = I18n.t("common.cancel"),
-                onClick = onCancel,
-                variant = LbButtonVariant.SECONDARY,
-                modifier = Modifier.weight(1f),
-            )
-            LbButton(
-                text = t("save"),
-                onClick = onSave,
-                loading = isSaving,
-                modifier = Modifier.weight(1f),
-            )
+            if (editing == null) {
+                LbButton(
+                    text = I18n.t("common.cancel"),
+                    onClick = onCancel,
+                    variant = LbButtonVariant.SECONDARY,
+                    modifier = Modifier.weight(1f),
+                )
+                LbButton(
+                    text = t("save"),
+                    onClick = onSave,
+                    loading = isSaving,
+                    modifier = Modifier.weight(1f),
+                )
+            } else {
+                LbButton(
+                    text = I18n.t("common.close"),
+                    onClick = onCancel,
+                    variant = LbButtonVariant.SECONDARY,
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
     }
 }

@@ -493,6 +493,7 @@
     "contentPlaceholder": "Start writing...",
     "addTitleHint": "Add a title so you can find this note",
     "saving": "Saving...",
+    "saved": "Saved",
     "save": "Save",
     "discard": "Discard",
     "lastEdited": "Last edited: {date}",
