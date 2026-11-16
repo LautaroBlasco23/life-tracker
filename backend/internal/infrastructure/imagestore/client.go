@@ -162,8 +162,8 @@ func (c *Client) putObject(ctx context.Context, input *s3.PutObjectInput) error 
 	if err == nil || !c.provisioning || !isNoSuchBucket(err) {
 		return err
 	}
-	if err := c.EnsureBucket(ctx); err != nil {
-		return err
+	if ensureErr := c.EnsureBucket(ctx); ensureErr != nil {
+		return ensureErr
 	}
 	_, err = c.s3.PutObject(ctx, input)
 	return err
