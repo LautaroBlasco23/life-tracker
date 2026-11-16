@@ -2,6 +2,10 @@
 
 package com.lifetracker.feature.notes
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -37,6 +41,7 @@ import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -56,7 +61,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.TextStyle
@@ -82,6 +90,7 @@ import com.lifetracker.core.designsystem.LocalToast
 import com.lifetracker.core.i18n.I18n
 import com.lifetracker.core.network.model.NoteGroupResponse
 import com.lifetracker.core.network.model.NoteResponse
+import com.lifetracker.domain.notes.NotesRepository
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableCollectionItemScope
 import sh.calvin.reorderable.ReorderableItem
@@ -89,6 +98,9 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
 
 /** Field-length cap of the RN group name input (`maxLength={100}`). */
 private const val MAX_GROUP_NAME = 100
+
+/** MIME types the note-image endpoint accepts (web image-paste PR parity). */
+private val ALLOWED_IMAGE_MIME = setOf("image/jpeg", "image/png", "image/webp")
 
 /**
  * Port of the RN notes screen `app/(app)/notes.tsx`: ungrouped notes first,
@@ -115,13 +127,17 @@ fun NotesScreen(
     var showForm by rememberSaveable { mutableStateOf(false) }
     var editing by remember { mutableStateOf<NoteResponse?>(null) }
     var title by remember { mutableStateOf("") }
-    var content by remember { mutableStateOf("") }
+    var contentValue by remember { mutableStateOf(TextFieldValue("")) }
     var isSaving by remember { mutableStateOf(false) }
     var showPreview by rememberSaveable { mutableStateOf(false) }
     var noteToDelete by remember { mutableStateOf<NoteResponse?>(null) }
 
     // Autosave status of the open editor (debounced PUT drives it).
     val editorStatus by viewModel.editorStatus.collectAsStateWithLifecycle()
+
+    // ---- image attach (web image-paste PR parity: gallery picker) ----
+    val context = LocalContext.current
+    var pendingUploads by remember { mutableIntStateOf(0) }
 
     // Group form (create/rename) + delete confirmation state.
     var showGroupForm by rememberSaveable { mutableStateOf(false) }
@@ -170,7 +186,7 @@ fun NotesScreen(
     fun openCreate() {
         editing = null
         title = ""
-        content = ""
+        contentValue = TextFieldValue("")
         showPreview = false
         showForm = true
         viewModel.resetEditor()
@@ -181,17 +197,17 @@ fun NotesScreen(
         val draft = viewModel.drafts.load(note.id)
         if (draft != null) {
             title = draft.title
-            content = draft.content
+            contentValue = TextFieldValue(draft.content)
             toast.show(toastText(t("draftRestored"), t("draftRestoredDescription")))
         } else {
             title = note.title
-            content = note.content
+            contentValue = TextFieldValue(note.content)
         }
         showPreview = false
         showForm = true
         // A restored draft starts out "Unsaved changes"; a flush (dismiss or
         // background) persists it without requiring a keystroke.
-        viewModel.beginEdit(note, title, content)
+        viewModel.beginEdit(note, title, contentValue.text)
     }
 
     /** Discard: revert to the server values and drop the draft. */
@@ -199,23 +215,84 @@ fun NotesScreen(
         val note = editing ?: return
         viewModel.discardDraft(note.id)
         title = note.title
-        content = note.content
+        contentValue = TextFieldValue(note.content)
         // Re-opens the autosave session on the server values → status IDLE.
         viewModel.beginEdit(note, note.title, note.content)
     }
 
-    /** The RN persist-while-typing effect lives here (title/content setters). */
-    fun onEditorChange(newTitle: String, newContent: String) {
+    /** Title keystrokes (content keystrokes flow through onContentChange). */
+    fun onTitleChange(newTitle: String) {
         title = newTitle
-        content = newContent
-        viewModel.onEditorChange(newTitle, newContent)
+        viewModel.onEditorChange(newTitle, contentValue.text)
     }
+
+    /** Content keystrokes; TextFieldValue keeps the cursor for image inserts. */
+    fun onContentChange(value: TextFieldValue) {
+        contentValue = value
+        viewModel.onEditorChange(title, value.text)
+    }
+
+    /** Inserts markdown at the content cursor, leaving the cursor after it. */
+    fun insertAtCursor(markdown: String) {
+        val text = contentValue.text
+        val cursor = contentValue.selection.end.coerceIn(0, text.length)
+        val next = text.substring(0, cursor) + markdown + text.substring(cursor)
+        contentValue = TextFieldValue(next, TextRange(cursor + markdown.length))
+        viewModel.onEditorChange(title, next)
+    }
+
+    /** Swaps (or, with an empty replacement, removes) an upload placeholder. */
+    fun settlePlaceholder(placeholder: String, replacement: String) {
+        val text = contentValue.text
+        val at = text.indexOf(placeholder)
+        if (at == -1) return
+        val next = text.replaceFirst(placeholder, replacement)
+        contentValue = TextFieldValue(next, TextRange((at + replacement.length).coerceAtMost(next.length)))
+        viewModel.onEditorChange(title, next)
+    }
+
+    /** Gallery pick → validate → insert placeholder → upload → settle. */
+    fun onImagePicked(uri: Uri?) {
+        if (uri == null) return
+        scope.launch {
+            val mime = context.contentResolver.getType(uri) ?: ""
+            if (mime !in ALLOWED_IMAGE_MIME) {
+                toast.show(t("unsupportedImageType"), isError = true)
+                return@launch
+            }
+            val bytes = runCatching {
+                context.contentResolver.openInputStream(uri)?.use { stream -> stream.readBytes() }
+            }.getOrNull()
+            if (bytes == null) {
+                toast.show(toastText(I18n.t("common.error"), null), isError = true)
+                return@launch
+            }
+            if (bytes.size > NotesRepository.MAX_IMAGE_BYTES) {
+                toast.show(t("imageTooLarge"), isError = true)
+                return@launch
+            }
+            // Placeholder swaps for the final URL on success (or vanishes on
+            // failure); autosave may persist it in between — harmless.
+            val placeholder = "![](uploading-${pendingUploads++})"
+            insertAtCursor(placeholder)
+            viewModel.uploadNoteImage(bytes, mime)
+                .onSuccess { url -> settlePlaceholder(placeholder, "![]($url)") }
+                .onFailure { error ->
+                    settlePlaceholder(placeholder, "")
+                    toast.show(toastText(I18n.t("common.error"), error.message), isError = true)
+                }
+        }
+    }
+
+    val imagePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia(),
+    ) { uri -> onImagePicked(uri) }
 
     /** Create-only manual save (the create flow has no autosave session). */
     fun handleSubmit() {
         scope.launch {
             isSaving = true
-            val error = viewModel.saveNote(null, title, content)
+            val error = viewModel.saveNote(null, title, contentValue.text)
             isSaving = false
             if (error == null) {
                 showForm = false
@@ -450,13 +527,18 @@ fun NotesScreen(
         NoteEditor(
             editing = editing,
             title = title,
-            content = content,
+            contentValue = contentValue,
             isSaving = isSaving,
             saveStatus = editorStatus,
             showPreview = showPreview,
-            onTitleChange = { onEditorChange(it, content) },
-            onContentChange = { onEditorChange(title, it) },
+            onTitleChange = ::onTitleChange,
+            onContentChange = ::onContentChange,
             onTogglePreview = { showPreview = !showPreview },
+            onAttachImage = {
+                imagePicker.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                )
+            },
             onDiscard = ::handleDiscard,
             onSave = ::handleSubmit,
             onCancel = {
@@ -854,13 +936,14 @@ private fun ReorderableCollectionItemScope.GroupListing(
 private fun NoteEditor(
     editing: NoteResponse?,
     title: String,
-    content: String,
+    contentValue: TextFieldValue,
     isSaving: Boolean,
     saveStatus: NoteSaveStatus,
     showPreview: Boolean,
     onTitleChange: (String) -> Unit,
-    onContentChange: (String) -> Unit,
+    onContentChange: (TextFieldValue) -> Unit,
     onTogglePreview: () -> Unit,
+    onAttachImage: () -> Unit,
     onDiscard: () -> Unit,
     onSave: () -> Unit,
     onCancel: () -> Unit,
@@ -903,13 +986,29 @@ private fun NoteEditor(
 
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(
                 text = t("contentPlaceholder"),
                 fontSize = 14.sp,
                 color = colors.foreground,
+                modifier = Modifier.weight(1f),
+            )
+            // Gallery attach (web: clipboard paste is not a mobile gesture).
+            Icon(
+                imageVector = Icons.Outlined.Image,
+                contentDescription = t("attachImage"),
+                tint = colors.primary,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onAttachImage,
+                    )
+                    .padding(2.dp)
+                    .size(20.dp),
             )
             Text(
                 text = if (showPreview) t("edit") else t("preview"),
@@ -926,10 +1025,10 @@ private fun NoteEditor(
         }
 
         if (showPreview) {
-            MarkdownPreview(content)
+            MarkdownPreview(contentValue.text)
         } else {
             NotesContentField(
-                value = content,
+                value = contentValue,
                 onValueChange = onContentChange,
                 placeholder = t("contentPlaceholder"),
             )
@@ -982,7 +1081,11 @@ private fun NoteEditor(
 
 /** The bordered multi-line content input (RN 160px min-height field). */
 @Composable
-private fun NotesContentField(value: String, onValueChange: (String) -> Unit, placeholder: String) {
+private fun NotesContentField(
+    value: TextFieldValue,
+    onValueChange: (TextFieldValue) -> Unit,
+    placeholder: String,
+) {
     val colors = LocalAppColors.current
     // Live markdown styling while typing (markers dim, never removed).
     val markdownTransformation = remember(colors.foreground, colors.textMuted, colors.primary, colors.border) {
@@ -1002,7 +1105,7 @@ private fun NotesContentField(value: String, onValueChange: (String) -> Unit, pl
             .padding(horizontal = 12.dp, vertical = 10.dp),
         contentAlignment = Alignment.TopStart,
     ) {
-        if (value.isEmpty()) {
+        if (value.text.isEmpty()) {
             Text(placeholder, fontSize = 16.sp, color = colors.textMuted)
         }
         BasicTextField(

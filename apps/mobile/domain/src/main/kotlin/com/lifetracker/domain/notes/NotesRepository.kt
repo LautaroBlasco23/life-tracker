@@ -20,6 +20,9 @@ import javax.inject.Singleton
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
+import okhttp3.RequestBody.Companion.toRequestBody
 import retrofit2.Response
 
 /**
@@ -35,6 +38,11 @@ import retrofit2.Response
 class NotesRepository @Inject constructor(
     private val api: NotesApi,
 ) {
+    /** Server-side image cap (the note service rejects >10 MB). */
+    companion object {
+        const val MAX_IMAGE_BYTES = 10L * 1024 * 1024
+    }
+
     // ---- notes ----
 
     /** GET /notes — list; `query` is the full-text filter (`q=…`). */
@@ -66,6 +74,32 @@ class NotesRepository @Inject constructor(
     /** DELETE /notes/:id. */
     suspend fun deleteNote(id: Int) {
         api.deleteNote(id).successOrThrow()
+    }
+
+    /**
+     * POST /notes/images — multipart part `image` (web note-image PR parity,
+     * clones the avatar upload pattern). Bytes are produced by the screen
+     * (ContentResolver); the repo only sees raw bytes + the picked MIME type.
+     * Returns the public URL to embed in the note's markdown as `![](url)`.
+     */
+    suspend fun uploadImage(bytes: ByteArray, contentType: String): String {
+        val mediaType = contentType.ifBlank { "image/jpeg" }.toMediaType()
+        val part = MultipartBody.Part.createFormData(
+            name = "image",
+            filename = imageFileName(contentType),
+            body = bytes.toRequestBody(mediaType),
+        )
+        return api.uploadNoteImage(part).successOrThrow().data?.url
+            ?: throw ApiError("Failed to upload image")
+    }
+
+    private fun imageFileName(contentType: String): String {
+        val extension = when {
+            contentType.contains("png") -> "png"
+            contentType.contains("webp") -> "webp"
+            else -> "jpg"
+        }
+        return "note.$extension"
     }
 
     // ---- note groups ----

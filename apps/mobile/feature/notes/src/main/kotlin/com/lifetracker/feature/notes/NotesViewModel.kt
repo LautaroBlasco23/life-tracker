@@ -217,6 +217,16 @@ class NotesViewModel @Inject constructor(
             onFailure = { it.message ?: "An error occurred" },
         )
 
+    /// ---- note images ----
+
+    /**
+     * POST /notes/images — uploads a picked image and returns its public
+     * URL for embedding (`![](url)`), or the failure for the toast
+     * (mirrors `saveNote`'s result contract).
+     */
+    suspend fun uploadNoteImage(bytes: ByteArray, contentType: String): Result<String> =
+        runCatching { repo.uploadImage(bytes, contentType) }
+
     /// ---- groups CRUD ----
 
     /**

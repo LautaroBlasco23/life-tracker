@@ -81,4 +81,27 @@ class NotesRepositoryTest {
         assertTrue("expected title in body: $body", body.contains("\"title\":\"Shopping list\""))
         assertTrue("expected content in body: $body", body.contains("\"content\":\"hello world\""))
     }
+
+    @Test
+    fun `uploadImage posts multipart and returns the public url`() = kotlinx.coroutines.test.runTest {
+        server.enqueue(
+            MockResponse(
+                body = """{"message":"Note image uploaded successfully","data":{"url":"https://cdn.example/img"}}""",
+            ),
+        )
+
+        val url = repo.uploadImage(bytes = "PNGDATA".toByteArray(), contentType = "image/png")
+
+        assertEquals("https://cdn.example/img", url)
+        val request = server.takeRequest()
+        assertEquals("/api/notes/images", request.target)
+        assertTrue(
+            "expected multipart content type: ${request.headers["Content-Type"]}",
+            request.headers["Content-Type"]?.startsWith("multipart/form-data") == true,
+        )
+        val body = request.body!!.utf8()
+        assertTrue("expected the image part: $body", body.contains("name=\"image\""))
+        assertTrue("expected the png filename: $body", body.contains("filename=\"note.png\""))
+        assertTrue("expected the raw bytes: $body", body.contains("PNGDATA"))
+    }
 }

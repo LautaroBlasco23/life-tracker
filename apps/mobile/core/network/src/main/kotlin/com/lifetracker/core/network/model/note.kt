@@ -45,8 +45,13 @@ data class ReorderNotesRequest(
     val items: List<NotePositionItem>,
 )
 
-/** Item of `GET /notes` (list envelope) and `GET /notes/{id}` (single). */
+/** Response of `POST /notes/images` — the public URL to embed as `![](url)`. */
 @Serializable
+data class NoteImageResponse(
+    val url: String,
+)
+
+/** Item of `GET /notes` (list envelope) and `GET /notes/{id}` (single). */@Serializable
 data class NoteResponse(
     val id: Int,
     val userId: Int,
