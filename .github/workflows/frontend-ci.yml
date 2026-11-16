@@ -345,6 +345,7 @@ jobs:
           docker logs lifetracker-web --tail 50 || true
           docker logs golang_api_aws_emulator --tail 50 || true
           docker inspect -f 'aws-emulator: status={{.State.Status}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}} restarts={{.RestartCount}}' golang_api_aws_emulator || true
+          sudo dmesg | grep -iE "apparmor|audit|denied|oom" | tail -30 || true
 
       - name: Upload Playwright report
         if: failure()

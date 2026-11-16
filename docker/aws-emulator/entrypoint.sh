@@ -38,4 +38,8 @@ if [ ! -f "$DIR/ca.pem" ]; then
 fi
 chmod -R a+rX "$HOME/.aws/emulator"
 
+set +e
 wait "$PID"
+code=$?
+echo "aws-emulator process exited with $code" >&2
+exit "$code"
