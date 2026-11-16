@@ -16,6 +16,7 @@ import (
 	awshttp "github.com/aws/aws-sdk-go-v2/aws/transport/http"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/s3/types"
+	"github.com/aws/smithy-go"
 )
 
 const maxImageSize = 10 * 1024 * 1024
@@ -24,6 +25,11 @@ type Client struct {
 	s3      *s3.Client
 	bucket  string
 	baseURL string
+	// provisioning marks the local S3 emulator lane (AWS_ENDPOINT_URL set).
+	// The emulator keeps state in memory, so an emulator restart loses the
+	// bucket; uploads then recover by provisioning it again lazily. Never
+	// set against real AWS — production manages the bucket outside the app.
+	provisioning bool
 }
 
 func NewClient(cfg *config.Config) (*Client, error) {
@@ -38,9 +44,10 @@ func NewClient(cfg *config.Config) (*Client, error) {
 	})
 
 	return &Client{
-		s3:      s3Client,
-		bucket:  cfg.S3Bucket,
-		baseURL: strings.TrimRight(cfg.S3PublicURL, "/"),
+		s3:           s3Client,
+		bucket:       cfg.S3Bucket,
+		baseURL:      strings.TrimRight(cfg.S3PublicURL, "/"),
+		provisioning: cfg.AWSEndpointURL != "",
 	}, nil
 }
 
@@ -115,13 +122,12 @@ func (c *Client) UploadProfileImage(ctx context.Context, userID uint, imageData 
 
 	key := fmt.Sprintf("users/%d/avatar", userID)
 
-	_, err := c.s3.PutObject(ctx, &s3.PutObjectInput{
+	if err := c.putObject(ctx, &s3.PutObjectInput{
 		Bucket:      awssdk.String(c.bucket),
 		Key:         awssdk.String(key),
 		Body:        bytes.NewReader(imageData),
 		ContentType: awssdk.String(getContentType(filename)),
-	})
-	if err != nil {
+	}); err != nil {
 		return "", "", fmt.Errorf("failed to upload image to S3: %w", err)
 	}
 
@@ -136,17 +142,41 @@ func (c *Client) UploadNoteImage(ctx context.Context, userID uint, imageData []b
 
 	key := fmt.Sprintf("notes/%d/%s%s", userID, newObjectID(), strings.ToLower(filepath.Ext(filename)))
 
-	_, err := c.s3.PutObject(ctx, &s3.PutObjectInput{
+	if err := c.putObject(ctx, &s3.PutObjectInput{
 		Bucket:      awssdk.String(c.bucket),
 		Key:         awssdk.String(key),
 		Body:        bytes.NewReader(imageData),
 		ContentType: awssdk.String(getContentType(filename)),
-	})
-	if err != nil {
+	}); err != nil {
 		return "", fmt.Errorf("failed to upload image to S3: %w", err)
 	}
 
 	return fmt.Sprintf("%s/%s/%s", c.baseURL, c.bucket, key), nil
+}
+
+// putObject uploads the object, and on the emulator lane recovers lazily
+// when the bucket has vanished (emulator restarts lose all state): it
+// re-provisions the bucket and retries the upload once.
+func (c *Client) putObject(ctx context.Context, input *s3.PutObjectInput) error {
+	_, err := c.s3.PutObject(ctx, input)
+	if err == nil || !c.provisioning || !isNoSuchBucket(err) {
+		return err
+	}
+	if err := c.EnsureBucket(ctx); err != nil {
+		return err
+	}
+	_, err = c.s3.PutObject(ctx, input)
+	return err
+}
+
+// isNoSuchBucket reports whether err is S3's NoSuchBucket error.
+func isNoSuchBucket(err error) bool {
+	var nf *types.NoSuchBucket
+	if errors.As(err, &nf) {
+		return true
+	}
+	var apiErr smithy.APIError
+	return errors.As(err, &apiErr) && apiErr.ErrorCode() == "NoSuchBucket"
 }
 
 func (c *Client) DeleteImage(ctx context.Context, imageID string, userID string) error {

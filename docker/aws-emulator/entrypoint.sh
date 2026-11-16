@@ -36,7 +36,12 @@ if [ ! -f "$DIR/ca.pem" ]; then
   kill "$PID" 2>/dev/null || true
   exit 1
 fi
-chmod -R a+rX "$HOME/.aws/emulator"
+# Relax the modes of the files the emulator generated (it owns everything
+# under the port dir). The mount root can also contain files owned by other
+# host users (e.g. a checkout's .gitkeep under a self-hosted runner, where
+# the runner uid differs from the container uid) — chmod cannot touch those,
+# they don't matter, and under `set -e` their EPERM would kill the script.
+chmod -R a+rX "$DIR" 2>/dev/null || true
 
 set +e
 wait "$PID"

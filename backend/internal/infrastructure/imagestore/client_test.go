@@ -47,7 +47,7 @@ func (f *fakeS3) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			f.policy = string(body)
 			f.ops = append(f.ops, "policy")
 			w.WriteHeader(http.StatusOK)
-		case strings.HasPrefix(r.URL.Path, "/"+c_bucket):
+		case r.URL.Path == "/"+c_bucket:
 			if f.created {
 				w.WriteHeader(http.StatusConflict)
 				return
@@ -56,7 +56,15 @@ func (f *fakeS3) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			f.ops = append(f.ops, "create")
 			w.WriteHeader(http.StatusOK)
 		default:
-			w.WriteHeader(http.StatusBadRequest)
+			// Object PUT. A nonexistent bucket answers NoSuchBucket.
+			if !f.created {
+				w.Header().Set("Content-Type", "application/xml")
+				w.WriteHeader(http.StatusNotFound)
+				_, _ = w.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?><Error><Code>NoSuchBucket</Code><Message>The specified bucket does not exist</Message></Error>`))
+				return
+			}
+			f.ops = append(f.ops, "put")
+			w.WriteHeader(http.StatusOK)
 		}
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
@@ -75,7 +83,7 @@ func newTestClient(t *testing.T, serverURL string) *Client {
 		o.UsePathStyle = true
 		o.BaseEndpoint = awssdk.String(serverURL)
 	})
-	return &Client{s3: s3Client, bucket: c_bucket, baseURL: serverURL}
+	return &Client{s3: s3Client, bucket: c_bucket, baseURL: serverURL, provisioning: true}
 }
 
 func TestEnsureBucketProvisionsFreshBucket(t *testing.T) {
@@ -134,5 +142,49 @@ func TestEnsureBucketSurfacesTransportErrors(t *testing.T) {
 	client := newTestClient(t, server.URL)
 	if err := client.EnsureBucket(context.Background()); err == nil {
 		t.Fatal("EnsureBucket with a 500ing S3 should fail")
+	}
+}
+
+func TestUploadRecoversVanishedBucket(t *testing.T) {
+	// The emulator keeps state in memory: after a restart the bucket is
+	// gone (created=false) and the first PUT answers NoSuchBucket. The
+	// upload must recover by provisioning the bucket and retrying once.
+	fake := &fakeS3{}
+	server := httptest.NewServer(fake)
+	defer server.Close()
+
+	client := newTestClient(t, server.URL)
+	url, err := client.UploadNoteImage(context.Background(), 1, []byte("x"), "shot.png")
+	if err != nil {
+		t.Fatalf("UploadNoteImage after bucket loss: %v", err)
+	}
+	if !strings.Contains(url, c_bucket+"/notes/1/") {
+		t.Errorf("unexpected url %q", url)
+	}
+	want := []string{"create", "public-access-block", "policy", "put"}
+	if len(fake.ops) != len(want) {
+		t.Fatalf("operations = %v, want %v", fake.ops, want)
+	}
+	for i, op := range want {
+		if fake.ops[i] != op {
+			t.Fatalf("operation %d = %q, want %q (full order: %v)", i, fake.ops[i], op, fake.ops)
+		}
+	}
+}
+
+func TestUploadWithoutProvisioningDoesNotRetry(t *testing.T) {
+	// Against real AWS (provisioning disabled) a NoSuchBucket must surface
+	// as an error, not silently create buckets.
+	fake := &fakeS3{}
+	server := httptest.NewServer(fake)
+	defer server.Close()
+
+	client := newTestClient(t, server.URL)
+	client.provisioning = false
+	if _, err := client.UploadNoteImage(context.Background(), 1, []byte("x"), "shot.png"); err == nil {
+		t.Fatal("upload into a missing bucket should fail when provisioning is disabled")
+	}
+	if len(fake.ops) != 0 {
+		t.Errorf("operations = %v, want none", fake.ops)
 	}
 }
