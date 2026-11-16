@@ -12,9 +12,10 @@
 #                  and explicit service names (loadtest-*), so it works
 #                  regardless of .env and never touches dev DB data
 #                  (make -C loadtest stack-up enables it)
-#   localstack     S3 emulator for local image-upload development; the api
-#                  service targets it via AWS_ENDPOINT_URL when it is set in
-#                  .env (e.g. AWS_ENDPOINT_URL=http://localstack:4566)
+#   aws-emulator   official AWS Emulator (aws/aws-emulator) serving S3 for
+#                  local image-upload development; the api service targets
+#                  it via AWS_ENDPOINT_URL when it is set in .env (the
+#                  container lane points at the s3-pipe TLS bridge)
 #
 # Test databases reuse the same postgres/mongodb definitions: their names,
 # ports, volumes and network are env-parameterized, so
@@ -41,15 +42,23 @@ services:
       MONGO_HOST: mongodb
       # S3 image storage. Unset values fall back to the same defaults the
       # backend config applies (empty endpoint -> real AWS; region us-east-1;
-      # bucket lifetracker-images). To use the opt-in `localstack` profile,
-      # set AWS_ENDPOINT_URL=http://localstack:4566 in .env — S3_PUBLIC_URL
-      # then defaults to http://localhost:4566 in the backend config.
+      # bucket lifetracker-images; S3_PUBLIC_URL -> the AWS Emulator's
+      # published endpoint when an endpoint is set). To use the opt-in
+      # `aws-emulator` profile, set AWS_ENDPOINT_URL=http://s3-pipe:9297 in
+      # .env — the api then talks plain HTTP to the s3-pipe TLS bridge.
+      # S3_PUBLIC_URL stays unset: the backend defaults it to the emulator's
+      # browser-facing https://127.0.0.1:9297 endpoint.
       AWS_ENDPOINT_URL: ${AWS_ENDPOINT_URL:-}
       AWS_REGION: ${AWS_REGION:-us-east-1}
       AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
       AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
       S3_BUCKET: ${S3_BUCKET:-lifetracker-images}
       S3_PUBLIC_URL: ${S3_PUBLIC_URL:-}
+      # The host lane (`make dev`) sets AWS_CA_BUNDLE in .env to a host path
+      # for the emulator's per-start TLS cert; that path does not exist inside
+      # this container, so force it empty here (the container lane needs no CA
+      # bundle — it talks plain HTTP to s3-pipe).
+      AWS_CA_BUNDLE: ""
     depends_on:
       postgres:
         condition: service_healthy
@@ -237,26 +246,56 @@ services:
     networks:
       - golang_api_network
 
-  # --- localstack profile (opt-in S3 emulator for image uploads) ---
+  # --- aws-emulator profile (official AWS S3 emulator for image uploads) ---
 
-  localstack:
-    profiles: ["localstack"]
-    # 3.8.1: the last plain-community release. Newer images gate on a
-    # pro license (exit 55) and the `s3`/`s3-latest` tags do not exist.
-    image: localstack/localstack:3.8.1
-    container_name: golang_api_localstack
+  # aws/aws-emulator, built from AWS's own Docker recipe (no published
+  # image). Serves HTTPS with a self-signed cert regenerated at every start;
+  # the cert lands in ./docker/aws-emulator/certs (relaxed mode by the image
+  # entrypoint) for the host-lane api and local SDKs to trust. The bucket,
+  # its Block Public Access state, and its public-read policy are provisioned
+  # by the backend on boot (imagestore.EnsureBucket, gated on
+  # AWS_ENDPOINT_URL) — no init script.
+  aws-emulator:
+    profiles: ["aws-emulator"]
+    build:
+      context: ./docker/aws-emulator
+      dockerfile: Dockerfile
+    container_name: golang_api_aws_emulator
     restart: unless-stopped
+    mem_limit: 2g
     ports:
-      # Loopback only: the emulator accepts any credentials, so it must not
-      # be reachable from other hosts.
-      - "127.0.0.1:4566:4566"
-    environment:
-      AWS_DEFAULT_REGION: ${AWS_REGION:-us-east-1}
-      S3_BUCKET: ${S3_BUCKET:-lifetracker-images}
+      # Loopback only: --auth off accepts any credentials, so it must not be
+      # reachable from other hosts.
+      - "127.0.0.1:9297:9297"
     volumes:
-      # Ready hook: create the app's image bucket once S3 is up.
-      - ./docker/localstack/init-s3.py:/etc/localstack/init/ready.d/init-s3.py:ro
-      - localstack_data:/var/lib/localstack
+      - ./docker/aws-emulator/certs:/home/emulator/.aws/emulator
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "--cacert", "/home/emulator/.aws/emulator/9297/ca.pem", "https://127.0.0.1:9297/__admin/health"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+    networks:
+      - golang_api_network
+
+  # TLS bridge: the emulator serves HTTPS only, with a self-signed cert
+  # covering just localhost/127.0.0.1 — no DNS name can pass TLS hostname
+  # verification. The api talks PLAIN HTTP to this bridge (which means no
+  # hostname applies and the bridge can live in its own container) and the
+  # bridge re-encrypts toward the emulator. verify=0: socat cannot verify
+  # the emulator's SAN set (its verify path breaks the handshake against
+  # this cert); the link is dev-only, profile-gated, and internal to the
+  # compose network. The browser path does NOT go through this bridge — it
+  # fetches the emulator's TLS endpoint directly.
+  s3-pipe:
+    profiles: ["aws-emulator"]
+    image: alpine/socat@sha256:71131702f671a88b3808a70b7330f9679cd9b9933adcafadc191508edfe55bba
+    container_name: golang_api_s3_pipe
+    restart: unless-stopped
+    depends_on:
+      aws-emulator:
+        condition: service_healthy
+    command: TCP-LISTEN:9297,fork,reuseaddr OPENSSL:aws-emulator:9297,verify=0
     networks:
       - golang_api_network
 
@@ -343,8 +382,6 @@ services:
 
 volumes:
   postgres_data:
-    driver: local
-  localstack_data:
     driver: local
   postgres_test_data:
     driver: local

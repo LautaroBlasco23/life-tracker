@@ -74,6 +74,25 @@ func run() error {
 
 	slog.Info("connected to ImageStore service")
 
+	// Local S3 emulator lane (AWS_ENDPOINT_URL set): provision the image
+	// bucket, its public-read policy, and Block Public Access state. Real
+	// AWS deployments manage the bucket outside the app. The lane may still
+	// be booting (compose starts services in parallel and the TLS bridge
+	// follows the emulator's health check), so retry until it answers.
+	if cfg.AWSEndpointURL != "" {
+		var ensureErr error
+		for attempt := 1; attempt <= 15; attempt++ {
+			if ensureErr = imageClient.EnsureBucket(context.Background()); ensureErr == nil {
+				break
+			}
+			slog.Warn("image bucket not ready yet", "attempt", attempt, "error", ensureErr)
+			time.Sleep(2 * time.Second)
+		}
+		if ensureErr != nil {
+			return fmt.Errorf("failed to ensure image bucket: %w", ensureErr)
+		}
+	}
+
 	// Set Gin mode
 	gin.SetMode(cfg.GinMode)
 

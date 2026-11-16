@@ -50,7 +50,7 @@ ENV_FILE := $(if $(wildcard $(CURDIR)/.env),$(CURDIR)/.env,$(CURDIR)/.env.exampl
 # Compose wrapper (project name pinned in docker-compose.yml).
 COMPOSE := docker compose -f docker-compose.yml
 
-.PHONY: help components docs tests dev dev-container dev-full stop test \
+.PHONY: help components docs tests dev dev-container dev-full s3-emulator s3-emulator-certs stop test \
 	test-backend test-backend-only test-backend-coverage test-backend-e2e \
 	test-web test-web-e2e test-web-e2e-ui test-shared test-mobile \
 	loadtest loadtest-% loadtest-stack-up loadtest-stack-down \
@@ -72,6 +72,7 @@ help:
 	@printf "$(GREEN)  RUN$(RST) — one mode at a time; stop before switching\n"
 	@printf "    make dev            fast lane: air (api :8080) · next dev (web :3000) · compose db\n"
 	@printf "    make dev-container  container mode: API :8080 · postgres · mongo · web :3000\n"
+	@printf "    make s3-emulator    S3 emulator for image uploads (AWS Emulator :9297, loopback)\n"
 	@printf "    make dev-full       container mode + observability: Prometheus :9090 · Grafana :3001\n"
 	@printf "    make %-18s %s\n" "mobile" "mobile dev loop: emulator + API + gradle install · [R] rebuild app"
 	@printf "    make %-18s %s\n" "e2e-mobile" "Maestro smoke e2e: boots emulator + API + app, runs the flow"
@@ -193,12 +194,19 @@ dev: setup db-up
 	cd backend && air -c .air.toml; \
 	status=$$?; kill -- -$$fe_pid 2>/dev/null; exit $$status
 
+# Certificates dir the aws-emulator container writes its per-start TLS cert
+# into. Must exist and be writable by the emulator's container uid (1000) on
+# any host (CI's runner user owns it and runs as a different uid).
+s3-emulator-certs:
+	@mkdir -p docker/aws-emulator/certs
+	@chmod 0777 docker/aws-emulator/certs
+
 # Container mode: api + databases + frontend, no observability.
-dev-container:
+dev-container: s3-emulator-certs
 	@echo "==> container mode: api + postgres + mongodb + frontend"
 	@echo "==> env file: $(notdir $(ENV_FILE))"
 	@[ -f "$(ENV_FILE)" ] || (echo ".env/.env.example not found — run 'make setup'"; exit 1)
-	$(COMPOSE) --env-file $(ENV_FILE) up -d --build
+	$(COMPOSE) --env-file $(ENV_FILE) --profile aws-emulator up -d --build
 	@echo "==> migrations"
 	@$(MAKE) --no-print-directory dev-migrate
 	@echo "==> frontend (nginx /api -> api:8080)"
@@ -207,14 +215,22 @@ dev-container:
 	@echo "Container mode ready:"
 	@echo "  API:      http://localhost:8080/api"
 	@echo "  Frontend: http://localhost:3000  (proxies /api to :8080)"
+	@echo "  S3:       AWS Emulator on :9297 (used when AWS_ENDPOINT_URL is set in $(notdir $(ENV_FILE)))"
+
+# Host lane helper: start just the S3 emulator for `make dev` (the api runs
+# on the host and reaches the published TLS port directly — set
+# AWS_ENDPOINT_URL + AWS_CA_BUNDLE as documented in .env.example).
+s3-emulator: s3-emulator-certs
+	$(COMPOSE) --env-file $(ENV_FILE) --profile aws-emulator up -d --build aws-emulator
+	@echo "S3 emulator ready: https://127.0.0.1:9297 (loopback only)"
 
 # Container mode + observability (Prometheus, Grafana, Loki, Promtail,
 # node-exporter). Prometheus scrapes api:8080; Grafana on :3001.
-dev-full:
+dev-full: s3-emulator-certs
 	@echo "==> container mode + observability"
 	@echo "==> env file: $(notdir $(ENV_FILE))"
 	@[ -f "$(ENV_FILE)" ] || (echo ".env/.env.example not found — run 'make setup'"; exit 1)
-	$(COMPOSE) --env-file $(ENV_FILE) --profile observability up -d --build
+	$(COMPOSE) --env-file $(ENV_FILE) --profile observability --profile aws-emulator up -d --build
 	@echo "==> migrations"
 	@$(MAKE) --no-print-directory dev-migrate
 	@echo "==> frontend (nginx /api -> api:8080)"
@@ -231,7 +247,7 @@ dev-full:
 # passed — pass them all explicitly so every service of the project (including
 # observability + loadtest) is removed, plus the running web container.
 stop:
-	$(COMPOSE) --profile observability --profile loadtest down
+	$(COMPOSE) --profile observability --profile loadtest --profile aws-emulator down
 	@# `make dev`'s frontend runs on the host, not in compose — compose down
 	@# can't stop it. Kill any next dev / next-server belonging to this repo
 	@# (next-server retitles its cmdline, so match it via /proc cwd instead).

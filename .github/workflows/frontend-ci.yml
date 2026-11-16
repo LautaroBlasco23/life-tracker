@@ -262,11 +262,17 @@ jobs:
       # (config.Validate, by design), so generate ephemeral CI-only values —
       # otherwise the api container crash-loops and the health check below
       # never connects (this is why e2e was permanently red).
+      #
+      # AWS_ENDPOINT_URL points the api at the s3-pipe TLS bridge (plain HTTP
+      # on the compose network) so image uploads hit the aws-emulator profile
+      # the lane starts; the backend provisions the image bucket and its
+      # public-read policy on boot (imagestore.EnsureBucket).
       - name: Prepare env file
         run: |
           make setup
           sed -i "s|^JWT_SECRET=.*|JWT_SECRET=$(openssl rand -hex 32)|" .env
           sed -i "s|^DB_PASSWORD=.*|DB_PASSWORD=$(openssl rand -hex 16)|" .env
+          sed -i "s|^AWS_ENDPOINT_URL=.*|AWS_ENDPOINT_URL=http://s3-pipe:9297|" .env
 
       # Builds the api image, starts postgres + mongodb + api, runs
       # migrations, then builds the static export and serves it via nginx

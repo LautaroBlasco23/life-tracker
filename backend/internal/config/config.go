@@ -143,7 +143,12 @@ func Load() *Config {
 	s3PublicURL := getEnv("S3_PUBLIC_URL", "")
 	if s3PublicURL == "" {
 		if awsEndpointURL != "" {
-			s3PublicURL = "http://localhost:4566"
+			// Local S3 emulator lane: the emulator rejects browser image
+			// fetches that are not same-origin (real-S3 Fetch Metadata
+			// semantics), so the dev lane serves images through the web
+			// nginx's same-origin proxy (see nginx/nginx.conf) instead of
+			// hotlinking the emulator. Override for other setups.
+			s3PublicURL = "http://127.0.0.1:3000"
 		} else {
 			s3PublicURL = fmt.Sprintf("https://%s.s3.%s.amazonaws.com", s3Bucket, awsRegion)
 		}
