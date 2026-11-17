@@ -45,7 +45,12 @@ DEV_JWT_SECRET := dev-jwt-life-tracker-6b3f9c2e7d4a8150b2e6c9f3a7d1e5b0
 # Env file for docker commands: root .env when present, else .env.example (dev
 # defaults). Absolute so it survives recipe shells; consumed via --env-file
 # (variable substitution) and by scripts/migrate.sh.
-ENV_FILE := $(if $(wildcard $(CURDIR)/.env),$(CURDIR)/.env,$(CURDIR)/.env.example)
+# Recursively expanded (`=`), not `:=`: a recipe that runs `setup` earlier in
+# the same make invocation creates .env, and every later use of $(ENV_FILE)
+# (compose --env-file, CHECK_ENV) must see it. With `:=` the value is frozen
+# at parse time — before any recipe runs — and a freshly seeded worktree
+# still composes with .env.example and fails the JWT placeholder guard.
+ENV_FILE = $(if $(wildcard $(CURDIR)/.env),$(CURDIR)/.env,$(CURDIR)/.env.example)
 
 # Compose wrapper (project name pinned in docker-compose.yml).
 COMPOSE := docker compose -f docker-compose.yml
@@ -202,7 +207,7 @@ s3-emulator-certs:
 	@chmod 0777 docker/aws-emulator/certs
 
 # Container mode: api + databases + frontend, no observability.
-dev-container: s3-emulator-certs
+dev-container: setup s3-emulator-certs
 	@echo "==> container mode: api + postgres + mongodb + frontend"
 	@echo "==> env file: $(notdir $(ENV_FILE))"
 	@[ -f "$(ENV_FILE)" ] || (echo ".env/.env.example not found — run 'make setup'"; exit 1)
@@ -226,7 +231,7 @@ s3-emulator: s3-emulator-certs
 
 # Container mode + observability (Prometheus, Grafana, Loki, Promtail,
 # node-exporter). Prometheus scrapes api:8080; Grafana on :3001.
-dev-full: s3-emulator-certs
+dev-full: setup s3-emulator-certs
 	@echo "==> container mode + observability"
 	@echo "==> env file: $(notdir $(ENV_FILE))"
 	@[ -f "$(ENV_FILE)" ] || (echo ".env/.env.example not found — run 'make setup'"; exit 1)
@@ -491,7 +496,7 @@ fe-shell-dev:
 # backend/.env.test): separate containers, ports (:5432/:27017 vs
 # :5433/:27018), volumes and network (see docker-compose.yml).
 
-db-up:
+db-up: setup
 	@[ -f "$(ENV_FILE)" ] || (echo ".env/.env.example not found — run 'make setup'"; exit 1)
 	$(COMPOSE) --env-file $(ENV_FILE) up -d postgres mongodb
 
@@ -759,7 +764,10 @@ E2E_PASS     ?= E2eOnly!2026pass
 
 # Ensure the dev API is healthy on :8080 (start db + air if not). Extracted
 # from the inline block in `make mobile`; the two stay behaviorally in sync.
-api-up:
+# setup first: .env is gitignored so fresh worktrees only have .env.example,
+# and CHECK_ENV below fails on its placeholder JWT_SECRET (this is what made
+# `make mobile` die after the APK install before the setup hook existed).
+api-up: setup
 	@if curl -sf --connect-timeout 1 -m 2 http://localhost:8080/health >/dev/null 2>&1; then \
 		echo "✓ API already on :8080"; \
 	else \
