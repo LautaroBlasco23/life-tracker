@@ -88,12 +88,14 @@ jobs:
         working-directory: frontend
         run: npm test
 
-      # Coverage is report-only for now (decision: ratchet gate added later).
-      # test:coverage re-runs the suite instrumented; totals go to the job
-      # summary, the html report to an artifact.
-      - name: Coverage report (vitest, report-only)
+      # Hard coverage gate: vitest enforces the per-glob thresholds defined in
+      # vitest.config.ts and exits non-zero when any floor drops. Ratchet
+      # policy: thresholds may only move up. pipefail is required — without
+      # it, tee masks vitest's exit code and the gate never fails.
+      - name: Coverage (hard gate)
         working-directory: frontend
         run: |
+          set -o pipefail
           npm run test:coverage 2>&1 | tee coverage.log
           grep -E "All files" coverage.log | head -1 >> "$GITHUB_STEP_SUMMARY" || true
           rm -f coverage.log
@@ -116,6 +118,33 @@ jobs:
       - name: Dependency audit (npm audit)
         working-directory: frontend
         run: node scripts/audit-prod.mjs
+
+  # The shared package is consumed by the web app from source, so shared
+  # changes ride the frontend path filter. Its unit suite (with the coverage
+  # gate from packages/shared/vitest.config.ts) runs here — without this job
+  # the shared suite never executes in CI at all.
+  shared-tests:
+    needs: [changes]
+    if: github.event_name != 'pull_request' || needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # --coverage enables the per-glob thresholds in
+      # packages/shared/vitest.config.ts; vitest exits non-zero when any
+      # floor drops (ratchet policy: thresholds may only move up).
+      - name: Shared unit tests (coverage gate)
+        run: npm test -w @life-tracker/shared -- --coverage
 
   # Docker images are published only for real versions: vX.Y.Z tags cut by
   # release-please (see release.yml). Regular main pushes run build-export only.

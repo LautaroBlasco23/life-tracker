@@ -36,11 +36,14 @@ their own routers with inline auth fakes.
 |---|---|
 | `make test-backend` | Starts test DBs (`docker-compose.yml` with `backend/.env.test`), runs `gotestsum -race`, stops DBs |
 | `make test-backend-only` | Runs the suite against already-running test DBs |
-| `make test-backend-coverage` | Same suite + coverage profile (report-only) |
+| `make test-backend-coverage` | Same suite + coverage profile (hard gate vs the floor below) |
 | `make code-check` | Format + lint (`golangci-lint`) |
 | `make db-test-up` / `make db-test-down` / `make db-test-remove` | Manage the test databases manually (up / stop / remove + volumes) |
 
-Coverage is report-only for now — no threshold yet; a ratchet (fail PR if the total drops) is planned once suites mature. Baseline (Oct 2026): **49.1% of statements** across 805 tests.
+Coverage is a **hard gate** with a ratchet policy: CI fails when the total
+drops below the floor (49.0%, set just under the Oct 2026 baseline of **49.1%
+of statements** across 805 tests). Floors may only move up — raise them as
+suites mature, never lower them to land a change.
 
 ### Essential E2E suite (build tag `e2e`)
 
@@ -66,6 +69,7 @@ protects both clients at once.
 - Config: `packages/shared/vitest.config.ts`; tests live next to the source (`src/**/*.test.ts`).
 - Current coverage: theme token contract (`theme-colors`), i18n en/es key parity, `auth-service` (login/register error mapping, token refresh, authenticated-request retry + logout on refresh failure).
 - Conventions: mock `fetch` with `vi.stubGlobal`; install a storage adapter with `setStorageAdapter` before importing the singleton `authService`; reset service state via `authService.logout()` in `afterEach`.
+- Coverage is a **hard gate** (`npm test -w @life-tracker/shared -- --coverage`): per-glob floors in `vitest.config.ts` start just under the measured Nov 2026 baseline (12% statements / 8% branches overall; per-dir floors for `lib`, `services`, `types`, `utils`), with the same ratchet policy: floors only move up. The biggest gap is `services/**` — 11 of 12 services are untested.
 
 ## Web tests (Vitest + Testing Library)
 
@@ -85,7 +89,12 @@ replaced with `vi.mock`. What they cover: rendering, interaction
 - Current coverage: `ThemeProvider`/`useTheme` (localStorage persistence, CSS variable application), `ThemeToggle` (shadcn render + interaction), `AuthGuard` (auth service mocking + redirect), and `globals-parity` (frontend palette hex must exactly match `theme-colors.ts`), plus calendar components/lib logic.
 - Conventions: mock `@shared/services/*` with `vi.mock('<module>', factory)` — never import the real service into a component test; mock `next/navigation`'s `useRouter`; RTL cleans up automatically (`globals: true`).
 
-Coverage is report-only: `npm run test:coverage` (Vitest v8 provider, text + html in `coverage/`). CI prints the totals line to the job summary and uploads the html report as an artifact. Baseline (Oct 2026): **98.24% statements** — but only 4 files are under test (theme context, theme toggle, auth guard, globals parity); feature folders have zero unit coverage yet.
+Coverage is a **hard gate**: `npm run test:coverage` runs with `all: true`
+(untested files count as 0%) and per-glob floors defined in
+`vitest.config.ts`, set just under the measured Nov 2026 baseline (~9%
+statements overall — feature folders are near zero). The ratchet policy
+applies: floors only move up, per phase, toward the 80% target. CI prints the
+totals line to the job summary and uploads the html report as an artifact.
 
 ### Web E2E (Playwright, essential suite)
 
@@ -132,9 +141,9 @@ from the RN app (kept in git history).
 
 PR CI is dependency-aware: each workflow's `paths:` filter triggers only the suites that could be affected.
 
-- `frontend-ci.yml` → prettier, `npm test` (vitest), **coverage report (artifact + job summary)**, `tsc --noEmit`, and the **`e2e` job** (Playwright essential suite on the full-stack container lane). Triggers on `frontend/**` + `packages/shared/**`.
+- `frontend-ci.yml` → prettier, `npm test` (vitest), **coverage hard gate** (`test:coverage` with per-glob thresholds, pipefail-preserved exit code; artifact + job summary), `tsc --noEmit`, a **`shared-tests` job** (shared suite with its own coverage gate — previously the shared package was never tested in CI), and the **`e2e` job** (Playwright essential suite on the full-stack container lane). Triggers on `frontend/**` + `packages/shared/**`.
 - `mobile-ci.yml` → Kotlin `assembleDebug` + unit tests across all mobile Gradle modules. Triggers on `apps/mobile/**` only (the mobile app does not consume `packages/shared`).
-- `backend-ci.yml` → golangci-lint, integration suite **with coverage** against the compose test DBs (summary + artifact), **essential E2E suite** (build tag `e2e`), and the **`api-perf-smoke` job** (k6 `smoke.js` against the load-test stack's API; thresholds fail the PR). Triggers on `backend/**`, the compose/nginx/scripts files, `Makefile` — including the Makefile's test-target names.
+- `backend-ci.yml` → golangci-lint, integration suite **with coverage** against the compose test DBs (summary + artifact + **coverage floor gate**, 49.0%), **essential E2E suite** (build tag `e2e`), and the **`api-perf-smoke` job** (k6 `smoke.js` against the load-test stack's API; thresholds fail the PR). Triggers on `backend/**`, the compose/nginx/scripts files, `Makefile` — including the Makefile's test-target names.
 - `nightly-loadtest.yml` → full k6 suite on a daily cron (`0 3 * * *`) + manual dispatch (`REMOTE_WRITE=0`, reports artifact). Heavy lanes are nightly-only; PRs get the smoke lane only.
 - `release.yml` / `pr-title.yml` unchanged (release-please + Conventional Commits enforcement).
 
