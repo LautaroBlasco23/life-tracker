@@ -67,9 +67,9 @@ protects both clients at once.
 | `npm test:watch -w @life-tracker/shared` | watch mode |
 
 - Config: `packages/shared/vitest.config.ts`; tests live next to the source (`src/**/*.test.ts`).
-- Current coverage: theme token contract (`theme-colors`), i18n en/es key parity, `auth-service` (login/register error mapping, token refresh, authenticated-request retry + logout on refresh failure).
-- Conventions: mock `fetch` with `vi.stubGlobal`; install a storage adapter with `setStorageAdapter` before importing the singleton `authService`; reset service state via `authService.logout()` in `afterEach`.
-- Coverage is a **hard gate** (`npm test -w @life-tracker/shared -- --coverage`): per-glob floors in `vitest.config.ts` start just under the measured Nov 2026 baseline (12% statements / 8% branches overall; per-dir floors for `lib`, `services`, `types`, `utils`), with the same ratchet policy: floors only move up. The biggest gap is `services/**` — 11 of 12 services are untested.
+- Current coverage: theme token contract (`theme-colors`), i18n en/es key parity, `auth-service` (login/register error mapping, token refresh, authenticated-request retry + logout on refresh failure), and — since Nov 2026 — every service (activity, time, calendar, note, note-group, sticky-note, finance, routine, reminder, social, user, data), the enum translators, the format/datetime helpers, reminder status helpers, and the template catalogs.
+- Conventions: mock `fetch` with `vi.stubGlobal`; install a storage adapter with `setStorageAdapter` before importing the singleton services (they hydrate at import time); services tests authenticate via a mocked login in `beforeEach` because `makeAuthenticatedRequest` throws when no session exists; reset service state via `authService.logout()` in `afterEach`.
+- Coverage is a **hard gate** (`npm test -w @life-tracker/shared -- --coverage`): per-glob floors in `vitest.config.ts`, ratcheted upward each phase. After the Phase 1 service-test push (Nov 2026) the suite sits at ~**90.8% statements / 90.4% branches** (floors: 90/90 global; per-dir floors for `lib`, `services`, `types`, `utils`). Same ratchet policy: floors only move up. Remaining gap: `src/lib/**` branch coverage (46.7%).
 
 ## Web tests (Vitest + Testing Library)
 

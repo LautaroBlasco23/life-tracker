@@ -13,17 +13,16 @@ export default defineConfig({
       include: ['src/**/*.ts'],
       exclude: ['**/*.test.ts', '**/*.d.ts'],
       reporter: ['text', 'html'],
-      // Hard coverage gate with a ratchet policy: floors start just below
-      // the measured baseline (Nov 2026, `all: true`) and may only move up.
-      // Phase 1 targets: services/** (11 services untested), types/** and
-      // utils/** (pure functions, easy wins).
+      // Hard coverage gate with a ratchet policy: floors may only move up.
+      // Phase 1 (Nov 2026) took the suite from 12.4% to ~90.8% statements
+      // (services were the big gap; lib branches remain the weakest spot).
       thresholds: {
-        statements: 12,
-        branches: 8,
-        "src/lib/**": { statements: 44, branches: 46 },
-        "src/services/**": { statements: 11, branches: 7 },
-        "src/types/**": { statements: 0, branches: 0 },
-        "src/utils/**": { statements: 0, branches: 0 },
+        statements: 90,
+        branches: 90,
+        "src/lib/**": { statements: 88, branches: 46 },
+        "src/services/**": { statements: 90, branches: 91 },
+        "src/types/**": { statements: 76, branches: 90 },
+        "src/utils/**": { statements: 90, branches: 99 },
       },
     },
   },
