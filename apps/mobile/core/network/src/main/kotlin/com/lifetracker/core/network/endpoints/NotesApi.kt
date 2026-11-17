@@ -7,6 +7,7 @@ import com.lifetracker.core.network.model.CreateNoteGroupRequest
 import com.lifetracker.core.network.model.CreateNoteRequest
 import com.lifetracker.core.network.model.CreateStickyNoteRequest
 import com.lifetracker.core.network.model.NoteGroupResponse
+import com.lifetracker.core.network.model.NoteImageResponse
 import com.lifetracker.core.network.model.NoteResponse
 import com.lifetracker.core.network.model.ReorderNoteGroupsRequest
 import com.lifetracker.core.network.model.ReorderNotesRequest
@@ -14,12 +15,15 @@ import com.lifetracker.core.network.model.StickyNoteResponse
 import com.lifetracker.core.network.model.UpdateNoteGroupRequest
 import com.lifetracker.core.network.model.UpdateNoteRequest
 import com.lifetracker.core.network.model.UpdateStickyNoteRequest
+import okhttp3.MultipartBody
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.Multipart
 import retrofit2.http.POST
 import retrofit2.http.PUT
+import retrofit2.http.Part
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -62,6 +66,11 @@ interface NotesApi {
     /** Deletes a note. */
     @DELETE("notes/{id}")
     suspend fun deleteNote(@Path("id") id: Int): Response<MessageOnly>
+
+    /** Uploads a note image (multipart field `image`); returns its public URL. */
+    @Multipart
+    @POST("notes/images")
+    suspend fun uploadNoteImage(@Part image: MultipartBody.Part): Response<ApiEnvelope<NoteImageResponse>>
 
     // -----------------------------------------------------------------------
     // Note groups

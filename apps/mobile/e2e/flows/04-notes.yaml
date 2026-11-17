@@ -36,6 +36,9 @@ name: mobile smoke — notes · editor open · close
 # ---------------------------------------------------------------- editor
 - tapOn: "New Note"
 - assertVisible: "Note title"
+- # Untitled-create hint (blank-title PUT fix) + attach button (gallery pick).
+  assertVisible: "Add a title so you can find this note"
+- assertVisible: "Attach image"
 - assertVisible: "Preview"
 - assertVisible: "Cancel"
 - tapOn: "Cancel"

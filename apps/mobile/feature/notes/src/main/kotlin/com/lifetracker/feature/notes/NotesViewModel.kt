@@ -58,6 +58,9 @@ class NotesViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(NotesUiState())
     val uiState: StateFlow<NotesUiState> = _uiState.asStateFlow()
 
+    /** Save lifecycle of the open editor (idle/unsaved/saving/saved). */
+    val editorStatus: StateFlow<NoteSaveStatus> get() = autosave.status
+
     private val _events = MutableSharedFlow<NotesEvent>(extraBufferCapacity = 16)
     val events: SharedFlow<NotesEvent> = _events.asSharedFlow()
 
@@ -108,20 +111,64 @@ class NotesViewModel @Inject constructor(
         }
     }
 
-    /// ---- drafts (persisted, RN `notes_drafts`) ----
+    /// ---- editor autosave ----
+
+    /** The note the editor currently has open (`null` = create flow). */
+    private var editingNote: NoteResponse? = null
 
     /**
-     * The RN editor effect: while the editor is open with unsaved changes the
-     * current title/content persist as the note's draft; matching the saved
-     * state again removes it.
+     * Debounced autosave of the open note (web PR parity): 1.5 s after the
+     * last keystroke, single-flight, failed saves never auto-retried. Lives
+     * on [NotesAppScope.save] so a tab switch (which pops this nav entry and
+     * clears this ViewModel) cannot kill an in-flight PUT.
      */
-    fun syncEditorDraft(noteId: Int, savedTitle: String, savedContent: String, title: String, content: String) {
-        val unsaved = title != savedTitle || content != savedContent
-        if (unsaved) drafts.save(noteId, title, content) else drafts.remove(noteId)
+    private val autosave = NoteAutosaveController(
+        scope = NotesAppScope.save,
+        save = { id, title, content -> repo.updateNote(id, title, content) },
+        onSaved = ::onAutosaveSaved,
+    )
+
+    /** `onSaved` hook: refresh the list, drop the draft, keep the editor current. */
+    private fun onAutosaveSaved(saved: NoteResponse) {
+        if (editingNote?.id == saved.id) editingNote = saved
+        _uiState.update { state ->
+            state.copy(notes = state.notes.map { if (it.id == saved.id) saved else it })
+        }
+        drafts.remove(saved.id)
         refreshDraftIds()
     }
 
-    /** RN `handleDiscard`: removes the draft (the screen resets its fields). */
+    /** The editor opened on `note` (its values may hold a restored draft). */
+    fun beginEdit(note: NoteResponse, title: String, content: String) {
+        editingNote = note
+        autosave.begin(note, title, content)
+    }
+
+    /** The editor opened without a note (create flow): no autosave session. */
+    fun resetEditor() {
+        editingNote = null
+        autosave.reset()
+    }
+
+    /**
+     * A keystroke: re-arms the autosave debounce and syncs the persisted
+     * draft. Draft dirtiness mirrors the repository's omit rule — a blank
+     * title means "keep the server title" and never counts as a change.
+     */
+    fun onEditorChange(title: String, content: String) {
+        val note = editingNote ?: return
+        autosave.onEdit(title, content)
+        val dirty = (title.isNotBlank() && title != note.title) || content != note.content
+        if (dirty) drafts.save(note.id, title, content) else drafts.remove(note.id)
+        refreshDraftIds()
+    }
+
+    /** Explicit flush trigger (editor dismiss / app background). */
+    fun flushNow() {
+        autosave.flush()
+    }
+
+    /** Discard (revert to server values + drop the draft). */
     fun discardDraft(noteId: Int) {
         drafts.remove(noteId)
         refreshDraftIds()
@@ -169,6 +216,16 @@ class NotesViewModel @Inject constructor(
             },
             onFailure = { it.message ?: "An error occurred" },
         )
+
+    /// ---- note images ----
+
+    /**
+     * POST /notes/images — uploads a picked image and returns its public
+     * URL for embedding (`![](url)`), or the failure for the toast
+     * (mirrors `saveNote`'s result contract).
+     */
+    suspend fun uploadNoteImage(bytes: ByteArray, contentType: String): Result<String> =
+        runCatching { repo.uploadImage(bytes, contentType) }
 
     /// ---- groups CRUD ----
 
