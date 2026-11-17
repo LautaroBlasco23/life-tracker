@@ -505,31 +505,33 @@ function SortableNoteItem({
       className="relative"
     >
       <div
+        {...attributes}
+        {...listeners}
+        onClick={() => onSelectNote(note)}
         className={cn(
-          'group/note flex items-center justify-between gap-2 rounded-md p-2 transition-colors',
+          'group/note flex cursor-pointer items-center justify-between gap-2 rounded-md p-2 transition-colors',
           selected ? 'bg-primary/10' : 'hover:bg-muted/50',
           // While dragging, the item itself is just a drop placeholder;
           // the visible ghost is the DragOverlay chip.
           isDragging && 'opacity-40'
         )}
       >
-        <div
-          {...attributes}
-          {...listeners}
-          onClick={() => onSelectNote(note)}
-          className="flex min-w-0 flex-1 cursor-pointer items-center"
-        >
+        <div className="flex min-w-0 flex-1 items-center">
           <span className="truncate text-sm font-medium text-foreground">
             {note.title || t('untitled')}
           </span>
         </div>
-        <div className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover/note:opacity-100 focus-within:opacity-100 md:group-focus-within/note:opacity-100">
+        <div
+          className="flex shrink-0 items-center gap-0.5 opacity-0 transition-opacity group-hover/note:opacity-100 focus-within:opacity-100 md:group-focus-within/note:opacity-100"
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
           <button
             onClick={(e) => {
               e.stopPropagation();
               onDeleteNote(note);
             }}
-            className="p-1 text-muted-foreground transition-colors hover:text-destructive"
+            className="cursor-pointer p-1 text-muted-foreground transition-colors hover:text-destructive"
           >
             <Trash2 className="h-3.5 w-3.5" />
           </button>
