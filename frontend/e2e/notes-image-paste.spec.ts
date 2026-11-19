@@ -9,22 +9,12 @@ import { registerUser, seedAuth } from './helpers';
  * Requires an API with the note-image endpoint and an S3-compatible store
  * serving the embedded image URLs anonymously (dev lane: the official AWS
  * Emulator compose profile, whose objects the web nginx proxies same-origin
- * at /lifetracker-images/ — PLAYWRIGHT_S3_PUBLIC_URL overrides the expected
- * URL prefix for other S3 setups).
+ * at /lifetracker-images/).
  */
 test('paste an image into a note: upload, embed, render inline', async ({
   page,
   request,
 }) => {
-  // The backend embeds its S3_PUBLIC_URL in image markdown; in the dev lane
-  // that is the web origin (same-origin image proxy), which the spec is
-  // running against — override with PLAYWRIGHT_S3_PUBLIC_URL for other S3
-  // setups.
-  const s3PublicURL = (
-    process.env.PLAYWRIGHT_S3_PUBLIC_URL ||
-    process.env.PLAYWRIGHT_BASE_URL ||
-    'http://localhost:3000'
-  ).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const user = await registerUser(request);
   await seedAuth(page, user);
 
@@ -61,10 +51,14 @@ test('paste an image into a note: upload, embed, render inline', async ({
 
   // The placeholder is swapped for the uploaded URL from S3 (fast enough
   // that the transient `![Uploading image...` state may already be gone).
-  const imageMarkdown = editor.locator(
-    `text=/^!\\[Pasted image\\]\\(${s3PublicURL}\\/lifetracker-images\\/notes\\//`
-  );
-  await expect(imageMarkdown).toHaveCount(1, { timeout: 15000 });
+  // Since the span-based reveal rule (image interactions), the pasted
+  // image renders as a widget immediately — the cursor pasted it adjacent
+  // to its own span, which no longer collapses to raw markdown. Assert
+  // the widget and its URL instead of grepping raw text.
+  const img = page.locator('.cm-md-image');
+  await expect(img).toHaveCount(1, { timeout: 15000 });
+  const src = await img.getAttribute('src');
+  expect(src).toContain('lifetracker-images/notes/');
 
   // No placeholder left behind.
   await expect(page.getByText('Uploading image...')).toBeHidden();
