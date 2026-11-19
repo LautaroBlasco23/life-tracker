@@ -180,12 +180,22 @@ CHECK_ENV = grep -Eq '^JWT_SECRET=(your-secret-key-here|default-secret-change-th
 		exit 1; \
 	} || true
 
+# The S3 emulator is in-memory and `make stop` removes it; a backend boot
+# in the emulator lane (AWS_ENDPOINT_URL set) then hard-fails after its
+# EnsureBucket retry window. Re-create it (idempotent up) whenever the lane
+# is requested, so `make stop` + `make dev` self-heals.
+ENSURE_S3_EMULATOR = if grep -qE '^AWS_ENDPOINT_URL=..' $(ENV_FILE) 2>/dev/null; then \
+		echo "==> AWS_ENDPOINT_URL set: ensuring S3 emulator (aws-emulator + s3-pipe)"; \
+		$(MAKE) --no-print-directory s3-emulator; \
+	fi
+
 dev: setup db-up
 	@echo "==> fast lane: air (api :8080) + next dev (web :3000) + compose databases"
 	$(CHECK_AIR)
 	@echo "==> env file: $(notdir $(ENV_FILE))"
 	@[ -f "$(ENV_FILE)" ] || (echo ".env/.env.example not found — run 'make setup'"; exit 1)
 	$(CHECK_ENV)
+	@$(ENSURE_S3_EMULATOR)
 	@until docker exec golang_api_postgres pg_isready -U postgres >/dev/null 2>&1; do sleep 1; done
 	@[ -d frontend/node_modules ] || (echo "==> installing frontend deps"; cd frontend && npm install)
 	@echo "==> frontend: next dev on :3000 (NEXT_PUBLIC_API_URL -> :8080/api)"
@@ -224,10 +234,12 @@ dev-container: setup s3-emulator-certs
 
 # Host lane helper: start just the S3 emulator for `make dev` (the api runs
 # on the host and reaches the published TLS port directly — set
-# AWS_ENDPOINT_URL + AWS_CA_BUNDLE as documented in .env.example).
+# AWS_ENDPOINT_URL + AWS_CA_BUNDLE as documented in .env.example). The
+# s3-pipe bridge (plain HTTP on loopback :9298) is part of the lane: next
+# dev's same-origin image rewrite proxies to it.
 s3-emulator: s3-emulator-certs
-	$(COMPOSE) --env-file $(ENV_FILE) --profile aws-emulator up -d --build aws-emulator
-	@echo "S3 emulator ready: https://127.0.0.1:9297 (loopback only)"
+	$(COMPOSE) --env-file $(ENV_FILE) --profile aws-emulator up -d aws-emulator s3-pipe
+	@echo "S3 emulator ready: https://127.0.0.1:9297 + s3-pipe bridge http://127.0.0.1:9298 (loopback only)"
 
 # Container mode + observability (Prometheus, Grafana, Loki, Promtail,
 # node-exporter). Prometheus scrapes api:8080; Grafana on :3001.
@@ -298,6 +310,7 @@ hooks:
 backend-dev: hooks db-up
 	$(CHECK_AIR)
 	$(CHECK_ENV)
+	@$(ENSURE_S3_EMULATOR)
 	@until docker exec golang_api_postgres pg_isready -U postgres >/dev/null 2>&1; do sleep 1; done
 	# config.Load() walks up from backend/ and picks up the root .env.
 	cd backend && air -c .air.toml
