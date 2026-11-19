@@ -63,32 +63,41 @@ const bulletMarkerDecoration = Decoration.replace({
   widget: new BulletMarkerWidget(),
 });
 
-/* Renders `![alt](url)` inline on inactive lines; the raw markdown stays
- * reachable by double-clicking the image (see isImageActive). */
+/* Renders `![alt](url)` (with its optional `{width=...}` attribute) inline
+ * on inactive lines; the raw markdown stays reachable by double-clicking
+ * the image (see isImageActive). The wrapper hosts the resize handle. */
 class ImageWidget extends WidgetType {
   constructor(
     private src: string,
     private alt: string,
     private from: number,
-    private to: number
+    private to: number,
+    private width?: number
   ) {
     super();
   }
 
   toDOM() {
+    const wrap = document.createElement('div');
+    wrap.className = 'cm-md-image-wrap';
     const img = document.createElement('img');
     img.src = this.src;
     img.alt = this.alt;
     img.loading = 'lazy';
     img.draggable = false;
     img.className = 'cm-md-image';
+    if (this.width) img.style.width = `${this.width}px`;
     // Where this image's markdown lives in the doc — the editor's event
-    // handlers read it to select/move/reveal the span. Positions are valid
+    // handlers read it to select/move/resize the span. Positions are valid
     // for the decoration set they were built with; doc changes rebuild
     // decorations, so the numbers never go stale on a live widget.
-    img.dataset.imageFrom = String(this.from);
-    img.dataset.imageTo = String(this.to);
-    return img;
+    wrap.dataset.imageFrom = String(this.from);
+    wrap.dataset.imageTo = String(this.to);
+    const handle = document.createElement('div');
+    handle.className = 'cm-md-image-handle';
+    wrap.appendChild(img);
+    wrap.appendChild(handle);
+    return wrap;
   }
 
   eq(other: WidgetType) {
@@ -97,7 +106,8 @@ class ImageWidget extends WidgetType {
       other.src === this.src &&
       other.alt === this.alt &&
       other.from === this.from &&
-      other.to === this.to
+      other.to === this.to &&
+      other.width === this.width
     );
   }
 
@@ -110,11 +120,37 @@ class ImageWidget extends WidgetType {
   }
 }
 
-/** Parses `![alt](url)` from an Image node's text. */
-function parseImageMarkdown(text: string): { alt: string; url: string } | null {
-  const match = /^!\[([^\]]*)\]\((\S*)(?:\s+"[^"]*")?\)$/.exec(text);
+/** Parses `![alt](url)` (optionally `![alt](url){width=Npx}`) from an
+ * Image node's text. The `{width=...}` attribute persists a user-set
+ * render width; the mobile app does not render images today, so no
+ * cross-platform parsing is needed yet — extend NoteMarkdownStyler when
+ * it gains image support. */
+export function parseImageMarkdown(text: string): {
+  alt: string;
+  url: string;
+  width?: number;
+} | null {
+  const match =
+    /^!\[([^\]]*)\]\((\S*)(?:\s+"[^"]*")?\)(?:\s*\{width=(\d+)px\})?$/.exec(
+      text
+    );
   if (!match) return null;
-  return { alt: match[1], url: match[2] };
+  return {
+    alt: match[1],
+    url: match[2],
+    width: match[3] ? Number(match[3]) : undefined,
+  };
+}
+
+/** Inverse of parseImageMarkdown: serializes an image (with an optional
+ * render width) back to its markdown form. */
+export function formatImageMarkdown(
+  alt: string,
+  url: string,
+  width?: number
+): string {
+  const base = `![${alt}](${url})`;
+  return width ? `${base}{width=${width}px}` : base;
 }
 
 /**
@@ -203,25 +239,41 @@ export function buildMarkdownDecorations(
         }
 
         // Render images inline unless the selection touches the image span
-        // (see isImageActive). Returning false skips the LinkMark children
-        // so no replace decorations overlap ours.
-        if (
-          node.name === 'Image' &&
-          !isImageActive(state, node.from, node.to)
-        ) {
-          const parsed = parseImageMarkdown(state.sliceDoc(node.from, node.to));
-          if (parsed && parsed.url) {
+        // (see isImageActive). A persisted `{width=Npx}` attribute trails
+        // the Image node in the syntax tree, so the decorated span extends
+        // over it (otherwise the attribute shows as stray text). Returning
+        // false skips the LinkMark children so no replace decorations
+        // overlap ours.
+        if (node.name === 'Image') {
+          const lineEnd = state.doc.lineAt(node.to).to;
+          const attr = /^\s*\{width=\d+px\}/.exec(
+            state.sliceDoc(node.to, lineEnd)
+          );
+          const spanTo = attr ? node.to + attr[0].length : node.to;
+          const parsed = parseImageMarkdown(state.sliceDoc(node.from, spanTo));
+          if (
+            parsed &&
+            parsed.url &&
+            !isImageActive(state, node.from, spanTo)
+          ) {
             decorations.push(
               Decoration.replace({
                 widget: new ImageWidget(
                   normalizeNoteImageUrl(parsed.url),
                   parsed.alt,
                   node.from,
-                  node.to
+                  spanTo,
+                  parsed.width
                 ),
-              }).range(node.from, node.to)
+              }).range(node.from, spanTo)
             );
+            return false;
           }
+          // Active (selection covers the span): descend into the LinkMark
+          // children so the raw markdown gets its usual dimmed markers.
+          if (isImageActive(state, node.from, spanTo)) return;
+          // Unparsed and inactive (e.g. the upload placeholder): skip the
+          // children like before, so no stray hidden-marker widgets appear.
           return false;
         }
 
