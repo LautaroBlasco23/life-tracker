@@ -296,6 +296,12 @@ services:
       aws-emulator:
         condition: service_healthy
     command: TCP-LISTEN:9297,fork,reuseaddr OPENSSL:aws-emulator:9297,verify=0
+    # Host loopback publication for the fast lane (`make dev`): next dev's
+    # same-origin image rewrite proxies to this plain-HTTP bridge (the
+    # emulator itself only speaks TLS on 9297). Unused by the container
+    # lane, which reaches s3-pipe over the docker network.
+    ports:
+      - "127.0.0.1:9298:9297"
     networks:
       - golang_api_network
 

@@ -39,4 +39,20 @@ const nextConfig = {
   },
 };
 
+// Dev only (fast lane `make dev`): `next dev` has no nginx to serve the S3
+// emulator's image bucket same-origin, and the emulator rejects cross-origin
+// browser image fetches, so embedded note images 404. Proxy the bucket path
+// through the dev server to the s3-pipe bridge (plain HTTP, published on
+// host loopback by the aws-emulator compose profile). Guarded by NODE_ENV:
+// rewrites are incompatible with `output: 'export'`, and `next build` runs
+// with NODE_ENV=production, so the static export is unaffected.
+if (process.env.NODE_ENV === 'development') {
+  nextConfig.rewrites = async () => [
+    {
+      source: '/lifetracker-images/:path*',
+      destination: 'http://127.0.0.1:9298/lifetracker-images/:path*',
+    },
+  ];
+}
+
 export default nextConfig;

@@ -27,3 +27,6 @@ docker/aws-emulator/certs/*
 # diagram sources (kept local, only .png renders are tracked)
 docs/diagrams/*.excalidraw
 docs/diagrams/*.svg
+
+# aws-emulator binaries are downloaded locally, never tracked
+docker/aws-emulator/aws-emulator-*
