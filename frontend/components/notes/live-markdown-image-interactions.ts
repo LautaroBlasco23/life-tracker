@@ -111,16 +111,17 @@ function startImageDrag(
     // Dropped back onto its own span: no-op.
     if (hit > from && hit < to) return;
     if (hit === from || hit === to) return;
-    // Changes are position-adjusted: removing the span first shifts every
-    // position after it, so the insertion point compensates when the drop
-    // lands after the source.
-    const insertAt = hit > to ? hit - (to - from) : hit;
+    // Both change specs use positions in the document BEFORE the
+    // transaction (CodeMirror does not map later specs through earlier
+    // ones), so the insertion uses the original drop position directly —
+    // no manual compensation for the removal. The selection is mapped
+    // through the changes automatically and lands after the moved image.
     view.dispatch({
       changes: [
         { from, to, insert: '' },
-        { from: insertAt, to: insertAt, insert: text },
+        { from: hit, to: hit, insert: text },
       ],
-      selection: { anchor: insertAt + text.length },
+      selection: { anchor: hit },
     });
     view.focus();
   };
