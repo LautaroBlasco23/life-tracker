@@ -20,6 +20,7 @@ import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { markdown } from '@codemirror/lang-markdown';
 import { tags } from '@lezer/highlight';
 import { buildMarkdownDecorations } from './live-markdown-decorations';
+import { imageInteractions } from './live-markdown-image-interactions';
 import { cn } from '@/lib/utils';
 import { showToast } from '@/lib/toast';
 
@@ -199,6 +200,7 @@ const markdownTheme = EditorView.theme({
     margin: '0.25rem 0',
     borderRadius: '0.5rem',
     border: '1px solid var(--border)',
+    cursor: 'grab',
   },
   /* Blockquote lines */
   '.cm-md-quote': {
@@ -283,6 +285,7 @@ export function LiveMarkdownEditor({
           keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
           history(),
           placeholder(placeholderText ?? ''),
+          imageInteractions,
           EditorView.contentAttributes.of({ 'aria-label': ariaLabel }),
           /* Image paste/drop: read the latest props through the ref so the
            * extension never needs rebuilding. */

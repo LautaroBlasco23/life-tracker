@@ -63,12 +63,14 @@ const bulletMarkerDecoration = Decoration.replace({
   widget: new BulletMarkerWidget(),
 });
 
-/* Renders `![alt](url)` inline on inactive lines; the active line shows the
- * raw markdown so the URL stays editable. */
+/* Renders `![alt](url)` inline on inactive lines; the raw markdown stays
+ * reachable by double-clicking the image (see isImageActive). */
 class ImageWidget extends WidgetType {
   constructor(
     private src: string,
-    private alt: string
+    private alt: string,
+    private from: number,
+    private to: number
   ) {
     super();
   }
@@ -78,7 +80,14 @@ class ImageWidget extends WidgetType {
     img.src = this.src;
     img.alt = this.alt;
     img.loading = 'lazy';
+    img.draggable = false;
     img.className = 'cm-md-image';
+    // Where this image's markdown lives in the doc — the editor's event
+    // handlers read it to select/move/reveal the span. Positions are valid
+    // for the decoration set they were built with; doc changes rebuild
+    // decorations, so the numbers never go stale on a live widget.
+    img.dataset.imageFrom = String(this.from);
+    img.dataset.imageTo = String(this.to);
     return img;
   }
 
@@ -86,12 +95,18 @@ class ImageWidget extends WidgetType {
     return (
       other instanceof ImageWidget &&
       other.src === this.src &&
-      other.alt === this.alt
+      other.alt === this.alt &&
+      other.from === this.from &&
+      other.to === this.to
     );
   }
 
+  /* The editor's own handlers (live-markdown-editor.tsx) own every mouse
+   * interaction on the image: click selects an edge, double-click reveals
+   * the markdown, drag moves the image. CodeMirror must not also treat
+   * these as plain editor events. */
   ignoreEvent() {
-    return false;
+    return true;
   }
 }
 
@@ -135,6 +150,21 @@ function isActiveLine(state: EditorState, pos: number): boolean {
   });
 }
 
+/** An image collapses to raw markdown only when the selection actually
+ * touches its span — a cursor resting on either edge (where a click on the
+ * rendered image lands) keeps it rendered. Selecting the span (double-click
+ * on the image) reveals it, so the URL stays editable. Line-based activity
+ * (`isActiveLine`) does not apply: a cursor anywhere else on the line is
+ * never a reason to hide the image. */
+function isImageActive(state: EditorState, from: number, to: number): boolean {
+  return state.selection.ranges.some((r) => {
+    if (r.empty) {
+      return r.from > from && r.from < to;
+    }
+    return r.from < to && r.to > from;
+  });
+}
+
 /** Hides a marker node plus an optional single trailing space, so `# Title`
  * renders flush-left as "Title" instead of "␣Title". */
 function markerRangeEnd(state: EditorState, node: { to: number }): number {
@@ -172,17 +202,22 @@ export function buildMarkdownDecorations(
           }
         }
 
-        // Render images inline on inactive lines (active line keeps the
-        // raw markdown so the URL stays editable). Returning false skips
-        // the LinkMark children so no replace decorations overlap ours.
-        if (node.name === 'Image' && !isActiveLine(state, node.from)) {
+        // Render images inline unless the selection touches the image span
+        // (see isImageActive). Returning false skips the LinkMark children
+        // so no replace decorations overlap ours.
+        if (
+          node.name === 'Image' &&
+          !isImageActive(state, node.from, node.to)
+        ) {
           const parsed = parseImageMarkdown(state.sliceDoc(node.from, node.to));
           if (parsed && parsed.url) {
             decorations.push(
               Decoration.replace({
                 widget: new ImageWidget(
                   normalizeNoteImageUrl(parsed.url),
-                  parsed.alt
+                  parsed.alt,
+                  node.from,
+                  node.to
                 ),
               }).range(node.from, node.to)
             );
