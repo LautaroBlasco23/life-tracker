@@ -102,6 +102,22 @@ function parseImageMarkdown(text: string): { alt: string; url: string } | null {
   return { alt: match[1], url: match[2] };
 }
 
+/**
+ * Dev-only (`make dev` fast lane): the backend generates note image URLs
+ * against the S3_PUBLIC_URL web origin (default http://127.0.0.1:3000),
+ * but the emulator rejects cross-site browser image fetches (real-S3 Fetch
+ * Metadata semantics) and `next dev` may be browsed on any host — localhost,
+ * 127.0.0.1, a LAN IP. Root-relative paths load through the dev server's
+ * same-origin rewrite (next.config.mjs) on whatever host the app runs at.
+ * Production builds keep the absolute URL: real S3 and the nginx container
+ * lane serve those fine.
+ */
+export function normalizeNoteImageUrl(url: string): string {
+  if (process.env.NODE_ENV !== 'development') return url;
+  const match = /^https?:\/\/[^/]+(\/lifetracker-images\/.*)$/.exec(url);
+  return match ? match[1] : url;
+}
+
 interface DocRange {
   from: number;
   to: number;
@@ -164,7 +180,10 @@ export function buildMarkdownDecorations(
           if (parsed && parsed.url) {
             decorations.push(
               Decoration.replace({
-                widget: new ImageWidget(parsed.url, parsed.alt),
+                widget: new ImageWidget(
+                  normalizeNoteImageUrl(parsed.url),
+                  parsed.alt
+                ),
               }).range(node.from, node.to)
             );
           }

@@ -1,7 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { EditorState } from '@codemirror/state';
 import { markdown } from '@codemirror/lang-markdown';
-import { buildMarkdownDecorations } from './live-markdown-decorations';
+import {
+  buildMarkdownDecorations,
+  normalizeNoteImageUrl,
+} from './live-markdown-decorations';
 
 interface FoundDecoration {
   from: number;
@@ -193,5 +196,44 @@ describe('buildMarkdownDecorations', () => {
   it('returns no decorations for plain text', () => {
     const found = collect('just words\nmore words');
     expect(found).toHaveLength(0);
+  });
+});
+
+describe('normalizeNoteImageUrl', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('strips the URL origin in development so next dev serves it same-origin', () => {
+    vi.stubEnv('NODE_ENV', 'development');
+    expect(
+      normalizeNoteImageUrl(
+        'http://127.0.0.1:3000/lifetracker-images/notes/1/x.png'
+      )
+    ).toBe('/lifetracker-images/notes/1/x.png');
+    expect(
+      normalizeNoteImageUrl(
+        'https://bucket.s3.us-east-1.amazonaws.com/lifetracker-images/notes/1/x.png'
+      )
+    ).toBe('/lifetracker-images/notes/1/x.png');
+  });
+
+  it('leaves root-relative and foreign-path URLs untouched', () => {
+    vi.stubEnv('NODE_ENV', 'development');
+    expect(normalizeNoteImageUrl('/lifetracker-images/notes/1/x.png')).toBe(
+      '/lifetracker-images/notes/1/x.png'
+    );
+    expect(normalizeNoteImageUrl('https://x.com/other/y.png')).toBe(
+      'https://x.com/other/y.png'
+    );
+  });
+
+  it('keeps absolute URLs outside development', () => {
+    vi.stubEnv('NODE_ENV', 'production');
+    expect(
+      normalizeNoteImageUrl(
+        'http://127.0.0.1:3000/lifetracker-images/notes/1/x.png'
+      )
+    ).toBe('http://127.0.0.1:3000/lifetracker-images/notes/1/x.png');
   });
 });
