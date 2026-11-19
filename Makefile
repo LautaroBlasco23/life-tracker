@@ -233,10 +233,10 @@ dev-container: setup s3-emulator-certs
 	@echo "  S3:       AWS Emulator on :9297 (used when AWS_ENDPOINT_URL is set in $(notdir $(ENV_FILE)))"
 
 # Host lane helper: start just the S3 emulator for `make dev` (the api runs
-# on the host and reaches the published TLS port directly — set
-# AWS_ENDPOINT_URL + AWS_CA_BUNDLE as documented in .env.example). The
-# s3-pipe bridge (plain HTTP on loopback :9298) is part of the lane: next
-# dev's same-origin image rewrite proxies to it.
+# on the host and talks plain HTTP to the s3-pipe bridge — the shipped
+# AWS_ENDPOINT_URL default in .env.example; the api re-reads .env on every
+# air rebuild). The s3-pipe bridge (plain HTTP on loopback :9298) is part
+# of the lane: next dev's same-origin image rewrite proxies to it.
 s3-emulator: s3-emulator-certs
 	$(COMPOSE) --env-file $(ENV_FILE) --profile aws-emulator up -d aws-emulator s3-pipe
 	@echo "S3 emulator ready: https://127.0.0.1:9297 + s3-pipe bridge http://127.0.0.1:9298 (loopback only)"
