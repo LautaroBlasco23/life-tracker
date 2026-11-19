@@ -20,6 +20,7 @@ import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
 import { markdown } from '@codemirror/lang-markdown';
 import { tags } from '@lezer/highlight';
 import { buildMarkdownDecorations } from './live-markdown-decorations';
+import { imageInteractions } from './live-markdown-image-interactions';
 import { cn } from '@/lib/utils';
 import { showToast } from '@/lib/toast';
 
@@ -193,12 +194,36 @@ const markdownTheme = EditorView.theme({
     fontWeight: '700',
   },
   /* Rendered image inside the editor (inactive lines) */
+  '.cm-md-image-wrap': {
+    position: 'relative',
+    display: 'block',
+    maxWidth: '100%',
+    margin: '0.25rem 0',
+    width: 'fit-content',
+  },
   '.cm-md-image': {
     maxWidth: '100%',
     display: 'block',
-    margin: '0.25rem 0',
     borderRadius: '0.5rem',
     border: '1px solid var(--border)',
+    cursor: 'grab',
+  },
+  /* Resize handle: bottom-right corner, appears on hover */
+  '.cm-md-image-handle': {
+    position: 'absolute',
+    right: '-4px',
+    bottom: '-4px',
+    width: '12px',
+    height: '12px',
+    borderRadius: '50%',
+    background: 'var(--primary)',
+    border: '2px solid var(--surface)',
+    cursor: 'nwse-resize',
+    opacity: '0',
+    transition: 'opacity 0.15s ease',
+  },
+  '.cm-md-image-wrap:hover .cm-md-image-handle': {
+    opacity: '1',
   },
   /* Blockquote lines */
   '.cm-md-quote': {
@@ -283,6 +308,7 @@ export function LiveMarkdownEditor({
           keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
           history(),
           placeholder(placeholderText ?? ''),
+          imageInteractions,
           EditorView.contentAttributes.of({ 'aria-label': ariaLabel }),
           /* Image paste/drop: read the latest props through the ref so the
            * extension never needs rebuilding. */

@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { EditorState } from '@codemirror/state';
+import { EditorSelection, EditorState } from '@codemirror/state';
 import { markdown } from '@codemirror/lang-markdown';
 import {
   buildMarkdownDecorations,
+  formatImageMarkdown,
   normalizeNoteImageUrl,
+  parseImageMarkdown,
 } from './live-markdown-decorations';
 
 interface FoundDecoration {
@@ -16,10 +18,15 @@ interface FoundDecoration {
   };
 }
 
-function collect(doc: string, anchor?: number): FoundDecoration[] {
+function collect(
+  doc: string,
+  sel?: number | EditorSelection | { anchor: number; head?: number }
+): FoundDecoration[] {
   const state = EditorState.create({
     doc,
-    ...(anchor === undefined ? {} : { selection: { anchor } }),
+    ...(sel === undefined
+      ? {}
+      : { selection: typeof sel === 'number' ? { anchor: sel } : sel }),
     extensions: [markdown()],
   });
   const set = buildMarkdownDecorations(state);
@@ -171,12 +178,42 @@ describe('buildMarkdownDecorations', () => {
       expect(image).toBeDefined();
     });
 
-    it('keeps the raw image markdown visible on the active line', () => {
+    it('keeps the raw image markdown visible when the selection covers the image', () => {
+      // Double-clicking the image selects its whole span, which reveals the
+      // markdown so the URL stays editable.
       const doc = '![alt](http://x/y.png)';
-      const found = collect(doc); // cursor at 0 → active line
+      const found = collect(doc, { anchor: 0, head: doc.length });
       expect(found.some((f) => f.deco.widget)).toBe(false);
       const marks = found.filter((f) => className(f) === 'cm-md-mark');
       expect(marks.length).toBeGreaterThan(0); // ![ ]( ) dimmed
+    });
+
+    it('keeps the image rendered when the cursor rests on the span edge', () => {
+      // A click on the widget lands at one of the span edges — the image
+      // must stay rendered instead of flashing to raw markdown.
+      const doc = 'before\n\n![alt text](http://x/y.png)\n\nafter';
+      const from = doc.indexOf('![alt text]');
+      const to = from + '![alt text](http://x/y.png)'.length;
+      expect(collect(doc, from).some((f) => f.deco.widget)).toBe(true);
+      expect(collect(doc, to).some((f) => f.deco.widget)).toBe(true);
+    });
+
+    it('keeps the image rendered when the cursor shares the line but sits outside the span', () => {
+      const doc = '![alt](http://x/y.png) trailing text';
+      const found = collect(doc, doc.length);
+      expect(found.some((f) => f.deco.widget)).toBe(true);
+    });
+
+    it('renders images carrying a persisted {width=...} attribute', () => {
+      const doc = 'before\n\n![alt](http://x/y.png){width=400px}\n\nafter';
+      const found = collect(doc, doc.indexOf('after') + 1);
+      const imageStart = doc.indexOf('![alt]');
+      const imageEnd =
+        imageStart + '![alt](http://x/y.png){width=400px}'.length;
+      const image = found.find(
+        (f) => f.deco.widget && f.from === imageStart && f.to === imageEnd
+      );
+      expect(image).toBeDefined();
     });
 
     it('does not render a widget for images without a URL', () => {
@@ -196,6 +233,49 @@ describe('buildMarkdownDecorations', () => {
   it('returns no decorations for plain text', () => {
     const found = collect('just words\nmore words');
     expect(found).toHaveLength(0);
+  });
+});
+
+describe('parseImageMarkdown / formatImageMarkdown', () => {
+  it('parses plain image markdown', () => {
+    expect(parseImageMarkdown('![alt](http://x/y.png)')).toEqual({
+      alt: 'alt',
+      url: 'http://x/y.png',
+      width: undefined,
+    });
+  });
+
+  it('parses a persisted width suffix, with or without a space', () => {
+    expect(parseImageMarkdown('![alt](http://x/y.png){width=400px}')).toEqual({
+      alt: 'alt',
+      url: 'http://x/y.png',
+      width: 400,
+    });
+    expect(parseImageMarkdown('![alt](http://x/y.png) {width=32px}')).toEqual({
+      alt: 'alt',
+      url: 'http://x/y.png',
+      width: 32,
+    });
+  });
+
+  it('round-trips through formatImageMarkdown', () => {
+    expect(formatImageMarkdown('alt', 'http://x/y.png')).toBe(
+      '![alt](http://x/y.png)'
+    );
+    expect(formatImageMarkdown('alt', 'http://x/y.png', 400)).toBe(
+      '![alt](http://x/y.png){width=400px}'
+    );
+    const text = formatImageMarkdown('alt', 'http://x/y.png', 400);
+    expect(parseImageMarkdown(text)).toEqual({
+      alt: 'alt',
+      url: 'http://x/y.png',
+      width: 400,
+    });
+  });
+
+  it('rejects malformed width attributes', () => {
+    expect(parseImageMarkdown('![alt](http://x/y.png){width=big}')).toBeNull();
+    expect(parseImageMarkdown('![alt](http://x/y.png){width=}')).toBeNull();
   });
 });
 
