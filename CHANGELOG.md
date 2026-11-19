@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.1.1](https://github.com/LautaroBlasco23/life-tracker/compare/v3.1.0...v3.1.1) (2026-11-19)
+
+
+### Bug Fixes
+
+* **frontend:** pin Turbopack root and harden web storage detection for Node 25 ([#152](https://github.com/LautaroBlasco23/life-tracker/issues/152)) ([00e8fb2](https://github.com/LautaroBlasco23/life-tracker/commit/00e8fb2a3fa6035ddd4d54ab8a0778a77073aa0a))
+
 ## [3.1.0](https://github.com/LautaroBlasco23/life-tracker/compare/v3.0.0...v3.1.0) (2026-11-19)
 
 
