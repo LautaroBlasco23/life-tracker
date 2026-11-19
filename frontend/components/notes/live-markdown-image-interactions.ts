@@ -1,13 +1,19 @@
 import { EditorSelection } from '@codemirror/state';
 import type { Extension } from '@codemirror/state';
-import { EditorView } from '@codemirror/view';
+import { EditorView, ViewPlugin } from '@codemirror/view';
 import {
   formatImageMarkdown,
   parseImageMarkdown,
 } from './live-markdown-decorations';
 
-/* Mouse interactions for rendered note images (`.cm-md-image-wrap` widgets,
- * ignoreEvent -> true so CodeMirror never treats these as editor events):
+/* Mouse interactions for rendered note images (`.cm-md-image-wrap` widgets).
+ *
+ * The widget's ignoreEvent() -> true tells CodeMirror to keep its own
+ * event machinery away from the image — which also means EditorView.
+ * domEventHandlers never see these events (eventBelongsToEditor drops
+ * them before any handler runs). The gestures therefore live on native
+ * listeners bound to view.dom, which receives the bubbled events no
+ * matter what CodeMirror ignores:
  *
  * - click: place the cursor on the nearest edge of the image's markdown
  *   span (the image stays rendered — see isImageActive in
@@ -179,30 +185,45 @@ function startImageResize(
   window.addEventListener('keydown', onKeyDown);
 }
 
-export const imageInteractions: Extension = EditorView.domEventHandlers({
-  mousedown(event, view) {
-    if (!(event instanceof MouseEvent)) return false;
-    const span = imageSpanFromEvent(event);
-    if (!span) return false;
-    event.preventDefault();
-    if (
-      event.target instanceof Element &&
-      event.target.closest('.cm-md-image-handle')
-    ) {
-      startImageResize(view, event, span);
-    } else {
-      startImageDrag(view, event, span);
+/* Native listeners on view.dom: events bubbling out of an ignoreEvent
+ * widget are dropped by CodeMirror before its handler chains (see the
+ * comment above), but they still propagate through the DOM to view.dom,
+ * where these listeners receive them. */
+export const imageInteractions: Extension = ViewPlugin.fromClass(
+  class {
+    private readonly onMouseDown = (event: Event) => {
+      if (!(event instanceof MouseEvent) || event.button !== 0) return;
+      const span = imageSpanFromEvent(event);
+      if (!span) return;
+      event.preventDefault();
+      if (
+        event.target instanceof Element &&
+        event.target.closest('.cm-md-image-handle')
+      ) {
+        startImageResize(this.view, event, span);
+      } else {
+        startImageDrag(this.view, event, span);
+      }
+    };
+
+    private readonly onDblClick = (event: Event) => {
+      const span = imageSpanFromEvent(event);
+      if (!span) return;
+      event.preventDefault();
+      this.view.dispatch({
+        selection: EditorSelection.range(span.from, span.to),
+      });
+      this.view.focus();
+    };
+
+    constructor(private readonly view: EditorView) {
+      view.dom.addEventListener('mousedown', this.onMouseDown);
+      view.dom.addEventListener('dblclick', this.onDblClick);
     }
-    return true;
-  },
-  dblclick(event, view) {
-    const span = imageSpanFromEvent(event);
-    if (!span) return false;
-    event.preventDefault();
-    view.dispatch({
-      selection: EditorSelection.range(span.from, span.to),
-    });
-    view.focus();
-    return true;
-  },
-});
+
+    destroy() {
+      this.view.dom.removeEventListener('mousedown', this.onMouseDown);
+      this.view.dom.removeEventListener('dblclick', this.onDblClick);
+    }
+  }
+);
