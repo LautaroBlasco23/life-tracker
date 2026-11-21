@@ -112,7 +112,7 @@ jobs:
       - name: Coverage floor gate
         run: |
           total=$(go tool cover -func=coverage.out | tail -1 | awk '{print $3}' | tr -d '%')
-          floor=49.0
+          floor=61.0
           if awk -v t="$total" -v f="$floor" 'BEGIN { exit (t < f) ? 0 : 1 }'; then
             echo "Backend coverage ${total}% is below the ${floor}% floor (ratchet: floors only move up)" >&2
             exit 1
