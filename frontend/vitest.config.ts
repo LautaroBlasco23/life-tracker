@@ -19,5 +19,38 @@ export default defineConfig({
     setupFiles: ['./test/setup.ts'],
     include: ['**/*.test.{ts,tsx}'],
     exclude: ['node_modules/**', 'out/**', '.next/**'],
+    coverage: {
+      provider: 'v8',
+      // all=true counts untested source files as 0% — without it only the
+      // files a test imports appear in the report and thresholds are blind.
+      all: true,
+      include: ['app/**', 'components/**', 'contexts/**', 'hooks/**', 'lib/**'],
+      exclude: [
+        '**/*.test.{ts,tsx}',
+        '**/*.d.ts',
+        // Demo-video capture lane, Playwright specs/helpers, build output
+        // and the CI e2e listener tooling — not product code.
+        'demo/**',
+        'e2e/**',
+        'scripts/**',
+        'out/**',
+        '.next/**',
+        'node_modules/**',
+      ],
+      reporter: ['text', 'html'],
+      // Hard coverage gate with a ratchet policy: floors start just below the
+      // measured baseline (Nov 2026, `all: true`) and may only move up.
+      // Feature folders (app/components/hooks/lib) are the Phase 2+ work;
+      // contexts is already near its ceiling.
+      thresholds: {
+        statements: 9,
+        branches: 6,
+        'app/**': { statements: 8, branches: 5 },
+        'components/**': { statements: 9, branches: 6 },
+        'contexts/**': { statements: 94, branches: 86 },
+        'hooks/**': { statements: 0, branches: 0 },
+        'lib/**': { statements: 1, branches: 0 },
+      },
+    },
   },
 });
