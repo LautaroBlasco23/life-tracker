@@ -7,9 +7,9 @@ root Makefile is the single entry point for all of them:
   backend). No E2E inside it.
 - `make tests` — prints every test command with a one-liner each.
 - E2E and performance are separate targets (`make test-backend-e2e`,
-  `make test-web-e2e`, `make loadtest`): they need extra infrastructure
-  (isolated test DBs, the full-stack container lane, the k6 stack) and run
-  slower — opt in deliberately.
+  `make test-web-e2e`, `make e2e-mobile`, `make loadtest`): they need extra
+  infrastructure (isolated test DBs, the full-stack container lane, a local
+  AVD, the k6 stack) and run slower — opt in deliberately.
 
 Details and conventions: see the per-project sections below (this file is
 the source of truth; `docs/index.html` is generated from it by `make docs`).
@@ -21,7 +21,7 @@ the source of truth; `docs/index.html` is generated from it by `make docs`).
 | backend | service logic, table-driven | — | repositories/controllers against the real compose test DBs — **one suite with unit, no tag split** | `tests/e2e` (`e2e` build tag): production router + real JWT | k6: smoke on PRs, full suite nightly |
 | web (`frontend/`) | pure logic: calendar libs, palette parity | components/contexts with RTL + jsdom; `@shared` services mocked | — | Playwright (chromium) on the full-stack container lane | — |
 | shared (`packages/shared/`) | pure TS logic: theme tokens, i18n en/es parity, auth service — protects both consumers at once | — | — | — | — |
-| mobile (`apps/mobile/`) | pure logic: dates, input formatting | RNTL components; `className` is inert under jest, so tests assert behavior, not styling | — | none yet (Maestro deferred) | — |
+| mobile (`apps/mobile/`) | JUnit4 logic tests: calendar-week port, notes autosave + markdown styler, i18n en/es parity, theme-token contrast | — | MockWebServer repository tests (auth wire flow, notes multipart upload, revert-last format) | Maestro on-device: `make e2e-mobile` — 7 flows, local pre-push gate (no CI emulator) | — |
 
 ## Backend tests
 
@@ -108,25 +108,30 @@ notes CRUD through the UI, deploy-lane canary (`/env-config.js` + app title).
 
 ## Mobile tests (Kotlin)
 
-`make test-mobile` — Kotlin unit tests via Gradle across all mobile modules:
+`make test-mobile` — Gradle unit tests across all mobile modules (JUnit4,
+MockWebServer, kotlinx-coroutines-test `runTest`): auth wire flow (login /
+session persistence, refresh-token swap, error envelope, logout incl.
+unreachable backend), notes repository (blank-title omission, multipart
+image upload), revert-last request format, calendar-week port, notes
+autosave + markdown styler, i18n en/es key parity, theme-token WCAG
+contrast. There are no instrumentation (`androidTest`) suites — the
+MockWebServer repository tests are the closest thing to integration tests.
 
-| Module | What it covers |
-|---|---|
-| `:domain` | Auth core against MockWebServer (login/session persistence, refresh token swap, error-envelope parsing, logout incl. unreachable backend) and the calendar-week logic port |
-| `:core:i18n` | en/es message-asset key-set parity + anchor strings |
+On-device E2E is **Maestro** (not deferred): `make e2e-mobile` boots the
+AVD, builds + installs a debug APK baked to the local API (`10.0.2.2:8080`),
+seeds a social target user, and runs the 7 flows in `apps/mobile/e2e/flows/`
+(auth, activities, time, notes, finance, social, profile) — the local
+pre-push gate. CI (`mobile-ci.yml`) runs build + unit tests only.
+
+The full mobile test breakdown — per-flow scope, setup, and the
+**happy-path coverage matrix mapping every app action to its e2e flow** —
+lives in [`mobile.md`](./mobile.md).
 
 | Command | What it does |
 |---|---|
 | `make test-mobile` | `cd apps/mobile && ./gradlew test` (all modules) |
+| `make e2e-mobile` | Maestro suite on the local AVD (needs Android SDK + Maestro in `~/.maestro/bin`) |
 | `./gradlew :app:assembleDebug` | compile gate for the whole app |
-
-Conventions: JUnit4, MockWebServer for transport-level tests, kotlinx-coroutines-test
-`runTest` for suspend flows. The AuthRepository refresh path mirrors the OkHttp
-`SessionAuthenticator` (single-flight refresh, retry-once, force-logout events).
-
-Compose UI instrumentation tests and on-device Maestro E2E are deferred;
-behavior parity was verified against the per-screen QA checklist ported
-from the RN app (kept in git history).
 
 ## CI
 
