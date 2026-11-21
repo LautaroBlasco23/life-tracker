@@ -7,9 +7,9 @@ export default defineConfig({
     include: ['src/**/*.test.ts'],
     coverage: {
       provider: 'v8',
-      // all=true counts untested source files as 0% — without it only the
-      // files a test imports appear in the report and thresholds are blind.
-      all: true,
+      // coverage.include makes untested source files appear at 0% — without
+      // it only the files a test imports appear and thresholds are blind.
+      // (vitest 4+ removed coverage.all; include is the replacement.)
       include: ['src/**/*.ts'],
       exclude: ['**/*.test.ts', '**/*.d.ts'],
       reporter: ['text', 'html'],
