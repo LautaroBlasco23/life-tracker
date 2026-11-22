@@ -134,7 +134,6 @@ fun AppHost(auth: AuthRepository, sessionEvents: SessionEvents) {
                     composable(Routes.PROFILE) {
                         ProfileScreen(
                             onLogout = { navController.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } } },
-                            onNavigate = { navController.navigate(mapNavKey(it)) },
                         )
                     }
                     composable(Routes.BACKUP) {

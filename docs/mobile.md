@@ -250,4 +250,6 @@ the same way.
   carries the profile entry point (and optional actions, e.g. the finance cross-links).
   The profile screen is not a tab but still renders the bar with no tab highlighted
   (`Routes.PROFILE` in `tabKeyForRoute`); `profile/backup`, public profiles and auth
-  screens hide it.
+  screens hide it. While profile is on top, `AppHeader`'s avatar shows the same
+  12%-primary pill as a selected nav item (`profileSelected = true`) and tapping it
+  is a no-op.

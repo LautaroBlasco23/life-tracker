@@ -60,7 +60,7 @@ import kotlinx.coroutines.delay
  */
 
 @Composable
-fun ProfileScreen(onLogout: () -> Unit, onNavigate: (String) -> Unit) {
+fun ProfileScreen(onLogout: () -> Unit) {
     val viewModel: ProfileViewModel = hiltViewModel()
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val toast = LocalToast.current
@@ -81,7 +81,9 @@ fun ProfileScreen(onLogout: () -> Unit, onNavigate: (String) -> Unit) {
 
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         Column(Modifier.fillMaxSize()) {
-            AppHeader(title = "LifeTracker", onProfile = { onNavigate("profile") })
+            // Already here: the avatar shows the selected pill and tapping it
+            // is a no-op (same as tapping the active bottom-nav tab).
+            AppHeader(title = "LifeTracker", profileSelected = true)
             Column(
                 modifier = Modifier
                     .fillMaxSize()
