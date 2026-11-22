@@ -208,8 +208,12 @@ func TestCanViewProfile(t *testing.T) {
 	})
 
 	t.Run("private_profile_hidden_from_anon_viewer", func(t *testing.T) {
+		// A missing accepted follow is a false verdict, NOT an error: the
+		// error path made GetPublicProfile 404 instead of serving the
+		// locked-shell response (canView=false) the frontend renders as
+		// "This profile is private".
 		ok, err := vis.CanViewProfile(carolID, bobPrivateID)
-		assert.Error(t, err) // accepted-follow query finds nothing
+		require.NoError(t, err)
 		assert.False(t, ok)
 	})
 

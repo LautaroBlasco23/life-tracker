@@ -1,6 +1,8 @@
 package service
 
 import (
+	"errors"
+
 	"life-tracker-backend/internal/domain/social/model"
 	userModel "life-tracker-backend/internal/domain/user/model"
 
@@ -30,14 +32,18 @@ func (s *VisibilityService) CanViewProfile(viewerID, ownerID uint) (bool, error)
 		return true, nil
 	}
 
-	// private profile: viewer must have an accepted follow
+	// private profile: viewer must have an accepted follow. A missing follow
+	// is a false verdict, not an error — returning ErrRecordNotFound here
+	// made the profile controller 404 the whole locked-shell response that
+	// GetPublicProfile serves for canView=false (frontend "This profile is
+	// private" view).
 	var follow model.Follow
 	err := s.db.Where("follower_id = ? AND followee_id = ? AND status = ?",
 		viewerID, ownerID, model.FollowStatusAccepted).First(&follow).Error
-	if err != nil {
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return false, err
 	}
-	return true, nil
+	return err == nil, nil
 }
 
 // CanViewContent returns true if viewerID can see a specific piece of content owned by ownerID.
