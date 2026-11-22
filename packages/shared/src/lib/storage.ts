@@ -14,7 +14,15 @@ export interface StorageAdapter {
 
 function webStorage(): StorageAdapter | null {
   try {
-    if (typeof localStorage !== 'undefined' && localStorage) {
+    // Node >= 23 ships an experimental global `localStorage` that exists
+    // without a backing file (--localstorage-file): truthy but non-functional
+    // (getItem is not a function). Verify the shape, not just presence, or
+    // SSR/static-export prerendering installs a broken adapter.
+    if (
+      typeof localStorage !== 'undefined' &&
+      localStorage &&
+      typeof localStorage.getItem === 'function'
+    ) {
       return localStorage;
     }
   } catch {

@@ -27,7 +27,7 @@ permissions:
   contents: read
 
 env:
-  DOCKER_IMAGE: <dockerhub-username>/lifetracker-frontend
+  DOCKER_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/lifetracker-frontend
   REGISTRY: docker.io
 
 jobs:
@@ -46,7 +46,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: dorny/paths-filter@0e4a8c6effa4802afeda77dc8d303f8176d7dfad # v3
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
         with:
           filters: |
@@ -200,7 +200,7 @@ jobs:
     steps:
       - name: Smoke-test pushed image
         run: |
-          IMAGE="<dockerhub-username>/lifetracker-frontend:latest"
+          IMAGE="${{ env.DOCKER_IMAGE }}:latest"
           docker pull "$IMAGE"
           # serve on :3000 inside the container (EXPOSE 3000); publish it so
           # curl can reach it from the runner

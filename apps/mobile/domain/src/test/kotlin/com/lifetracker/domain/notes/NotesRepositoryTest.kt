@@ -9,9 +9,10 @@ import mockwebserver3.MockResponse
 import mockwebserver3.MockWebServer
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.After
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import retrofit2.Retrofit
@@ -22,7 +23,8 @@ import kotlinx.serialization.json.jsonPrimitive
 /**
  * MockWebServer coverage of the notes surface: the `q` search param, the
  * one-shot reorder payload and the `{ "message": … }` error-body quirk of
- * the notes/note-groups/sticky-notes controllers (contract §1.6).
+ * the notes/note-groups/sticky-notes controllers (contract §1.6), plus the
+ * updateNote contract (a blank title is omitted so the server keeps its own).
  */
 class NotesRepositoryTest {
 
@@ -149,5 +151,66 @@ class NotesRepositoryTest {
         assertEquals(8, sticky.id)
         val body = Json.parseToJsonElement(server.takeRequest().body?.utf8()!!).jsonObject
         assertEquals("Todo", body["title"]?.jsonPrimitive?.content)
+    }
+
+    /** Success envelope of `PUT /notes/{id}` (server keeps its own title). */
+    private fun enqueueUpdate() {
+        server.enqueue(
+            MockResponse(
+                body = """{"message":"Note updated","data":{""" +
+                    """"id":5,"userId":1,"title":"","content":"hello world",""" +
+                    """"groupId":null,"position":0,""" +
+                    """"createdAt":"2025-01-01T00:00:00.000Z",""" +
+                    """"editedAt":"2025-01-01T00:00:00.000Z"}}""",
+            ),
+        )
+    }
+
+    @Test
+    fun `update with a blank title omits the title field`() = kotlinx.coroutines.test.runTest {
+        enqueueUpdate()
+
+        repo.updateNote(id = 5, title = "", content = "hello world")
+
+        val request = server.takeRequest()
+        assertEquals("/api/notes/5", request.target)
+        val body = request.body!!.utf8()
+        assertTrue("expected content in body: $body", body.contains("\"content\":\"hello world\""))
+        assertFalse("blank title must be omitted: $body", body.contains("\"title\""))
+    }
+
+    @Test
+    fun `update with a title sends title and content`() = kotlinx.coroutines.test.runTest {
+        enqueueUpdate()
+
+        repo.updateNote(id = 5, title = "Shopping list", content = "hello world")
+
+        val request = server.takeRequest()
+        val body = request.body!!.utf8()
+        assertTrue("expected title in body: $body", body.contains("\"title\":\"Shopping list\""))
+        assertTrue("expected content in body: $body", body.contains("\"content\":\"hello world\""))
+    }
+
+    @Test
+    fun `uploadImage posts multipart and returns the public url`() = kotlinx.coroutines.test.runTest {
+        server.enqueue(
+            MockResponse(
+                body = """{"message":"Note image uploaded successfully","data":{"url":"https://cdn.example/img"}}""",
+            ),
+        )
+
+        val url = repo.uploadImage(bytes = "PNGDATA".toByteArray(), contentType = "image/png")
+
+        assertEquals("https://cdn.example/img", url)
+        val request = server.takeRequest()
+        assertEquals("/api/notes/images", request.target)
+        assertTrue(
+            "expected multipart content type: ${request.headers["Content-Type"]}",
+            request.headers["Content-Type"]?.startsWith("multipart/form-data") == true,
+        )
+        val body = request.body!!.utf8()
+        assertTrue("expected the image part: $body", body.contains("name=\"image\""))
+        assertTrue("expected the png filename: $body", body.contains("filename=\"note.png\""))
+        assertTrue("expected the raw bytes: $body", body.contains("PNGDATA"))
     }
 }

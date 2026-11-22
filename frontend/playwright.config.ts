@@ -30,6 +30,10 @@ export default defineConfig({
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL || 'http://localhost:3000',
     trace: 'retain-on-failure',
+    // E2E_VIDEO=on records a video per test (test-results/<...>/video.webm)
+    // — evidence for PR descriptions, never on by default (CI keeps the
+    // fast no-video path).
+    video: process.env.E2E_VIDEO ? 'on' : 'off',
     launchOptions: {
       slowMo: Number(process.env.E2E_SLOWMO_MS || 0),
     },

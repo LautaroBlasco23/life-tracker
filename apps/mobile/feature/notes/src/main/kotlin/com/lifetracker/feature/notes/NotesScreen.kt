@@ -2,6 +2,10 @@
 
 package com.lifetracker.feature.notes
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -37,11 +41,13 @@ import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Image
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -55,6 +61,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.TextStyle
@@ -63,6 +73,8 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.halilibo.richtext.markdown.Markdown
 import com.halilibo.richtext.ui.BasicRichText
@@ -78,6 +90,7 @@ import com.lifetracker.core.designsystem.LocalToast
 import com.lifetracker.core.i18n.I18n
 import com.lifetracker.core.network.model.NoteGroupResponse
 import com.lifetracker.core.network.model.NoteResponse
+import com.lifetracker.domain.notes.NotesRepository
 import kotlinx.coroutines.launch
 import sh.calvin.reorderable.ReorderableCollectionItemScope
 import sh.calvin.reorderable.ReorderableItem
@@ -85,6 +98,9 @@ import sh.calvin.reorderable.rememberReorderableLazyListState
 
 /** Field-length cap of the RN group name input (`maxLength={100}`). */
 private const val MAX_GROUP_NAME = 100
+
+/** MIME types the note-image endpoint accepts (web image-paste PR parity). */
+private val ALLOWED_IMAGE_MIME = setOf("image/jpeg", "image/png", "image/webp")
 
 /**
  * Port of the RN notes screen `app/(app)/notes.tsx`: ungrouped notes first,
@@ -111,11 +127,17 @@ fun NotesScreen(
     var showForm by rememberSaveable { mutableStateOf(false) }
     var editing by remember { mutableStateOf<NoteResponse?>(null) }
     var title by remember { mutableStateOf("") }
-    var content by remember { mutableStateOf("") }
+    var contentValue by remember { mutableStateOf(TextFieldValue("")) }
     var isSaving by remember { mutableStateOf(false) }
-    var hasUnsavedChanges by remember { mutableStateOf(false) }
     var showPreview by rememberSaveable { mutableStateOf(false) }
     var noteToDelete by remember { mutableStateOf<NoteResponse?>(null) }
+
+    // Autosave status of the open editor (debounced PUT drives it).
+    val editorStatus by viewModel.editorStatus.collectAsStateWithLifecycle()
+
+    // ---- image attach (web image-paste PR parity: gallery picker) ----
+    val context = LocalContext.current
+    var pendingUploads by remember { mutableIntStateOf(0) }
 
     // Group form (create/rename) + delete confirmation state.
     var showGroupForm by rememberSaveable { mutableStateOf(false) }
@@ -139,15 +161,35 @@ fun NotesScreen(
         }
     }
 
+    // App backgrounding is the mobile `beforeunload` analog: flush any
+    // pending autosave so a backgrounded process never sits on unsaved
+    // values (the debounce alone would wait for a keystroke).
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) viewModel.flushNow()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    // Keep the editor's "Last edited" timestamp fresh after an autosave.
+    LaunchedEffect(editorStatus) {
+        if (editorStatus == NoteSaveStatus.SAVED) {
+            val id = editing?.id ?: return@LaunchedEffect
+            editing = state.notes.find { it.id == id }
+        }
+    }
+
     // ---- editor helpers (RN openCreate / openEdit / handleDiscard / effect) ----
 
     fun openCreate() {
         editing = null
         title = ""
-        content = ""
-        hasUnsavedChanges = false
+        contentValue = TextFieldValue("")
         showPreview = false
         showForm = true
+        viewModel.resetEditor()
     }
 
     fun openEdit(note: NoteResponse) {
@@ -155,51 +197,106 @@ fun NotesScreen(
         val draft = viewModel.drafts.load(note.id)
         if (draft != null) {
             title = draft.title
-            content = draft.content
-            hasUnsavedChanges = draft.title != note.title || draft.content != note.content
+            contentValue = TextFieldValue(draft.content)
             toast.show(toastText(t("draftRestored"), t("draftRestoredDescription")))
         } else {
             title = note.title
-            content = note.content
-            hasUnsavedChanges = false
+            contentValue = TextFieldValue(note.content)
         }
         showPreview = false
         showForm = true
+        // A restored draft starts out "Unsaved changes"; a flush (dismiss or
+        // background) persists it without requiring a keystroke.
+        viewModel.beginEdit(note, title, contentValue.text)
     }
 
+    /** Discard: revert to the server values and drop the draft. */
     fun handleDiscard() {
         val note = editing ?: return
         viewModel.discardDraft(note.id)
         title = note.title
-        content = note.content
-        hasUnsavedChanges = false
+        contentValue = TextFieldValue(note.content)
+        // Re-opens the autosave session on the server values → status IDLE.
+        viewModel.beginEdit(note, note.title, note.content)
     }
 
-    /** The RN persist-while-typing effect lives here (title/content setters). */
-    fun onEditorChange(newTitle: String, newContent: String) {
-        val note = editing ?: return
+    /** Title keystrokes (content keystrokes flow through onContentChange). */
+    fun onTitleChange(newTitle: String) {
         title = newTitle
-        content = newContent
-        hasUnsavedChanges = newTitle != note.title || newContent != note.content
-        viewModel.syncEditorDraft(note.id, note.title, note.content, newTitle, newContent)
+        viewModel.onEditorChange(newTitle, contentValue.text)
     }
 
+    /** Content keystrokes; TextFieldValue keeps the cursor for image inserts. */
+    fun onContentChange(value: TextFieldValue) {
+        contentValue = value
+        viewModel.onEditorChange(title, value.text)
+    }
+
+    /** Inserts markdown at the content cursor, leaving the cursor after it. */
+    fun insertAtCursor(markdown: String) {
+        val text = contentValue.text
+        val cursor = contentValue.selection.end.coerceIn(0, text.length)
+        val next = text.substring(0, cursor) + markdown + text.substring(cursor)
+        contentValue = TextFieldValue(next, TextRange(cursor + markdown.length))
+        viewModel.onEditorChange(title, next)
+    }
+
+    /** Swaps (or, with an empty replacement, removes) an upload placeholder. */
+    fun settlePlaceholder(placeholder: String, replacement: String) {
+        val text = contentValue.text
+        val at = text.indexOf(placeholder)
+        if (at == -1) return
+        val next = text.replaceFirst(placeholder, replacement)
+        contentValue = TextFieldValue(next, TextRange((at + replacement.length).coerceAtMost(next.length)))
+        viewModel.onEditorChange(title, next)
+    }
+
+    /** Gallery pick → validate → insert placeholder → upload → settle. */
+    fun onImagePicked(uri: Uri?) {
+        if (uri == null) return
+        scope.launch {
+            val mime = context.contentResolver.getType(uri) ?: ""
+            if (mime !in ALLOWED_IMAGE_MIME) {
+                toast.show(t("unsupportedImageType"), isError = true)
+                return@launch
+            }
+            val bytes = runCatching {
+                context.contentResolver.openInputStream(uri)?.use { stream -> stream.readBytes() }
+            }.getOrNull()
+            if (bytes == null) {
+                toast.show(toastText(I18n.t("common.error"), null), isError = true)
+                return@launch
+            }
+            if (bytes.size > NotesRepository.MAX_IMAGE_BYTES) {
+                toast.show(t("imageTooLarge"), isError = true)
+                return@launch
+            }
+            // Placeholder swaps for the final URL on success (or vanishes on
+            // failure); autosave may persist it in between — harmless.
+            val placeholder = "![](uploading-${pendingUploads++})"
+            insertAtCursor(placeholder)
+            viewModel.uploadNoteImage(bytes, mime)
+                .onSuccess { url -> settlePlaceholder(placeholder, "![]($url)") }
+                .onFailure { error ->
+                    settlePlaceholder(placeholder, "")
+                    toast.show(toastText(I18n.t("common.error"), error.message), isError = true)
+                }
+        }
+    }
+
+    val imagePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.PickVisualMedia(),
+    ) { uri -> onImagePicked(uri) }
+
+    /** Create-only manual save (the create flow has no autosave session). */
     fun handleSubmit() {
-        val target = editing
         scope.launch {
             isSaving = true
-            val error = viewModel.saveNote(target?.id, title, content)
+            val error = viewModel.saveNote(null, title, contentValue.text)
             isSaving = false
             if (error == null) {
                 showForm = false
-                editing = null
-                hasUnsavedChanges = false
-                toast.show(
-                    toastText(
-                        if (target != null) t("noteSaved") else t("noteCreated"),
-                        if (target != null) t("noteSavedDescription") else t("startWriting"),
-                    ),
-                )
+                toast.show(toastText(t("noteCreated"), t("startWriting")))
             } else {
                 // The RN handler leaves the modal open on a failed save.
                 toast.show(toastText(t("failedToSave"), error), isError = true)
@@ -419,22 +516,35 @@ fun NotesScreen(
     // ---- note editor modal (RN slide-up modal → LbModalSheet) ----
     LbModalSheet(
         visible = showForm,
-        onDismiss = { showForm = false },
+        // Closing flushes first (web: navigating away saves) — the PUT rides
+        // on the app scope, so it outlives this screen.
+        onDismiss = {
+            viewModel.flushNow()
+            showForm = false
+        },
         title = if (editing != null) t("editNote") else t("newNote"),
     ) {
         NoteEditor(
             editing = editing,
             title = title,
-            content = content,
+            contentValue = contentValue,
             isSaving = isSaving,
-            hasUnsavedChanges = hasUnsavedChanges,
+            saveStatus = editorStatus,
             showPreview = showPreview,
-            onTitleChange = { onEditorChange(it, content) },
-            onContentChange = { onEditorChange(title, it) },
+            onTitleChange = ::onTitleChange,
+            onContentChange = ::onContentChange,
             onTogglePreview = { showPreview = !showPreview },
+            onAttachImage = {
+                imagePicker.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly),
+                )
+            },
             onDiscard = ::handleDiscard,
             onSave = ::handleSubmit,
-            onCancel = { showForm = false },
+            onCancel = {
+                viewModel.flushNow()
+                showForm = false
+            },
         )
     }
 
@@ -818,28 +928,30 @@ private fun ReorderableCollectionItemScope.GroupListing(
 
 /// ---------------------------------------------------------------------
 /// Editor modal content: title + content (+ markdown preview swap), the
-/// "last edited" line, Discard link, Cancel/Save buttons.
+/// "last edited" line with the autosave status, Discard link, and a
+/// Save button for the create flow only (edits autosave).
 /// ---------------------------------------------------------------------
 
 @Composable
 private fun NoteEditor(
     editing: NoteResponse?,
     title: String,
-    content: String,
+    contentValue: TextFieldValue,
     isSaving: Boolean,
-    hasUnsavedChanges: Boolean,
+    saveStatus: NoteSaveStatus,
     showPreview: Boolean,
     onTitleChange: (String) -> Unit,
-    onContentChange: (String) -> Unit,
+    onContentChange: (TextFieldValue) -> Unit,
     onTogglePreview: () -> Unit,
+    onAttachImage: () -> Unit,
     onDiscard: () -> Unit,
     onSave: () -> Unit,
     onCancel: () -> Unit,
 ) {
     val colors = LocalAppColors.current
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-        // Discard link when editing a note with unsaved changes.
-        if (editing != null && hasUnsavedChanges) {
+        // Discard link while editing a note whose autosave has pending values.
+        if (editing != null && saveStatus == NoteSaveStatus.UNSAVED) {
             Text(
                 text = t("discard"),
                 fontSize = 14.sp,
@@ -862,15 +974,41 @@ private fun NoteEditor(
             placeholder = t("titlePlaceholder"),
         )
 
+        // Persistent hint while the title is blank: an untitled note can
+        // save (content-only PUT) but stays unfindable in the list (web parity).
+        if (title.isBlank()) {
+            Text(
+                text = t("addTitleHint"),
+                fontSize = 12.sp,
+                color = colors.textMuted,
+            )
+        }
+
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text(
                 text = t("contentPlaceholder"),
                 fontSize = 14.sp,
                 color = colors.foreground,
+                modifier = Modifier.weight(1f),
+            )
+            // Gallery attach (web: clipboard paste is not a mobile gesture).
+            Icon(
+                imageVector = Icons.Outlined.Image,
+                contentDescription = t("attachImage"),
+                tint = colors.primary,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onAttachImage,
+                    )
+                    .padding(2.dp)
+                    .size(20.dp),
             )
             Text(
                 text = if (showPreview) t("edit") else t("preview"),
@@ -887,17 +1025,22 @@ private fun NoteEditor(
         }
 
         if (showPreview) {
-            MarkdownPreview(content)
+            MarkdownPreview(contentValue.text)
         } else {
             NotesContentField(
-                value = content,
+                value = contentValue,
                 onValueChange = onContentChange,
                 placeholder = t("contentPlaceholder"),
             )
         }
 
         if (editing != null) {
-            val suffix = if (hasUnsavedChanges) " • ${t("unsavedChanges")}" else ""
+            val suffix = when (saveStatus) {
+                NoteSaveStatus.UNSAVED -> " • ${t("unsavedChanges")}"
+                NoteSaveStatus.SAVING -> " • ${t("saving")}"
+                NoteSaveStatus.SAVED -> " • ${t("saved")}"
+                NoteSaveStatus.IDLE -> ""
+            }
             Text(
                 text = t("lastEdited", "date" to formatEditedAt(editing.editedAt)) + suffix,
                 fontSize = 12.sp,
@@ -905,30 +1048,54 @@ private fun NoteEditor(
             )
         }
 
+        // Edits save themselves (autosave): only Close. Creates still need
+        // the manual Save (POST requires a title).
         Row(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
         ) {
-            LbButton(
-                text = I18n.t("common.cancel"),
-                onClick = onCancel,
-                variant = LbButtonVariant.SECONDARY,
-                modifier = Modifier.weight(1f),
-            )
-            LbButton(
-                text = t("save"),
-                onClick = onSave,
-                loading = isSaving,
-                modifier = Modifier.weight(1f),
-            )
+            if (editing == null) {
+                LbButton(
+                    text = I18n.t("common.cancel"),
+                    onClick = onCancel,
+                    variant = LbButtonVariant.SECONDARY,
+                    modifier = Modifier.weight(1f),
+                )
+                LbButton(
+                    text = t("save"),
+                    onClick = onSave,
+                    loading = isSaving,
+                    modifier = Modifier.weight(1f),
+                )
+            } else {
+                LbButton(
+                    text = I18n.t("common.close"),
+                    onClick = onCancel,
+                    variant = LbButtonVariant.SECONDARY,
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
     }
 }
 
 /** The bordered multi-line content input (RN 160px min-height field). */
 @Composable
-private fun NotesContentField(value: String, onValueChange: (String) -> Unit, placeholder: String) {
+private fun NotesContentField(
+    value: TextFieldValue,
+    onValueChange: (TextFieldValue) -> Unit,
+    placeholder: String,
+) {
     val colors = LocalAppColors.current
+    // Live markdown styling while typing (markers dim, never removed).
+    val markdownTransformation = remember(colors.foreground, colors.textMuted, colors.primary, colors.border) {
+        NoteMarkdownTransformation(
+            ink = colors.foreground,
+            muted = colors.textMuted,
+            primary = colors.primary,
+            codeBackground = colors.border,
+        )
+    }
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -938,7 +1105,7 @@ private fun NotesContentField(value: String, onValueChange: (String) -> Unit, pl
             .padding(horizontal = 12.dp, vertical = 10.dp),
         contentAlignment = Alignment.TopStart,
     ) {
-        if (value.isEmpty()) {
+        if (value.text.isEmpty()) {
             Text(placeholder, fontSize = 16.sp, color = colors.textMuted)
         }
         BasicTextField(
@@ -950,6 +1117,7 @@ private fun NotesContentField(value: String, onValueChange: (String) -> Unit, pl
             enabled = true,
             singleLine = false,
             textStyle = TextStyle(fontSize = 16.sp, color = colors.foreground),
+            visualTransformation = markdownTransformation,
             cursorBrush = SolidColor(colors.primary),
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.None),
         )

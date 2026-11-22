@@ -1,5 +1,44 @@
 # Changelog
 
+## [3.1.1](https://github.com/LautaroBlasco23/life-tracker/compare/v3.1.0...v3.1.1) (2026-11-19)
+
+
+### Bug Fixes
+
+* **frontend:** pin Turbopack root and harden web storage detection for Node 25 ([#152](https://github.com/LautaroBlasco23/life-tracker/issues/152)) ([00e8fb2](https://github.com/LautaroBlasco23/life-tracker/commit/00e8fb2a3fa6035ddd4d54ab8a0778a77073aa0a))
+
+## [3.1.0](https://github.com/LautaroBlasco23/life-tracker/compare/v3.0.0...v3.1.0) (2026-11-19)
+
+
+### Features
+
+* **mobile-notes:** live markdown, debounced autosave and gallery image attach ([#141](https://github.com/LautaroBlasco23/life-tracker/issues/141)) ([9536cd6](https://github.com/LautaroBlasco23/life-tracker/commit/9536cd6e9210e7fcef8c68e709ef3dad8a7464e4))
+* **mobile:** redesign activities UI with section accents, action tiles and bottom navigation ([#131](https://github.com/LautaroBlasco23/life-tracker/issues/131)) ([3b79a0b](https://github.com/LautaroBlasco23/life-tracker/commit/3b79a0b6acd60f2bde6fa9ddc8a613cf9ed9f6bf))
+* **mobile:** signed release APK via make generate-apk ([#130](https://github.com/LautaroBlasco23/life-tracker/issues/130)) ([c50667b](https://github.com/LautaroBlasco23/life-tracker/commit/c50667b33915e1b5cecfa7b9a7acee67cbfd2eeb))
+* **mobile:** signed release APK via make generate-apk ([#134](https://github.com/LautaroBlasco23/life-tracker/issues/134)) ([b039bfe](https://github.com/LautaroBlasco23/life-tracker/commit/b039bfe496514acafe9eeaff24d540609e5bb084))
+* **mobile:** single-line scrollable period chips on time screen ([#140](https://github.com/LautaroBlasco23/life-tracker/issues/140)) ([c0fe6b3](https://github.com/LautaroBlasco23/life-tracker/commit/c0fe6b354ec7c8cb1caee00493f8bef0aa620a65))
+* **notes:** live markdown editor with autosave and image paste ([#139](https://github.com/LautaroBlasco23/life-tracker/issues/139)) ([fcfd3e2](https://github.com/LautaroBlasco23/life-tracker/commit/fcfd3e251a7ccb33caf98700c0ffbcb7a14d3deb))
+* **web:** add automated app demo video pipeline and commit the demo ([#132](https://github.com/LautaroBlasco23/life-tracker/issues/132)) ([2b73711](https://github.com/LautaroBlasco23/life-tracker/commit/2b737118a0ccf353991b39dd31df2dd3f81a9982))
+
+
+### Bug Fixes
+
+* **ci:** resolve frontend Docker image name from DOCKERHUB_USERNAME secret ([#150](https://github.com/LautaroBlasco23/life-tracker/issues/150)) ([ed96173](https://github.com/LautaroBlasco23/life-tracker/commit/ed96173cff9707eb7c0f7bdd463bf239bf519416))
+* **frontend:** make notes sidebar row fully clickable and draggable ([#143](https://github.com/LautaroBlasco23/life-tracker/issues/143)) ([b85c9dd](https://github.com/LautaroBlasco23/life-tracker/commit/b85c9ddd6a6b6b90d5d963e88e072ab1b74ce512))
+* **make:** auto-seed .env in fresh worktrees for dev entry points ([#142](https://github.com/LautaroBlasco23/life-tracker/issues/142)) ([2fdb303](https://github.com/LautaroBlasco23/life-tracker/commit/2fdb303ae92bfc279dc4b5b3c0c7bb2915792650))
+
+
+### Documentation
+
+* embed README demo video as GitHub-uploaded inline player ([#137](https://github.com/LautaroBlasco23/life-tracker/issues/137)) ([8f42637](https://github.com/LautaroBlasco23/life-tracker/commit/8f4263792307bbfb5ead42d001b7ec984dc72bd6))
+* fix README demo embed for GitHub hosting and drop App Images ([#133](https://github.com/LautaroBlasco23/life-tracker/issues/133)) ([9dd7c6c](https://github.com/LautaroBlasco23/life-tracker/commit/9dd7c6cad5165d3578313807e1b038426909bfe0))
+* host README demo video as release asset so the link works on GitHub ([#136](https://github.com/LautaroBlasco23/life-tracker/issues/136)) ([8532204](https://github.com/LautaroBlasco23/life-tracker/commit/8532204fd6b4a1673f352acbcb9f93179caec441))
+
+
+### Miscellaneous Chores
+
+* remove completed migration plans and unused assets ([#138](https://github.com/LautaroBlasco23/life-tracker/issues/138)) ([b16d77c](https://github.com/LautaroBlasco23/life-tracker/commit/b16d77cda4d08bc3bd14db8a973d09de7574512b))
+
 ## [3.0.0](https://github.com/LautaroBlasco23/life-tracker/compare/v2.1.0...v3.0.0) (2026-11-13)
 
 

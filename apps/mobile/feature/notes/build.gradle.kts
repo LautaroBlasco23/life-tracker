@@ -38,6 +38,10 @@ dependencies {
     implementation(libs.reorderable)
     // Markdown rendering in the note editor preview (RN markdown-display port).
     implementation(libs.richtext.commonmark)
+
+    // Unit tests for the autosave controller (debounce/single-flight semantics).
+    testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
 }
 
 
