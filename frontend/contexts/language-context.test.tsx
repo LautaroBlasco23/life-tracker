@@ -1,21 +1,16 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import type { PropsWithChildren } from 'react';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import {
   LanguageProvider,
   useLanguage,
   useTranslations,
 } from '@shared/contexts/language-context';
 
-// packages/shared is consumed from source and resolves its own copy of
-// react from the workspace root, while the test renderer uses frontend's
-// react — two module instances break hook dispatch. Re-alias the shared
-// copy onto the frontend copy so LanguageProvider can be exercised for
-// real (no other test renders it; every component test mocks it instead).
-vi.mock('../../node_modules/react', async () => await import('react'));
-
 // The shared language context is consumed from source via @shared; jsdom
 // localStorage backs the storage adapter so persistence is observable.
+// vitest.config.ts pins react to the frontend copy so the shared source and
+// the renderer share one module instance (hook dispatch requires it).
 
 function wrapper({ children }: PropsWithChildren) {
   return <LanguageProvider>{children}</LanguageProvider>;

@@ -9,6 +9,20 @@ export default defineConfig({
       // Mirrors frontend/tsconfig.json paths (@shared consumed from source).
       '@shared': path.resolve(__dirname, '../packages/shared/src'),
       '@': path.resolve(__dirname, './'),
+      // packages/shared is consumed from source and would otherwise resolve
+      // react from the workspace-root node_modules. CI installs only the
+      // frontend tree (no root react), and two react copies break hook
+      // dispatch. Pin every react entry to the frontend copy.
+      react: path.resolve(__dirname, 'node_modules/react'),
+      'react-dom': path.resolve(__dirname, 'node_modules/react-dom'),
+      'react/jsx-runtime': path.resolve(
+        __dirname,
+        'node_modules/react/jsx-runtime'
+      ),
+      'react/jsx-dev-runtime': path.resolve(
+        __dirname,
+        'node_modules/react/jsx-dev-runtime'
+      ),
     },
   },
   test: {
