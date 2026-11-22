@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"net/http"
+	"os"
 	"strconv"
 	"sync"
 	"time"
@@ -14,16 +15,33 @@ import (
 // endpoints of a single API replica. If the API ever runs multiple replicas
 // behind a load balancer, replace with a shared-store limiter (e.g. Redis).
 
-const (
-	// Auth routes (login/register/refresh): brute-force and credential-stuffing target.
-	AuthRateLimit  = 10
-	AuthRateWindow = time.Minute
+// Auth routes (login/register/refresh): brute-force and credential-stuffing
+// target. Enum checks (username/email availability): account-enumeration
+// surface. Both are env-overridable so test lanes can raise them — the web
+// e2e suite registers ~25 fresh users through one shared router in under two
+// minutes, which a production-sized 10/min window legitimately rejects.
+// Defaults stay production-safe: production .env files simply don't set them.
+var (
+	AuthRateLimit = envInt("AUTH_RATE_LIMIT", 10)
 	// Public username/email availability checks: account-enumeration surface.
-	EnumRateLimit  = 30
+	EnumRateLimit = envInt("ENUM_RATE_LIMIT", 30)
+)
+
+const (
+	AuthRateWindow = time.Minute
 	EnumRateWindow = time.Minute
 
 	rateLimitPruneInterval = time.Minute
 )
+
+func envInt(name string, fallback int) int {
+	if v := os.Getenv(name); v != "" {
+		if n, err := strconv.Atoi(v); err == nil && n > 0 {
+			return n
+		}
+	}
+	return fallback
+}
 
 type rateWindow struct {
 	count   int
