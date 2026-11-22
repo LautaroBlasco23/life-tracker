@@ -13,11 +13,11 @@ vi.mock('@shared/contexts/language-context', () => ({
         created: 'Created',
         thisPeriod: 'This period',
         total: 'Total',
+        recordPayment: 'Record payment',
       };
       const createTransaction: Record<string, string> = {
         monthly: 'Monthly',
         yearly: 'Yearly',
-        recordPayment: 'Record payment',
       };
       const common: Record<string, string> = {
         edit: 'Edit',
