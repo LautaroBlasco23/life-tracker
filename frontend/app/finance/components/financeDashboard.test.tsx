@@ -1,4 +1,9 @@
-import { cloneElement, isValidElement, type PropsWithChildren } from 'react';
+import {
+  cloneElement,
+  isValidElement,
+  type PropsWithChildren,
+  type ReactElement,
+} from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -19,7 +24,10 @@ vi.mock('recharts', async (importOriginal) => {
     ...recharts,
     ResponsiveContainer: ({ children }: PropsWithChildren) =>
       isValidElement(children)
-        ? cloneElement(children, { width: 320, height: 200 })
+        ? cloneElement(
+            children as ReactElement<{ width: number; height: number }>,
+            { width: 320, height: 200 }
+          )
         : children,
   };
 });

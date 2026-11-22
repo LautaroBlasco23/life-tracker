@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Category } from '@shared/types';
 import FinancePage from './page';
+import { useFinanceCategories } from './hooks/use-finance-categories';
 
 // Mocking the shared context keeps this test on the component's own logic and
 // avoids a second React copy (the workspace root installs React for mobile).
@@ -55,9 +56,7 @@ vi.mock('./modal/createTransactionModal', () => ({
     ) : null,
 }));
 
-const mockUseFinanceCategories = vi.mocked(
-  (await import('./hooks/use-finance-categories')).useFinanceCategories
-);
+const mockUseFinanceCategories = vi.mocked(useFinanceCategories);
 
 const categories: Category[] = [{ name: 'Food & Groceries', type: 'outcome' }];
 
