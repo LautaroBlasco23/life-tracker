@@ -248,3 +248,6 @@ the same way.
   its `feature/<name>` module, ViewModel via `@HiltViewModel`; primary navigation is the
   `LbBottomNav` tab bar (add the route to `tabKeyForRoute` + `mainNavTabs`), the `AppHeader`
   carries the profile entry point (and optional actions, e.g. the finance cross-links).
+  The profile screen is not a tab but still renders the bar with no tab highlighted
+  (`Routes.PROFILE` in `tabKeyForRoute`); `profile/backup`, public profiles and auth
+  screens hide it.
