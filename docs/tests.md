@@ -21,7 +21,7 @@ the source of truth; `docs/index.html` is generated from it by `make docs`).
 | backend | service logic, table-driven | — | repositories/controllers against the real compose test DBs — **one suite with unit, no tag split** | `tests/e2e` (`e2e` build tag): production router + real JWT | k6: smoke on PRs, full suite nightly |
 | web (`frontend/`) | pure logic: calendar libs, palette parity | components/contexts with RTL + jsdom; `@shared` services mocked | — | Playwright (chromium) on the full-stack container lane | — |
 | shared (`packages/shared/`) | pure TS logic: theme tokens, i18n en/es parity, auth service — protects both consumers at once | — | — | — | — |
-| mobile (`apps/mobile/`) | pure logic: dates, input formatting | RNTL components; `className` is inert under jest, so tests assert behavior, not styling | — | none yet (Maestro deferred) | — |
+| mobile (`apps/mobile/`) | Kotlin logic + repositories: dates, formatting, filters, request contracts via MockWebServer | — | — | none yet (Maestro deferred) | — |
 
 ## Backend tests
 
@@ -41,9 +41,13 @@ their own routers with inline auth fakes.
 | `make db-test-up` / `make db-test-down` / `make db-test-remove` | Manage the test databases manually (up / stop / remove + volumes) |
 
 Coverage is a **hard gate** with a ratchet policy: CI fails when the total
-drops below the floor (49.0%, set just under the Oct 2026 baseline of **49.1%
-of statements** across 805 tests). Floors may only move up — raise them as
-suites mature, never lower them to land a change.
+drops below the floor (61.0%, set just under the Nov 2026 post-ratchet baseline
+of **61.3%** — Phase 5 took it up from the 49.1% starting point). Floors may
+only move up — raise them as suites mature, never lower them to land a change.
+Measurement caveat: suites living outside `internal/domain/<name>` (e.g. the
+social test package) don't attribute their executions back to the domain
+packages in the per-package profile; the gate uses the same aggregation, so
+the floor is consistent, but per-domain numbers can understate social.
 
 ### Essential E2E suite (build tag `e2e`)
 
@@ -52,7 +56,7 @@ suites mature, never lower them to land a change.
 - Run locally and in CI (compose test DBs).
 - Runs in CI inside the backend `test` job.
 - Excluded from the default suite by the `//go:build e2e` tag, so `make test-backend` (and the `make test` aggregate) stays fast.
-- Scope (deliberately small): health, register → login → refresh (real JWT issuance), anonymous call to a protected route → 401, `/users/me` + `/activities/today`, activity + note create/list lifecycle with the issued token.
+- Scope (deliberately small): health, register → login → refresh (real JWT issuance), anonymous call to a protected route → 401, `/users/me` + `/activities/today`, activity + note create/list lifecycle with the issued token, and the **route contract check** (`service.json` must list every `/api/*` route the production router registers — and nothing unregistered — since that JSON ships as a release artifact).
 - Data strategy: unique usernames per run (`e2e_<timestamp>`), no truncation — coexists with the unit suite on the same DBs.
 
 ## Shared package tests (Vitest)
@@ -86,15 +90,21 @@ replaced with `vi.mock`. What they cover: rendering, interaction
 | `npm run test:watch` | watch mode |
 
 - Config: `frontend/vitest.config.ts` (jsdom, `globals: true`, `@shared` → `../packages/shared/src` alias mirroring tsconfig); setup file `frontend/test/setup.ts` (jest-dom).
-- Current coverage: `ThemeProvider`/`useTheme` (localStorage persistence, CSS variable application), `ThemeToggle` (shadcn render + interaction), `AuthGuard` (auth service mocking + redirect), and `globals-parity` (frontend palette hex must exactly match `theme-colors.ts`), plus calendar components/lib logic.
-- Conventions: mock `@shared/services/*` with `vi.mock('<module>', factory)` — never import the real service into a component test; mock `next/navigation`'s `useRouter`; RTL cleans up automatically (`globals: true`).
+- Current coverage: every feature area under `app/` — activities (page, reminder section, all modals), time (views, hooks, components, modals, calendar), finance (tabbed page, dashboard, movements, bills, modals), notes (editor, sidebar, sticky notes, views), social, public profiles, profile (email/password modals, export/restore), onboarding wizard, register/login, the app shell (`navigation`, `AuthGuard`), `lib/` (toast, utils, version), `hooks/`, and both theme/language contexts — plus calendar component/lib logic and the palette-parity contract.
+- Conventions: mock `@shared/services/*` with `vi.mock('<module>', factory)` — never import the real service into a component test; mock `next/navigation`'s `useRouter` (the Next 16 `AppRouterInstance` needs `bfcacheId` in the mock); RTL cleans up automatically (`globals: true`). `@shared` React components can't be rendered directly (the workspace hoists a second React copy) — mock `@shared/contexts/language-context` instead of rendering it.
 
-Coverage is a **hard gate**: `npm run test:coverage` runs with `all: true`
-(untested files count as 0%) and per-glob floors defined in
-`vitest.config.ts`, set just under the measured Nov 2026 baseline (~9%
-statements overall — feature folders are near zero). The ratchet policy
-applies: floors only move up, per phase, toward the 80% target. CI prints the
-totals line to the job summary and uploads the html report as an artifact.
+Coverage is a **hard gate**: `npm run test:coverage` counts untested files as
+0% (`coverage.include` — the vitest 4+ replacement for the removed `all`) with
+per-glob floors defined in `vitest.config.ts`. After the Phase 2 feature-test
+push (Nov 2026) the suite sits at **~85.8% statements / 76.1% branches** across
+68 files / 558 tests (floors: 85/76 global; per-glob floors for `app`,
+`components`, `contexts`, `hooks`, `lib`). The ratchet policy applies: floors
+only move up. Vendored shadcn/ui primitives in `components/ui/` are excluded
+from the denominator (same policy as `demo/`/`e2e/`); the in-repo custom
+components (entity cards, delete modal, filter modal, countdown, streak badge,
+…) stay covered. Known remaining weak spots: `app/time/views` dnd reschedule
+branch, `components/notes/notes-sidebar` drop-to-ungroup. CI prints the totals
+line to the job summary and uploads the html report as an artifact.
 
 ### Web E2E (Playwright, essential suite)
 
@@ -121,17 +131,28 @@ notes CRUD through the UI, deploy-lane canary (`/env-config.js` + app title).
 
 | Module | What it covers |
 |---|---|
-| `:domain` | Auth core against MockWebServer (login/session persistence, refresh token swap, error-envelope parsing, logout incl. unreachable backend) and the calendar-week logic port |
+| `:domain` | Every repository against MockWebServer (auth, activities, calendar, finance, notes, profile, data backup, reminders, routines, follows, subscriptions, time) — request target/method/body/query assertions — plus the logic layer: datetime/format helpers, `SessionAuthenticator` (single-flight refresh, retry-once, force-logout), input validators, `ActiveTimeSession`, filters, and the activity-template catalog |
 | `:core:i18n` | en/es message-asset key-set parity + anchor strings |
 
 | Command | What it does |
 |---|---|
 | `make test-mobile` | `cd apps/mobile && ./gradlew test` (all modules) |
 | `./gradlew :app:assembleDebug` | compile gate for the whole app |
+| `./gradlew jacocoTestReport` | aggregate Jacoco XML/HTML report (runs the unit tests first) |
 
-Conventions: JUnit4, MockWebServer for transport-level tests, kotlinx-coroutines-test
+Conventions: JUnit4, MockWebServer3 for transport-level tests, kotlinx-coroutines-test
 `runTest` for suspend flows. The AuthRepository refresh path mirrors the OkHttp
 `SessionAuthenticator` (single-flight refresh, retry-once, force-logout events).
+Context-bound classes (EncryptedSharedPreferences/DataStore) are untested —
+Robolectric is deliberately not used.
+
+Coverage is a **hard gate** on the **logic layer** (`:domain` + `:core:network`,
+Jacoco LINE counters parsed from the aggregate XML): CI fails below **50.0%**
+(set just under the Nov 2026 baseline of 52.05%; `:domain` alone sits at
+~74.6%). Compose UI (`feature/*`, `:app`, designsystem) is deliberately outside
+the floor — it is disproportionately expensive to test; wiring test
+dependencies for the feature ViewModels is the next ratchet step. Same policy
+as everywhere else: floors only move up.
 
 Compose UI instrumentation tests and on-device Maestro E2E are deferred;
 behavior parity was verified against the per-screen QA checklist ported
@@ -142,8 +163,8 @@ from the RN app (kept in git history).
 PR CI is dependency-aware: each workflow's `paths:` filter triggers only the suites that could be affected.
 
 - `frontend-ci.yml` → prettier, `npm test` (vitest), **coverage hard gate** (`test:coverage` with per-glob thresholds, pipefail-preserved exit code; artifact + job summary), `tsc --noEmit`, a **`shared-tests` job** (shared suite with its own coverage gate — previously the shared package was never tested in CI), and the **`e2e` job** (Playwright essential suite on the full-stack container lane). Triggers on `frontend/**` + `packages/shared/**`.
-- `mobile-ci.yml` → Kotlin `assembleDebug` + unit tests across all mobile Gradle modules. Triggers on `apps/mobile/**` only (the mobile app does not consume `packages/shared`).
-- `backend-ci.yml` → golangci-lint, integration suite **with coverage** against the compose test DBs (summary + artifact + **coverage floor gate**, 49.0%), **essential E2E suite** (build tag `e2e`), and the **`api-perf-smoke` job** (k6 `smoke.js` against the load-test stack's API; thresholds fail the PR). Triggers on `backend/**`, the compose/nginx/scripts files, `Makefile` — including the Makefile's test-target names.
+- `mobile-ci.yml` → Kotlin `assembleDebug` + unit tests across all mobile Gradle modules, then the **logic-layer coverage floor gate** (aggregate Jacoco XML, `:domain` + `:core:network` LINE counters vs 50.0%). Triggers on `apps/mobile/**` only (the mobile app does not consume `packages/shared`).
+- `backend-ci.yml` → golangci-lint, integration suite **with coverage** against the compose test DBs (summary + artifact + **coverage floor gate**, 61.0%), **essential E2E suite** (build tag `e2e` — includes the `service.json` route contract check), and the **`api-perf-smoke` job** (k6 `smoke.js` against the load-test stack's API; thresholds fail the PR). Triggers on `backend/**`, the compose/nginx/scripts files, `Makefile` — including the Makefile's test-target names.
 - `nightly-loadtest.yml` → full k6 suite on a daily cron (`0 3 * * *`) + manual dispatch (`REMOTE_WRITE=0`, reports artifact). Heavy lanes are nightly-only; PRs get the smoke lane only.
 - `release.yml` / `pr-title.yml` unchanged (release-please + Conventional Commits enforcement).
 

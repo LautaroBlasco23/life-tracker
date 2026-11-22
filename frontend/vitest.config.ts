@@ -36,20 +36,27 @@ export default defineConfig({
         'out/**',
         '.next/**',
         'node_modules/**',
+        // Vendored shadcn/ui primitives (upstream boilerplate, no app logic —
+        // same policy as demo/e2e). Custom in-repo components stay covered:
+        // card/{delete-modal,entityCard,entityDropdown}, category/*,
+        // filterModal/*, countdown, page-header, password-input,
+        // streak-badge, time-input.
+        'components/ui/{accordion,alert,alert-dialog,aspect-ratio,avatar,badge,breadcrumb,button,calendar,card,carousel,chart,checkbox,collapsible,command,context-menu,dialog,drawer,dropdown-menu,form,hover-card,input-otp,input,label,menubar,navigation-menu,pagination,popover,progress,radio-group,resizable,scroll-area,select,separator,sheet,sidebar,skeleton,slider,sonner,switch,table,tabs,textarea,toggle,toggle-group,tooltip,use-mobile}.tsx',
       ],
       reporter: ['text', 'html'],
-      // Hard coverage gate with a ratchet policy: floors start just below the
-      // measured baseline (Nov 2026, `all: true`) and may only move up.
-      // Feature folders (app/components/hooks/lib) are the Phase 2+ work;
-      // contexts is already near its ceiling.
+      // Hard coverage gate with a ratchet policy: floors sit just below the
+      // measured Nov 2026 post-Phase-2 numbers (all 68 files / 558 tests,
+      // untested files count as 0%) and may only move up toward the 80%+ end
+      // state. Vendored shadcn primitives are excluded from the denominator
+      // (see excludes); custom components and feature folders stay in.
       thresholds: {
-        statements: 9,
-        branches: 6,
-        'app/**': { statements: 8, branches: 5 },
-        'components/**': { statements: 9, branches: 6 },
+        statements: 85,
+        branches: 76,
+        'app/**': { statements: 88, branches: 78 },
+        'components/**': { statements: 72, branches: 65 },
         'contexts/**': { statements: 94, branches: 86 },
-        'hooks/**': { statements: 0, branches: 0 },
-        'lib/**': { statements: 1, branches: 0 },
+        'hooks/**': { statements: 99, branches: 99 },
+        'lib/**': { statements: 96, branches: 93 },
       },
     },
   },
