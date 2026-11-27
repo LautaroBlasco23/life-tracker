@@ -9,7 +9,9 @@ import { PageHeader } from '@/components/ui/page-header';
 import { activityService } from '@shared/services/activity-service';
 import { reminderService } from '@shared/services/reminder-service';
 import type { Activity, DayTime } from '@shared/types/activity';
+import { DAY_TIMES, FREQUENCIES } from '@shared/types/activity';
 import type { StreakInfo } from '@shared/types/activity';
+import { formatDayFrequency } from '@shared/lib/day-format';
 import type { Reminder } from '@shared/types/reminder';
 import { isReminderVisibleOn } from '@shared/types/reminder';
 import { StreakBadge } from '@/components/ui/streak-badge';
@@ -73,20 +75,9 @@ function toCompletionDateISO(dateString?: string): string | undefined {
   return date.toISOString();
 }
 
-function formatDayFrequency(dayFrequency?: string): string | null {
-  if (!dayFrequency) return null;
-  try {
-    const days: string[] = JSON.parse(dayFrequency);
-    return days
-      .map((day) => day.charAt(0).toUpperCase() + day.slice(1))
-      .join(', ');
-  } catch {
-    return null;
-  }
-}
-
 export default function ActivitiesPage() {
   const t = useTranslations('activities');
+  const tDays = useTranslations('days');
   const tRoutines = useTranslations('routines');
   const tReminders = useTranslations('reminders');
   const tCommon = useTranslations('common');
@@ -123,18 +114,15 @@ export default function ActivitiesPage() {
     },
   } as const;
 
-  const FREQUENCY_OPTIONS = [
-    { value: 'daily', label: t('daily') },
-    { value: 'weekly', label: t('weekly') },
-    { value: 'monthly', label: t('monthly') },
-  ];
+  const FREQUENCY_OPTIONS = FREQUENCIES.map((value) => ({
+    value,
+    label: t(value),
+  }));
 
-  const DAY_TIME_OPTIONS = [
-    { value: 'notSpecified', label: t('anyMoment') },
-    { value: 'morning', label: t('morning') },
-    { value: 'afternoon', label: t('afternoon') },
-    { value: 'evening', label: t('evening') },
-  ];
+  const DAY_TIME_OPTIONS = DAY_TIMES.map((value) => ({
+    value,
+    label: t(value === 'notSpecified' ? 'anyMoment' : value),
+  }));
 
   const [activities, setActivities] = useState<Activity[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -571,7 +559,7 @@ export default function ActivitiesPage() {
       variant: 'outline' | 'default' | 'secondary';
       onClick?: () => void;
     }> = [{ label: t(activity.frequency), variant: 'outline' }];
-    const formattedDays = formatDayFrequency(activity.dayFrequency);
+    const formattedDays = formatDayFrequency(activity.dayFrequency, tDays);
     if (activity.frequency === 'weekly' && formattedDays) {
       badges.push({ label: formattedDays, variant: 'outline' });
     }

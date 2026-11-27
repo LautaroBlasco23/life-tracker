@@ -1,17 +1,32 @@
 import { ActivityRecord } from './activityRecords';
 import type { RoutineRef } from './routine';
 
-export type Frequency = 'daily' | 'weekly' | 'monthly';
-export type DayOfWeek =
-  | 'monday'
-  | 'tuesday'
-  | 'wednesday'
-  | 'thursday'
-  | 'friday'
-  | 'saturday'
-  | 'sunday';
-export type DayTime = 'notSpecified' | 'morning' | 'afternoon' | 'evening';
-export type PrivacyStatus = 'public' | 'private';
+// Canonical enum values. The unions below are derived from these arrays so a
+// new wire value cannot be added without also becoming selectable in the UI.
+export const FREQUENCIES = ['daily', 'weekly', 'monthly'] as const;
+export type Frequency = (typeof FREQUENCIES)[number];
+
+export const DAYS_OF_WEEK = [
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
+] as const;
+export type DayOfWeek = (typeof DAYS_OF_WEEK)[number];
+
+export const DAY_TIMES = [
+  'notSpecified',
+  'morning',
+  'afternoon',
+  'evening',
+] as const;
+export type DayTime = (typeof DAY_TIMES)[number];
+
+export const PRIVACY_STATUSES = ['private', 'public'] as const;
+export type PrivacyStatus = (typeof PRIVACY_STATUSES)[number];
 
 export interface StreakInfo {
   current: number;

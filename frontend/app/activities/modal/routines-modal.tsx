@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { routineService } from '@shared/services/routine-service';
 import type { Routine, RoutineActivityItem } from '@shared/types';
+import { formatDayFrequency } from '@shared/lib/day-format';
 import { showToast } from '@/lib/toast';
 import { cn } from '@/lib/utils';
 import { useTranslations } from '@shared/contexts/language-context';
@@ -39,20 +40,9 @@ interface RoutinesModalProps {
   initialRoutineId?: number | null;
 }
 
-function formatDayFrequency(dayFrequency?: string): string | null {
-  if (!dayFrequency) return null;
-  try {
-    const days: string[] = JSON.parse(dayFrequency);
-    return days
-      .map((day) => day.charAt(0).toUpperCase() + day.slice(1))
-      .join(', ');
-  } catch {
-    return null;
-  }
-}
-
 function RoutineActivityCard({ item }: { item: RoutineActivityItem }) {
   const tActivities = useTranslations('activities');
+  const tDays = useTranslations('days');
   const tPrivacy = useTranslations('privacy');
   const t = useTranslations('routines');
 
@@ -65,7 +55,7 @@ function RoutineActivityCard({ item }: { item: RoutineActivityItem }) {
     variant: 'default' | 'outline' | 'secondary';
   }> = [{ label: tActivities(item.frequency), variant: 'outline' }];
   if (item.frequency === 'weekly') {
-    const days = formatDayFrequency(item.dayFrequency);
+    const days = formatDayFrequency(item.dayFrequency, tDays);
     if (days) badges.push({ label: days, variant: 'outline' });
   }
   if (item.dayTime && item.dayTime !== 'notSpecified') {

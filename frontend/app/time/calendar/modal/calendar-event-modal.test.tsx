@@ -39,7 +39,7 @@ vi.mock('@shared/contexts/language-context', () => ({
       applyToOccurrence: 'This event',
       applyToSeries: 'The whole series',
     };
-    const createActivity: Record<string, string> = {
+    const days: Record<string, string> = {
       monday: 'Monday',
       tuesday: 'Tuesday',
       wednesday: 'Wednesday',
@@ -56,8 +56,8 @@ vi.mock('@shared/contexts/language-context', () => ({
     return (
       (namespace === 'common'
         ? common
-        : namespace === 'createActivity'
-          ? createActivity
+        : namespace === 'days'
+          ? days
           : calendar)[key] ?? key
     );
   },
