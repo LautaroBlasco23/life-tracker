@@ -10,15 +10,16 @@ GitHub Actions workflows live in `.github/workflows/` at the **repository root**
 
 ## `frontend-ci.yml`
 
-- **`lint` job**: PR gate (unconditional — see Merge ruleset; path-filtered on pushes touching `frontend/**` + `packages/shared/**`) — prettier check, vitest unit tests, **coverage report** (totals to the job summary + html artifact; report-only), `tsc --noEmit`, and a **prod dependency audit** (`node scripts/audit-prod.mjs`).
-- **`e2e` job**: spins up the full-stack container lane (`make dev-container`: postgres + mongodb + api + nginx static export with the `/api` proxy on :3000) and runs the Playwright essential suite (`frontend/e2e/` — auth guard, UI login, notes CRUD, deploy canary). Playwright HTML report uploaded on failure. Essential-only: deeper E2E is follow-up work.
+- **`lint` job**: PR gate (unconditional — see Merge ruleset; path-filtered on pushes touching `frontend/**` + `packages/shared/**`) — prettier check, vitest unit tests, **coverage hard gate** (`test:coverage` with per-glob floors — currently ~85.8%/76.1% measured, floors ratchet upward only; totals to the job summary + html artifact), `tsc --noEmit`, and a **prod dependency audit** (`node scripts/audit-prod.mjs`).
+- **`e2e` job**: spins up the full-stack container lane (`make dev-container`: postgres + mongodb + api + nginx static export with the `/api` proxy on :3000) and runs the Playwright suite (`frontend/e2e/`): the auth/login/notes/deploy-canary baseline plus register→onboarding, activities, time, finance, profile (incl. XLSX export→restore), social, and theme/language persistence. Playwright HTML report uploaded on failure.
+- **`shared-tests` job**: the shared package suite with its own coverage gate (floors 90/90). Required check.
 - **`build-export` job**: runs `next build` with `output: 'export'`, asserting `out/index.html` is produced.
 - **`build-and-push` job**: runs **only on `vX.Y.Z` tags** — builds and pushes the frontend image to Docker Hub (`<dockerhub-username>/lifetracker-frontend`) tagged `X.Y.Z`, `X.Y` and `latest`, then smoke-tests the pushed image.
 - **`smoke` job**: after `build-and-push`, pulls `:latest` (the just-pushed release image) and verifies nginx serving, env injection, deep-link routes (`/notes`, `/finance/`), the `GATEWAY_UPSTREAM` nginx var and the `/api` proxy.
 
 ## `mobile-ci.yml`
 
-- PR gate (unconditional on PRs; path-filtered on pushes for `apps/mobile/**` + `packages/shared/**` + `scripts/**` + the workflow file): type-check, jest-expo unit tests, shared package vitest tests, a prod dependency audit (`npm audit`), and expo Android export (bundle build as validation).
+- PR gate (unconditional on PRs; path-filtered on pushes for `apps/mobile/**` + the workflow file): Gradle `:app:assembleDebug` + unit tests across all 13 Kotlin/Gradle modules (`kotlin-build`), then the **logic-layer coverage floor gate** — aggregate Jacoco report, `:domain` + `:core:network` LINE counters vs 50.0% (ratchet: floors only move up).
 
 ## `nightly-loadtest.yml`
 
@@ -44,8 +45,8 @@ Repository ruleset on `main`: PRs required (any merge method), branch deletion a
 | Required check | Workflow |
 |---|---|
 | `test`, `api-perf-smoke` | backend-ci.yml |
-| `lint`, `build-export`, `e2e` | frontend-ci.yml |
-| `type-check-and-export` | mobile-ci.yml |
+| `lint`, `build-export`, `e2e`, `shared-tests` | frontend-ci.yml |
+| `kotlin-build` | mobile-ci.yml |
 | `Conventional title` | pr-title.yml |
 
 `Secret scan (gitleaks)` is not required, and `release-please--branches--main` PRs run the exact same required checks (release-please PRs are exempted from nothing).
