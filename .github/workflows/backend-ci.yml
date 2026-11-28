@@ -100,14 +100,23 @@ jobs:
       - name: Run tests (with coverage)
         run: make -C .. test-backend-coverage
 
-      # Report-only coverage gate: publish the total to the run summary and
-      # keep the raw profile as a short-lived artifact. Thresholds (if any)
-      # are ratcheted later against the test-backend-coverage baseline.
+      # Hard coverage gate: publish the total to the run summary and fail the
+      # job when it drops below the floor. Ratchet policy: the floor may only
+      # move up (baseline Oct 2026: 49.1% of statements, 805 tests).
       - name: Publish coverage summary
         if: always()
         run: |
           total=$(go tool cover -func=coverage.out | tail -1 | awk '{print $3}')
           echo "Backend coverage total: ${total}" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Coverage floor gate
+        run: |
+          total=$(go tool cover -func=coverage.out | tail -1 | awk '{print $3}' | tr -d '%')
+          floor=61.0
+          if awk -v t="$total" -v f="$floor" 'BEGIN { exit (t < f) ? 0 : 1 }'; then
+            echo "Backend coverage ${total}% is below the ${floor}% floor (ratchet: floors only move up)" >&2
+            exit 1
+          fi
 
       - name: Upload coverage profile
         if: always()
