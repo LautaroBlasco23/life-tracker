@@ -161,13 +161,6 @@
     "timeOfDay": "Time of Day",
     "frequency": "Frequency",
     "daysOfWeek": "Days of the week",
-    "monday": "Monday",
-    "tuesday": "Tuesday",
-    "wednesday": "Wednesday",
-    "thursday": "Thursday",
-    "friday": "Friday",
-    "saturday": "Saturday",
-    "sunday": "Sunday",
     "creating": "Creating...",
     "createActivity": "Create Activity",
     "validationError": "Validation error",
@@ -479,6 +472,15 @@
     "october": "October",
     "november": "November",
     "december": "December"
+  },
+  "days": {
+    "monday": "Monday",
+    "tuesday": "Tuesday",
+    "wednesday": "Wednesday",
+    "thursday": "Thursday",
+    "friday": "Friday",
+    "saturday": "Saturday",
+    "sunday": "Sunday"
   },
   "timeCategories": {
     "reading": "Reading",

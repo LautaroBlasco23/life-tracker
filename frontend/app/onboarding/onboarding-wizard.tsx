@@ -16,7 +16,7 @@ import {
   type ActivityTemplateCategory,
 } from '@shared/lib/activity-templates';
 import { FINANCE_TEMPLATES } from '@shared/lib/finance-templates';
-import type { DayOfWeek } from '@shared/types/activity';
+import { formatDays } from '@shared/lib/day-format';
 import { activityService } from '@shared/services/activity-service';
 import { financeService } from '@shared/services/finance-service';
 import { userService } from '@shared/services/user-service';
@@ -37,16 +37,6 @@ const PERSONAS: Persona[] = [
   { key: 'productive', categories: ['productivity'] },
 ];
 
-const DAY_ORDER: DayOfWeek[] = [
-  'monday',
-  'tuesday',
-  'wednesday',
-  'thursday',
-  'friday',
-  'saturday',
-  'sunday',
-];
-
 type WizardStep = 'welcome' | 'activities' | 'finance' | 'done';
 
 interface CreateSummary {
@@ -59,6 +49,7 @@ export function OnboardingWizard() {
   const t = useTranslations('onboarding');
   const tTemplates = useTranslations('activityTemplates');
   const tActivities = useTranslations('activities');
+  const tDays = useTranslations('days');
   const tFinanceTemplates = useTranslations('financeTemplates');
 
   const router = useRouter();
@@ -112,11 +103,6 @@ export function OnboardingWizard() {
       return next;
     });
   };
-
-  const formatDays = (days: DayOfWeek[]): string =>
-    DAY_ORDER.filter((day) => days.includes(day))
-      .map((day) => tActivities(day))
-      .join(', ');
 
   const buildActivity = (template: ActivityTemplate) => ({
     title: tTemplates(`template_${template.key}`),
@@ -310,7 +296,7 @@ export function OnboardingWizard() {
                     {template.frequency === 'weekly' &&
                       template.dayFrequency && (
                         <Badge variant="outline" className="text-xs">
-                          {formatDays(template.dayFrequency)}
+                          {formatDays(template.dayFrequency, tDays)}
                         </Badge>
                       )}
                     <Badge variant="outline" className="text-xs">

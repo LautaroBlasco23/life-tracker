@@ -149,7 +149,7 @@ export function FixedTransactionCard({
               {!isPaidThisPeriod && (
                 <DropdownMenuItem onClick={() => onAddPayment(transaction)}>
                   <CreditCard className="h-4 w-4 mr-2" />
-                  {tCreate('recordPayment')}
+                  {t('recordPayment')}
                 </DropdownMenuItem>
               )}
               <DropdownMenuItem onClick={() => onEdit(transaction)}>

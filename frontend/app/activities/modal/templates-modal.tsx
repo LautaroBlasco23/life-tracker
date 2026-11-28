@@ -21,7 +21,7 @@ import {
   type TemplateCategory,
   type TemplateKind,
 } from '@shared/lib/activity-templates';
-import type { DayOfWeek } from '@shared/types/activity';
+import { formatDays } from '@shared/lib/day-format';
 import { activityService } from '@shared/services/activity-service';
 import { routineService } from '@shared/services/routine-service';
 import {
@@ -44,16 +44,6 @@ interface TemplatesModalProps {
   onCustomize: (template: ActivityTemplate) => void;
 }
 
-const DAY_ORDER: DayOfWeek[] = [
-  'monday',
-  'tuesday',
-  'wednesday',
-  'thursday',
-  'friday',
-  'saturday',
-  'sunday',
-];
-
 export function TemplatesModal({
   open,
   onOpenChange,
@@ -62,7 +52,7 @@ export function TemplatesModal({
 }: TemplatesModalProps) {
   const t = useTranslations('activityTemplates');
   const tActivities = useTranslations('activities');
-  const tCreate = useTranslations('createActivity');
+  const tDays = useTranslations('days');
 
   const [kind, setKind] = useState<TemplateKind>('activity');
   const [category, setCategory] = useState<TemplateCategory>('health');
@@ -111,11 +101,6 @@ export function TemplatesModal({
       return next;
     });
   };
-
-  const formatDays = (days: DayOfWeek[]): string =>
-    DAY_ORDER.filter((day) => days.includes(day))
-      .map((day) => tCreate(day))
-      .join(', ');
 
   const buildTemplate = (template: ActivityTemplate) => ({
     title: t(`template_${template.key}`),
@@ -287,7 +272,7 @@ export function TemplatesModal({
                         {template.frequency === 'weekly' &&
                           template.dayFrequency && (
                             <Badge variant="outline" className="text-xs">
-                              {formatDays(template.dayFrequency)}
+                              {formatDays(template.dayFrequency, tDays)}
                             </Badge>
                           )}
                         <Badge variant="outline" className="text-xs">

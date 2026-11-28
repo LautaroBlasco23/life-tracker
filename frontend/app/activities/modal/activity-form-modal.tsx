@@ -38,6 +38,12 @@ import type {
   DayTime,
   PrivacyStatus,
 } from '@shared/types/activity';
+import {
+  DAYS_OF_WEEK,
+  DAY_TIMES,
+  FREQUENCIES,
+  PRIVACY_STATUSES,
+} from '@shared/types/activity';
 import type { Reminder } from '@shared/types/reminder';
 import { buildDateTime, formatTimeInput } from '@shared/lib/datetime';
 import { showToast } from '@/lib/toast';
@@ -45,6 +51,17 @@ import { useTranslations } from '@shared/contexts/language-context';
 import { TimeInput } from '@/components/ui/time-input';
 
 type FormMode = 'activity' | 'reminder';
+
+/**
+ * `notSpecified` is surfaced as "Any Moment" (the label used by the activity
+ * filters); the other day-time keys match their wire values.
+ */
+const DAY_TIME_LABEL_KEYS: Record<DayTime, string> = {
+  notSpecified: 'anyMoment',
+  morning: 'morning',
+  afternoon: 'afternoon',
+  evening: 'evening',
+};
 
 export interface ActivityFormInitialValues {
   title?: string;
@@ -108,6 +125,7 @@ export function ActivityFormModal({
 
   const tAct = useTranslations('activities');
   const tCreate = useTranslations('createActivity');
+  const tDays = useTranslations('days');
   const tReminder = useTranslations('createReminder');
   const tCommon = useTranslations('common');
   const tPrivacy = useTranslations('privacy');
@@ -119,28 +137,25 @@ export function ActivityFormModal({
       ? 'reminder'
       : (lockedMode ?? mode);
 
-  const DAYS_OF_WEEK: { value: DayOfWeek; label: string }[] = [
-    { value: 'monday', label: tCreate('monday') },
-    { value: 'tuesday', label: tCreate('tuesday') },
-    { value: 'wednesday', label: tCreate('wednesday') },
-    { value: 'thursday', label: tCreate('thursday') },
-    { value: 'friday', label: tCreate('friday') },
-    { value: 'saturday', label: tCreate('saturday') },
-    { value: 'sunday', label: tCreate('sunday') },
-  ];
+  const DAY_OPTIONS = DAYS_OF_WEEK.map((value) => ({
+    value,
+    label: tDays(value),
+  }));
 
-  const DAY_TIMES: { value: DayTime; label: string }[] = [
-    { value: 'notSpecified', label: tCreate('anyMoment') },
-    { value: 'morning', label: tCreate('morning') },
-    { value: 'afternoon', label: tCreate('afternoon') },
-    { value: 'evening', label: tCreate('evening') },
-  ];
+  const DAY_TIME_OPTIONS = DAY_TIMES.map((value) => ({
+    value,
+    label: tAct(DAY_TIME_LABEL_KEYS[value]),
+  }));
 
-  const FREQUENCIES: { value: Frequency; label: string }[] = [
-    { value: 'daily', label: tCreate('daily') },
-    { value: 'weekly', label: tCreate('weekly') },
-    { value: 'monthly', label: tCreate('monthly') },
-  ];
+  const FREQUENCY_OPTIONS = FREQUENCIES.map((value) => ({
+    value,
+    label: tAct(value),
+  }));
+
+  const PRIVACY_OPTIONS = PRIVACY_STATUSES.map((value) => ({
+    value,
+    label: tPrivacy(value),
+  }));
 
   const resetForm = () => {
     setTitle('');
@@ -493,7 +508,7 @@ export function ActivityFormModal({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {DAY_TIMES.map((time) => (
+                      {DAY_TIME_OPTIONS.map((time) => (
                         <SelectItem key={time.value} value={time.value}>
                           {time.label}
                         </SelectItem>
@@ -513,7 +528,7 @@ export function ActivityFormModal({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {FREQUENCIES.map((f) => (
+                    {FREQUENCY_OPTIONS.map((f) => (
                       <SelectItem key={f.value} value={f.value}>
                         {f.label}
                       </SelectItem>
@@ -526,7 +541,7 @@ export function ActivityFormModal({
                 <div className="space-y-2">
                   <Label>{tCreate('daysOfWeek')}</Label>
                   <div className="grid grid-cols-2 gap-2">
-                    {DAYS_OF_WEEK.map((day) => (
+                    {DAY_OPTIONS.map((day) => (
                       <div
                         key={day.value}
                         className="flex items-center space-x-2"
@@ -564,10 +579,11 @@ export function ActivityFormModal({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="private">
-                      {tPrivacy('private')}
-                    </SelectItem>
-                    <SelectItem value="public">{tPrivacy('public')}</SelectItem>
+                    {PRIVACY_OPTIONS.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
                 <p className="text-xs text-muted-foreground">
