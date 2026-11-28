@@ -139,7 +139,6 @@ fun AppHost(auth: AuthRepository, sessionEvents: SessionEvents) {
                         composable(Routes.PROFILE) {
                             ProfileScreen(
                                 onLogout = { navController.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } } },
-                                onNavigate = { navController.navigate(mapNavKey(it)) },
                             )
                         }
                         composable(Routes.BACKUP) {
@@ -159,8 +158,9 @@ fun AppHost(auth: AuthRepository, sessionEvents: SessionEvents) {
                     ToastHost(state = toast)
                 }
             }
-            // Bottom navigation on the five main destinations only
-            // (login/register/profile/backup/public profile are excluded).
+            // Bottom navigation on the five main tabs and the profile screen
+            // (profile shows the bar with no tab selected); login/register/
+            // backup/public profile are excluded.
             val selectedTab = tabKeyForRoute(currentRoute)
             if (selectedTab != null) {
                 LbBottomNav(
@@ -180,10 +180,13 @@ fun AppHost(auth: AuthRepository, sessionEvents: SessionEvents) {
 }
 
 /** Route → selected bottom-nav tab key; null when the route has no tab bar. */
-private fun tabKeyForRoute(route: String?): String? = when (route) {
+internal fun tabKeyForRoute(route: String?): String? = when (route) {
     null -> null
     Routes.ACTIVITIES, Routes.TIME, Routes.NOTES, Routes.SOCIAL -> route
     Routes.FINANCE_TRANSACTIONS, Routes.FINANCE_DASHBOARD -> Routes.FINANCE_TRANSACTIONS
+    // Profile isn't a tab: show the bar (so users can leave the screen) with
+    // no item highlighted. Exact match only — "profile/backup" stays excluded.
+    Routes.PROFILE -> Routes.PROFILE
     else -> null
 }
 

@@ -581,6 +581,12 @@ deploy-frontend: frontend-up
 # `process_memory_range`) — the host GL stack via `-gpu host` is stable, with
 # or without KVM. ACCEL=off therefore is no longer needed; kept as an escape
 # hatch (TCG software CPU, slower boot → auto-extended BOOT_WAIT).
+#
+# Both recipes also pass `-no-snapshot`: quickboot snapshot resume wedges qemu
+# on this host (host GL + Mesa: CPU spins, adb stays offline, no boot
+# progress), and a snapshot saved by a wedged emulator poisons the next boot.
+# Cold boot adds ~20-40s and is reliable; delete
+# ~/.android/avd/<avd>.avd/snapshots/default_boot if an old one remains.
 ACCEL ?= on
 BOOT_WAIT ?= $(if $(filter off,$(ACCEL)),240,120)
 
@@ -631,7 +637,7 @@ mobile:
 		fi; \
 		[ -n "$$avd" ] || { echo "✗ no AVDs found — create one (Android Studio Device Manager or avdmanager)"; exit 1; }; \
 		echo "==> no device attached — starting AVD $$avd"; \
-		nohup "$(EMU)" -gpu host $(if $(filter off,$(ACCEL)),-accel off) -avd "$$avd" >/dev/null 2>&1 & \
+		nohup "$(EMU)" -gpu host -no-snapshot $(if $(filter off,$(ACCEL)),-accel off) -avd "$$avd" >/dev/null 2>&1 & \
 	fi; \
 	echo "==> waiting for emulator boot"; \
 	[ "$(ACCEL)" = off ] && echo "ACCEL=off — TCG boot can take ~5-10 min, be patient"; \
@@ -803,7 +809,7 @@ e2e-mobile:
 	fi
 	@if [ "$$($(E2E_ADB) get-state 2>/dev/null)" != "device" ]; then \
 		echo "==> no device attached — starting AVD $(E2E_AVD)"; \
-		nohup "$(E2E_EMU)" -gpu host $(if $(filter off,$(ACCEL)),-accel off) -avd $(E2E_AVD) >/dev/null 2>&1 & \
+		nohup "$(E2E_EMU)" -gpu host -no-snapshot $(if $(filter off,$(ACCEL)),-accel off) -avd $(E2E_AVD) >/dev/null 2>&1 & \
 	fi; \
 	ok=0; for i in $$(seq 1 $(BOOT_WAIT)); do \
 		[ "$$($(E2E_ADB) shell getprop sys.boot_completed 2>/dev/null | tr -d '\r')" = "1" ] && ok=1 && break; \
