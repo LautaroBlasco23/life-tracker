@@ -84,6 +84,15 @@ const mockMessages: Record<string, Record<string, string>> = {
     saturday: 'Saturday',
     sunday: 'Sunday',
   },
+  days: {
+    monday: 'Monday',
+    tuesday: 'Tuesday',
+    wednesday: 'Wednesday',
+    thursday: 'Thursday',
+    friday: 'Friday',
+    saturday: 'Saturday',
+    sunday: 'Sunday',
+  },
   common: { creating: 'Creating...' },
 };
 

@@ -121,8 +121,6 @@ async function pickSelect(
   await hold(page, 400);
   await page.getByRole('option', { name: optionLabel }).click();
   // The committed value must show in the trigger before we move on.
-  // NOTE: the activity form's SelectValue renders the raw enum ("morning",
-  // "anyMoment") rather than the translated label — assert case-insensitively.
   await expect(scope.getByRole('combobox').nth(index)).toContainText(
     new RegExp(optionLabel, 'i')
   );

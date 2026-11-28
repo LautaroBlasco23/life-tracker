@@ -29,6 +29,7 @@ import type {
   CreateCalendarEventInput,
 } from '@shared/types/calendar';
 import type { DayOfWeek } from '@shared/types/activity';
+import { DAYS_OF_WEEK } from '@shared/types/activity';
 import { TIME_CATEGORIES } from '@shared/types/time';
 import { useTranslations } from '@shared/contexts/language-context';
 import { showToast } from '@/lib/toast';
@@ -101,9 +102,9 @@ export function CalendarEventModal({
 }: CalendarEventModalProps) {
   const t = useTranslations('calendar');
   const tCommon = useTranslations('common');
-  // Day names live in the activities namespace; reusing them here keeps a
-  // single source for the translated weekday labels.
-  const tDays = useTranslations('createActivity');
+  // Weekday labels come from the shared `days` namespace so the calendar and
+  // the activity form stay in sync.
+  const tDays = useTranslations('days');
 
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState<string>('Other');
@@ -125,25 +126,20 @@ export function CalendarEventModal({
   const isEditing = event !== null;
   const isSeriesEvent = Boolean(event?.seriesId);
 
-  // Day names are shared with the activities form (same labels, same i18n
-  // namespace); the weekday checkbox grid follows its weekly-day pattern.
-  const DAYS_OF_WEEK: { value: DayOfWeek; label: string }[] = [
-    { value: 'monday', label: tDays('monday') },
-    { value: 'tuesday', label: tDays('tuesday') },
-    { value: 'wednesday', label: tDays('wednesday') },
-    { value: 'thursday', label: tDays('thursday') },
-    { value: 'friday', label: tDays('friday') },
-    { value: 'saturday', label: tDays('saturday') },
-    { value: 'sunday', label: tDays('sunday') },
-  ];
+  // Day names come from the shared enum vocabulary (same labels as the
+  // activity form); the weekday checkbox grid follows its weekly-day pattern.
+  const DAY_OPTIONS = DAYS_OF_WEEK.map((value) => ({
+    value,
+    label: tDays(value),
+  }));
 
   const handleDayToggle = (day: DayOfWeek, checked: boolean) => {
     if (checked) {
       setSelectedDays(
         [...selectedDays, day].sort(
           (a, b) =>
-            DAYS_OF_WEEK.findIndex((d) => d.value === a) -
-            DAYS_OF_WEEK.findIndex((d) => d.value === b)
+            DAY_OPTIONS.findIndex((d) => d.value === a) -
+            DAY_OPTIONS.findIndex((d) => d.value === b)
         )
       );
     } else {
@@ -407,7 +403,7 @@ export function CalendarEventModal({
             <div className="space-y-2">
               <Label>{t('repeatWeekdays')}</Label>
               <div className="grid grid-cols-2 gap-2">
-                {DAYS_OF_WEEK.map((day) => (
+                {DAY_OPTIONS.map((day) => (
                   <div key={day.value} className="flex items-center space-x-2">
                     <Checkbox
                       id={`event-repeat-day-${day.value}`}

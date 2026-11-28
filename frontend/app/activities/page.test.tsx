@@ -197,6 +197,15 @@ const mockMessages: Record<string, Record<string, string>> = {
     globalStreakLongest: 'Longest streak: {count} days',
     filterActivities: 'Filter Activities',
   },
+  days: {
+    monday: 'Monday',
+    tuesday: 'Tuesday',
+    wednesday: 'Wednesday',
+    thursday: 'Thursday',
+    friday: 'Friday',
+    saturday: 'Saturday',
+    sunday: 'Sunday',
+  },
   routines: {
     title: 'Routines',
     failedToLoad: 'Failed to load routines',

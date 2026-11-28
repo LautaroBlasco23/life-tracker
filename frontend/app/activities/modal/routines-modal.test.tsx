@@ -103,6 +103,15 @@ const mockMessages: Record<string, Record<string, string>> = {
     evening: 'Evening',
     notSpecified: 'Any Moment',
   },
+  days: {
+    monday: 'Monday',
+    tuesday: 'Tuesday',
+    wednesday: 'Wednesday',
+    thursday: 'Thursday',
+    friday: 'Friday',
+    saturday: 'Saturday',
+    sunday: 'Sunday',
+  },
   deleteModal: {
     cannotBeUndone: 'This action cannot be undone.',
     areYouSure: 'Are you sure you want to delete "{name}"?',
