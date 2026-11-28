@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountCircle
@@ -26,6 +27,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -46,6 +50,9 @@ private val HeaderHeight = 56.dp
 fun AppHeader(
     title: String,
     onProfile: () -> Unit = {},
+    /** True while the profile screen is on top: mirrors the bottom-nav
+     *  selected state (tinted pill behind the avatar). */
+    profileSelected: Boolean = false,
     /** Optional trailing actions (before the profile avatar), e.g. the
      *  finance screens' dashboard/transactions cross-links. */
     actions: @Composable RowScope.() -> Unit = {},
@@ -69,7 +76,9 @@ fun AppHeader(
                 modifier = Modifier.weight(1f),
             )
             actions()
-            // Profile entry point on every screen.
+            // Profile entry point on every screen. When profile is the current
+            // screen it gets the same 12% primary pill as a selected bottom-nav
+            // item, so the header reflects the active destination.
             Box(
                 modifier = Modifier
                     .size(44.dp)
@@ -78,15 +87,30 @@ fun AppHeader(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
                         onClick = onProfile,
-                    ),
+                    )
+                    .semantics { selected = profileSelected },
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(
-                    imageVector = Icons.Outlined.AccountCircle,
-                    contentDescription = I18n.t("nav.profile"),
-                    tint = colors.primary,
-                    modifier = Modifier.size(24.dp),
-                )
+                Box(
+                    modifier = Modifier
+                        .size(width = 40.dp, height = 32.dp)
+                        .background(
+                            color = if (profileSelected) {
+                                colors.primary.copy(alpha = 0.12f)
+                            } else {
+                                Color.Transparent
+                            },
+                            shape = CircleShape,
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.AccountCircle,
+                        contentDescription = I18n.t("nav.profile"),
+                        tint = colors.primary,
+                        modifier = Modifier.size(24.dp),
+                    )
+                }
             }
         }
         HorizontalDivider(thickness = 1.dp, color = colors.border)
