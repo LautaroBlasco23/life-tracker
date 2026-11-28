@@ -208,8 +208,12 @@ func TestCanViewProfile(t *testing.T) {
 	})
 
 	t.Run("private_profile_hidden_from_anon_viewer", func(t *testing.T) {
+		// A missing accepted follow is a false verdict, NOT an error: the
+		// error path made GetPublicProfile 404 instead of serving the
+		// locked-shell response (canView=false) the frontend renders as
+		// "This profile is private".
 		ok, err := vis.CanViewProfile(carolID, bobPrivateID)
-		assert.Error(t, err) // accepted-follow query finds nothing
+		require.NoError(t, err)
 		assert.False(t, ok)
 	})
 
@@ -257,8 +261,10 @@ func TestCanViewContent(t *testing.T) {
 	})
 
 	t.Run("public_content_on_private_profile_hidden_without_follow", func(t *testing.T) {
+		// A missing accepted follow is a false verdict, not an error — same
+		// contract as CanViewProfile (locked shell instead of a 404).
 		ok, err := vis.CanViewContent(carolID, bobPrivateID, "public")
-		assert.Error(t, err)
+		require.NoError(t, err)
 		assert.False(t, ok)
 	})
 }
@@ -440,13 +446,18 @@ func TestGetPublicProfilePrivateGuard(t *testing.T) {
 
 	_ = createPublicActivity(t, bobID)
 
-	// Non-follower viewer: CanViewProfile errors on the missing accepted
-	// follow, and GetPublicProfile propagates it (controller maps it to 404).
-	// NOTE: profile_dto.go claims "the shell is always returned" — that
-	// comment does not match the implementation.
+	// Non-follower viewer: the profile shell is served with content locked
+	// (the frontend renders "This profile is private"). Only an unknown user
+	// is a 404 — the controller maps resolveProfileTarget's error to that.
 	resp, err := svc.GetPublicProfile(aliceID, bobUsername)
-	assert.Error(t, err)
-	assert.Nil(t, resp)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.False(t, resp.CanViewContent)
+	assert.False(t, resp.IsFollowing)
+	assert.Empty(t, resp.Activities)
+	assert.Empty(t, resp.Routines)
+	assert.Equal(t, int64(0), resp.PublicActivitiesCount)
+	assert.Equal(t, int64(0), resp.PublicRoutinesCount)
 
 	// Accepted follower: content unlocked, followStatus surfaced on the card.
 	require.NoError(t, testDB.Create(&model.Follow{
