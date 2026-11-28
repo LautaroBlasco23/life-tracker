@@ -1,5 +1,33 @@
 # Changelog
 
+## [3.2.0](https://github.com/LautaroBlasco23/life-tracker/compare/v3.1.1...v3.2.0) (2026-11-28)
+
+
+### Features
+
+* **dev:** working note image uploads in the make dev fast lane ([#154](https://github.com/LautaroBlasco23/life-tracker/issues/154)) ([b3481a0](https://github.com/LautaroBlasco23/life-tracker/commit/b3481a063f3dc94448dd867a96615e34773807a2))
+
+
+### Bug Fixes
+
+* **frontend:** translate activity enum labels across forms and lists ([#166](https://github.com/LautaroBlasco23/life-tracker/issues/166)) ([430c2c8](https://github.com/LautaroBlasco23/life-tracker/commit/430c2c8e2aca0dbcbab94171e2d18c496014fc55))
+* **mobile:** render toasts above the bottom nav ([#159](https://github.com/LautaroBlasco23/life-tracker/issues/159)) ([f9990cf](https://github.com/LautaroBlasco23/life-tracker/commit/f9990cf80b92a55f3a5a795946417085e0f4ec8f))
+* **mobile:** show bottom nav and selected avatar on the profile screen ([#158](https://github.com/LautaroBlasco23/life-tracker/issues/158)) ([a90bd4c](https://github.com/LautaroBlasco23/life-tracker/commit/a90bd4cc938d2d9912cda2927feec4ee0c88c741))
+
+
+### Documentation
+
+* **mobile:** document e2e suite, unit tests and coverage matrix ([#157](https://github.com/LautaroBlasco23/life-tracker/issues/157)) ([7196f1d](https://github.com/LautaroBlasco23/life-tracker/commit/7196f1d23b9e9a13680422a6de49436895744eb4))
+
+
+### Miscellaneous Chores
+
+* **deps-dev:** bump jsdom from 30.1.3 to 31.0.1 in /frontend ([#148](https://github.com/LautaroBlasco23/life-tracker/issues/148)) ([a3cc0ae](https://github.com/LautaroBlasco23/life-tracker/commit/a3cc0ae868d987eca25ea9cffecb9d893dca3172))
+* **deps:** bump actions/setup-java from 6.2.0 to 6.3.0 ([#145](https://github.com/LautaroBlasco23/life-tracker/issues/145)) ([613fa23](https://github.com/LautaroBlasco23/life-tracker/commit/613fa23c0e649aa891545000ab7c8552250976e1))
+* **deps:** bump dorny/paths-filter from 3.0.4 to 4.0.3 ([#146](https://github.com/LautaroBlasco23/life-tracker/issues/146)) ([c541cc0](https://github.com/LautaroBlasco23/life-tracker/commit/c541cc0966c36973774b37e1e59eaab689eab5da))
+* **deps:** bump the go-minor-patch group in /backend with 7 updates ([#149](https://github.com/LautaroBlasco23/life-tracker/issues/149)) ([e52def4](https://github.com/LautaroBlasco23/life-tracker/commit/e52def4ab11c5731888472c11282f7923ae3a9c6))
+* **deps:** bump the npm-minor-patch group in /frontend with 4 updates ([#147](https://github.com/LautaroBlasco23/life-tracker/issues/147)) ([90b62be](https://github.com/LautaroBlasco23/life-tracker/commit/90b62be354d725a31d2de6e882c8e88f56ed821e))
+
 ## [3.1.1](https://github.com/LautaroBlasco23/life-tracker/compare/v3.1.0...v3.1.1) (2026-11-19)
 
 
